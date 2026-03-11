@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f3460" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SF Ops" />
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+  <title>SmartFood Ops 360</title>
+  <style>
+    :root {
+      --primary: #0f3460;
+      --accent: #e94560;
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --text: #eaeaea;
+      --text-muted: #8892a4;
+      --success: #4caf50;
+      --warning: #ff9800;
+      --danger: #f44336;
+      --radius: 12px;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-top: var(--safe-top);
+      padding-bottom: calc(var(--safe-bottom) + 64px);
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--primary);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+    #status-badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--success);
+      color: #fff;
+    }
+    #status-badge.offline { background: var(--danger); }
+
+    /* ── Views ── */
+    .view { display: none; padding: 16px; }
+    .view.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .card h3 { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+    .card .value { font-size: 28px; font-weight: 700; }
+    .card .label { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Op List ── */
+    .op-item {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      border-left: 4px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .op-item.EM_PRODUCAO { border-left-color: var(--warning); }
+    .op-item.APROVADA { border-left-color: var(--success); }
+    .op-item.PAUSADA { border-left-color: var(--danger); }
+    .op-info { flex: 1; }
+    .op-info .op-product { font-size: 16px; font-weight: 600; }
+    .op-info .op-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .badge.EM_PRODUCAO { background: rgba(255,152,0,0.2); color: var(--warning); }
+    .badge.APROVADA { background: rgba(76,175,80,0.2); color: var(--success); }
+    .badge.PAUSADA { background: rgba(244,67,54,0.2); color: var(--danger); }
+    .badge.CONCLUIDA { background: rgba(33,150,243,0.2); color: #2196f3; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      border: none;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 8px;
+      transition: opacity 0.15s;
+    }
+    .btn:active { opacity: 0.75; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--primary); color: #fff; }
+    .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--text); }
+
+    /* ── Alert List ── */
+    .alert-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+    .alert-icon { font-size: 20px; flex-shrink: 0; }
+    .alert-text .alert-title { font-weight: 600; font-size: 14px; }
+    .alert-text .alert-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+    /* ── Bottom Nav ── */
+    nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-bottom: var(--safe-bottom);
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 0 8px;
+      cursor: pointer;
+      font-size: 11px;
+      color: var(--text-muted);
+      gap: 4px;
+      border: none;
+      background: none;
+      transition: color 0.15s;
+    }
+    .nav-item .nav-icon { font-size: 22px; }
+    .nav-item.active { color: var(--accent); }
+
+    /* ── Barcode Scanner ── */
+    #scanner-area {
+      background: #000;
+      border-radius: var(--radius);
+      aspect-ratio: 4/3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    #scanner-area video { width: 100%; height: 100%; object-fit: cover; }
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scan-frame {
+      width: 60%;
+      aspect-ratio: 1;
+      border: 3px solid var(--accent);
+      border-radius: 8px;
+    }
+
+    /* ── Form inputs ── */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      padding: 12px 14px;
+      background: var(--bg);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 16px;
+    }
+    .field input:focus, .field select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ── Loading ── */
+    .loading { text-align: center; padding: 32px; color: var(--text-muted); font-size: 14px; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toast-container { position: fixed; top: 72px; left: 16px; right: 16px; z-index: 200; }
+    .toast {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      animation: slideIn 0.3s ease;
+      border-left: 4px solid var(--accent);
+    }
+    .toast.success { border-left-color: var(--success); }
+    .toast.error { border-left-color: var(--danger); }
+    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* ── Section title ── */
+    .section-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin: 16px 0 10px;
+    }
+
+    .offline-banner {
+      background: var(--danger);
+      color: #fff;
+      text-align: center;
+      padding: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .offline-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<div id="offline-banner" class="offline-banner">
+  📵 Modo Offline — eventos serão sincronizados ao reconectar
+</div>
+
+<header>
+  <h1>SF Ops 360</h1>
+  <span id="status-badge">Online</span>
+</header>
+
+<div id="toast-container"></div>
+
+<!-- ── Views ── -->
+
+<div id="view-dashboard" class="view active">
+  <div class="loading" id="dashboard-loading">
+    <div class="spinner"></div>
+    Carregando dashboard...
+  </div>
+  <div id="dashboard-content" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="card">
+        <h3>OPs Ativas</h3>
+        <div class="value" id="kpi-ops">—</div>
+        <div class="label">em produção</div>
+      </div>
+      <div class="card">
+        <h3>Alertas</h3>
+        <div class="value" id="kpi-alerts">—</div>
+        <div class="label">pendentes</div>
+      </div>
+      <div class="card">
+        <h3>Entregas Hoje</h3>
+        <div class="value" id="kpi-deliveries">—</div>
+        <div class="label">pedidos</div>
+      </div>
+      <div class="card">
+        <h3>Compras Urgentes</h3>
+        <div class="value" id="kpi-purchases">—</div>
+        <div class="label">insumos críticos</div>
+      </div>
+    </div>
+    <p class="section-title">Alertas Recentes</p>
+    <div id="dashboard-alerts"></div>
+  </div>
+</div>
+
+<div id="view-ops" class="view">
+  <div class="loading" id="ops-loading">
+    <div class="spinner"></div>
+    Carregando ordens...
+  </div>
+  <div id="ops-content" style="display:none">
+    <p class="section-title">Ordens Ativas</p>
+    <div id="ops-list"></div>
+  </div>
+  <!-- OP Detail (oculto por padrão) -->
+  <div id="op-detail" style="display:none">
+    <button class="btn btn-outline" onclick="closeOpDetail()" style="margin-bottom:12px">← Voltar</button>
+    <div class="card">
+      <h3>Ordem de Produção</h3>
+      <div id="op-detail-content"></div>
+    </div>
+    <div id="op-actions"></div>
+  </div>
+</div>
+
+<div id="view-scan" class="view">
+  <p class="section-title">Leitura de Código de Barras / QR</p>
+  <div id="scanner-area">
+    <video id="scanner-video" autoplay playsinline muted></video>
+    <div class="scan-overlay">
+      <div class="scan-frame"></div>
+    </div>
+  </div>
+  <div id="scan-result" class="card" style="display:none">
+    <h3>Resultado</h3>
+    <div id="scan-result-content"></div>
+  </div>
+  <button class="btn btn-primary" id="btn-scan" onclick="startScan()">
+    📷 Iniciar Scanner
+  </button>
+  <div class="field" style="margin-top:16px">
+    <label>Ou digite o código manualmente:</label>
+    <input type="text" id="manual-code" placeholder="EAN / Lote / QR code" inputmode="numeric" />
+  </div>
+  <button class="btn btn-secondary" onclick="lookupManualCode()">Consultar</button>
+</div>
+
+<div id="view-sync" class="view">
+  <p class="section-title">Sincronização Offline</p>
+  <div class="card">
+    <h3>Fila Local</h3>
+    <div class="value" id="queue-count">0</div>
+    <div class="label">eventos pendentes</div>
+  </div>
+  <button class="btn btn-primary" onclick="syncNow()">🔄 Sincronizar Agora</button>
+  <p class="section-title" style="margin-top:20px">Último Sync</p>
+  <div class="card">
+    <div id="last-sync-info">Nenhum sync registrado nesta sessão.</div>
+  </div>
+  <p class="section-title" style="margin-top:20px">Bundle Offline</p>
+  <div class="card">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">
+      Baixa todos os dados necessários para operar sem internet.
+    </p>
+    <button class="btn btn-secondary" onclick="downloadBundle()">⬇ Baixar Bundle Offline</button>
+  </div>
+</div>
+
+<!-- ── Bottom Nav ── -->
+<nav>
+  <button class="nav-item active" id="nav-dashboard" onclick="showView('dashboard')">
+    <span class="nav-icon">🏠</span>
+    Dashboard
+  </button>
+  <button class="nav-item" id="nav-ops" onclick="showView('ops')">
+    <span class="nav-icon">⚙️</span>
+    Produção
+  </button>
+  <button class="nav-item" id="nav-scan" onclick="showView('scan')">
+    <span class="nav-icon">📷</span>
+    Scanner
+  </button>
+  <button class="nav-item" id="nav-sync" onclick="showView('sync')">
+    <span class="nav-icon">🔄</span>
+    Sync
+  </button>
+</nav>
+
+<script>
+/* ─────────────────────────────────────────────────────────────────────────
+   SmartFood Ops 360 — Mobile PWA App
+   E-19: Operador mobile com suporte offline via IndexedDB + Background Sync
+   ───────────────────────────────────────────────────────────────────────── */
+
+const API = "";  // mesmo origin
+let isOnline = navigator.onLine;
+let db_idb = null;  // IndexedDB para fila offline
+
+// ─── Service Worker Registration ─────────────────────────────────────────────
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker
+    .register("/static/sw.js")
+    .then((reg) => {
+      console.log("SW registered:", reg.scope);
+      // Listener para mensagem do SW pedindo flush
+      navigator.serviceWorker.addEventListener("message", (e) => {
+        if (e.data?.type === "SYNC_REQUESTED") syncNow();
+      });
+    })
+    .catch((e) => console.error("SW registration failed:", e));
+}
+
+// ─── IndexedDB para fila offline ─────────────────────────────────────────────
+
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open("smartfood-offline", 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains("events")) {
+        const store = db.createObjectStore("events", { keyPath: "event_id" });
+        store.createIndex("status", "status");
+      }
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function queueEvent(eventType, payload) {
+  const db = await openIDB();
+  const event = {
+    event_id: crypto.randomUUID(),
+    event_type: eventType,
+    payload,
+    synced_at: new Date().toISOString(),
+    status: "pending",
+  };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("events", "readwrite");
+    tx.objectStore("events").add(event);
+    tx.oncomplete = () => resolve(event.event_id);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getPendingEvents() {
+  const db = await openIDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction("events", "readonly");
+    const req = tx.objectStore("events").index("status").getAll("pending");
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+async function markEventSynced(eventId) {
+  const db = await openIDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction("events", "readwrite");
+    const store = tx.objectStore("events");
+    const req = store.get(eventId);
+    req.onsuccess = () => {
+      const rec = req.result;
+      if (rec) { rec.status = "synced"; store.put(rec); }
+      resolve();
+    };
+  });
+}
+
+async function countPendingEvents() {
+  const db = await openIDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction("events", "readonly");
+    const req = tx.objectStore("events").index("status").count("pending");
+    req.onsuccess = () => resolve(req.result);
+  });
+}
+
+// ─── Online/Offline ───────────────────────────────────────────────────────────
+
+function updateOnlineStatus() {
+  isOnline = navigator.onLine;
+  const badge = document.getElementById("status-badge");
+  const banner = document.getElementById("offline-banner");
+  if (isOnline) {
+    badge.textContent = "Online";
+    badge.className = "";
+    banner.classList.remove("visible");
+    syncNow();  // auto-sync ao reconectar
+  } else {
+    badge.textContent = "Offline";
+    badge.className = "offline";
+    banner.classList.add("visible");
+  }
+  updateQueueCount();
+}
+
+window.addEventListener("online", updateOnlineStatus);
+window.addEventListener("offline", updateOnlineStatus);
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+
+function showView(name) {
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
+  document.getElementById(`view-${name}`).classList.add("active");
+  document.getElementById(`nav-${name}`).classList.add("active");
+  if (name === "dashboard") loadDashboard();
+  else if (name === "ops") loadOps();
+  else if (name === "sync") updateQueueCount();
+}
+
+// ─── API helper ──────────────────────────────────────────────────────────────
+
+async function apiFetch(path, opts = {}) {
+  const deviceId = getDeviceId();
+  const headers = { "Content-Type": "application/json", "X-Device-Id": deviceId, ...opts.headers };
+  const res = await fetch(API + path, { ...opts, headers });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function getDeviceId() {
+  let id = localStorage.getItem("sf-device-id");
+  if (!id) {
+    id = "device-" + crypto.randomUUID().slice(0, 8);
+    localStorage.setItem("sf-device-id", id);
+  }
+  return id;
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+
+function toast(msg, type = "info") {
+  const container = document.getElementById("toast-container");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  const icon = type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  document.getElementById("dashboard-loading").style.display = "block";
+  document.getElementById("dashboard-content").style.display = "none";
+  try {
+    const data = await apiFetch("/mobile/dashboard");
+    document.getElementById("kpi-ops").textContent = data.ops_ativas ?? 0;
+    document.getElementById("kpi-alerts").textContent = data.total_alertas ?? 0;
+    document.getElementById("kpi-deliveries").textContent = data.entregas_hoje ?? 0;
+    document.getElementById("kpi-purchases").textContent = data.compras_urgentes ?? 0;
+
+    const alertsEl = document.getElementById("dashboard-alerts");
+    alertsEl.innerHTML = "";
+    (data.alertas_recentes || []).slice(0, 5).forEach((a) => {
+      alertsEl.innerHTML += `
+        <div class="alert-item">
+          <span class="alert-icon">${a.icone || "⚠️"}</span>
+          <div class="alert-text">
+            <div class="alert-title">${a.titulo}</div>
+            <div class="alert-sub">${a.detalhe || ""}</div>
+          </div>
+        </div>`;
+    });
+    if (!data.alertas_recentes?.length) {
+      alertsEl.innerHTML = `<div class="alert-item"><span class="alert-icon">✅</span><div class="alert-text"><div class="alert-title">Nenhum alerta no momento</div></div></div>`;
+    }
+    document.getElementById("dashboard-loading").style.display = "none";
+    document.getElementById("dashboard-content").style.display = "block";
+  } catch (e) {
+    document.getElementById("dashboard-loading").innerHTML = `<p style="color:var(--danger)">Erro ao carregar. ${isOnline ? "Tente novamente." : "Sem conexão."}</p>`;
+  }
+}
+
+// ─── Ordens de Produção ───────────────────────────────────────────────────────
+
+async function loadOps() {
+  document.getElementById("op-detail").style.display = "none";
+  document.getElementById("ops-loading").style.display = "block";
+  document.getElementById("ops-content").style.display = "none";
+  try {
+    const data = await apiFetch("/mobile/production-orders/active");
+    const list = document.getElementById("ops-list");
+    list.innerHTML = "";
+    if (!data.length) {
+      list.innerHTML = `<div class="card" style="color:var(--text-muted);text-align:center">Nenhuma OP ativa no momento</div>`;
+    } else {
+      data.forEach((op) => {
+        list.innerHTML += `
+          <div class="op-item ${op.status}" onclick="openOpDetail('${op.id}')">
+            <div class="op-info">
+              <div class="op-product">${op.produto}</div>
+              <div class="op-meta">${op.quantidade_planejada} un · OP-${op.id.slice(0,8).toUpperCase()}</div>
+            </div>
+            <span class="badge ${op.status}">${op.status.replace("_", " ")}</span>
+          </div>`;
+      });
+    }
+    document.getElementById("ops-loading").style.display = "none";
+    document.getElementById("ops-content").style.display = "block";
+  } catch (e) {
+    document.getElementById("ops-loading").innerHTML = `<p style="color:var(--danger)">Erro ao carregar OPs.</p>`;
+  }
+}
+
+async function openOpDetail(opId) {
+  document.getElementById("ops-content").style.display = "none";
+  document.getElementById("op-detail").style.display = "block";
+  document.getElementById("op-detail-content").innerHTML = `<div class="spinner" style="margin:16px auto"></div>`;
+  try {
+    const op = await apiFetch(`/mobile/production-orders/${opId}`);
+    document.getElementById("op-detail-content").innerHTML = `
+      <p style="font-size:18px;font-weight:700;margin:4px 0">${op.produto}</p>
+      <p style="color:var(--text-muted);font-size:13px">OP-${op.id.slice(0,8).toUpperCase()}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
+        <div><span style="color:var(--text-muted);font-size:12px">Planejado</span><div style="font-size:18px;font-weight:700">${op.quantidade_planejada} un</div></div>
+        <div><span style="color:var(--text-muted);font-size:12px">Status</span><div><span class="badge ${op.status}">${op.status.replace("_"," ")}</span></div></div>
+      </div>
+      ${op.operador_id ? `<p style="margin-top:10px;font-size:13px;color:var(--text-muted)">Operador: ${op.operador_id}</p>` : ""}
+    `;
+    const actions = document.getElementById("op-actions");
+    actions.innerHTML = "";
+    if (op.status === "APROVADA") {
+      actions.innerHTML += `<button class="btn btn-primary" onclick="quickStartOp('${op.id}')">▶ Iniciar Produção</button>`;
+    }
+    if (op.status === "EM_PRODUCAO") {
+      actions.innerHTML += `
+        <div class="field"><label>Quantidade Real Produzida:</label><input type="number" id="qty-real" placeholder="ex: 450" inputmode="decimal" /></div>
+        <button class="btn btn-primary" onclick="completeOp('${op.id}')">✅ Concluir OP</button>`;
+    }
+  } catch {
+    document.getElementById("op-detail-content").innerHTML = `<p style="color:var(--danger)">Erro ao carregar detalhes.</p>`;
+  }
+}
+
+function closeOpDetail() {
+  document.getElementById("op-detail").style.display = "none";
+  document.getElementById("ops-content").style.display = "block";
+}
+
+async function quickStartOp(opId) {
+  const operador = localStorage.getItem("sf-operador") || prompt("Seu nome ou matrícula:");
+  if (!operador) return;
+  localStorage.setItem("sf-operador", operador);
+  try {
+    if (isOnline) {
+      await apiFetch(`/mobile/production-orders/${opId}/quick-start`, {
+        method: "POST",
+        body: JSON.stringify({ operador_id: operador }),
+      });
+    } else {
+      await queueEvent("production_start", { batch_id: opId, operador_id: operador });
+      toast("Ação salva offline — será sincronizada ao reconectar", "info");
+    }
+    toast("OP iniciada com sucesso!", "success");
+    openOpDetail(opId);
+  } catch (e) {
+    toast("Erro ao iniciar OP: " + e.message, "error");
+  }
+}
+
+async function completeOp(opId) {
+  const qty = parseFloat(document.getElementById("qty-real")?.value);
+  if (!qty || qty <= 0) { toast("Informe a quantidade produzida", "error"); return; }
+  try {
+    if (isOnline) {
+      await apiFetch(`/mobile/production-orders/${opId}/complete`, {
+        method: "POST",
+        body: JSON.stringify({ quantidade_real: qty }),
+      });
+    } else {
+      await queueEvent("production_complete", { batch_id: opId, quantidade_real: qty });
+      toast("Conclusão salva offline — será sincronizada ao reconectar", "info");
+    }
+    toast("OP concluída!", "success");
+    closeOpDetail();
+    loadOps();
+  } catch (e) {
+    toast("Erro ao concluir OP: " + e.message, "error");
+  }
+}
+
+// ─── Barcode Scanner ─────────────────────────────────────────────────────────
+
+let videoStream = null;
+
+async function startScan() {
+  const video = document.getElementById("scanner-video");
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    video.srcObject = videoStream;
+    document.getElementById("btn-scan").textContent = "⏹ Parar Scanner";
+    document.getElementById("btn-scan").onclick = stopScan;
+
+    // Usa BarcodeDetector nativo se disponível
+    if ("BarcodeDetector" in window) {
+      const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "qr_code", "code_128"] });
+      const scanInterval = setInterval(async () => {
+        if (!videoStream) { clearInterval(scanInterval); return; }
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0) {
+            clearInterval(scanInterval);
+            stopScan();
+            handleScanResult(barcodes[0].rawValue);
+          }
+        } catch {}
+      }, 300);
+    } else {
+      toast("BarcodeDetector não suportado neste browser. Use entrada manual.", "info");
+    }
+  } catch {
+    toast("Permissão de câmera negada ou não disponível", "error");
+  }
+}
+
+function stopScan() {
+  if (videoStream) {
+    videoStream.getTracks().forEach((t) => t.stop());
+    videoStream = null;
+  }
+  document.getElementById("btn-scan").textContent = "📷 Iniciar Scanner";
+  document.getElementById("btn-scan").onclick = startScan;
+}
+
+async function handleScanResult(code) {
+  document.getElementById("scan-result").style.display = "block";
+  document.getElementById("scan-result-content").innerHTML = `<div class="spinner" style="margin:8px auto"></div>`;
+  try {
+    const data = await apiFetch(`/mobile/barcode/${encodeURIComponent(code)}`);
+    document.getElementById("scan-result-content").innerHTML = `
+      <p style="font-weight:700;font-size:16px">${data.nome || code}</p>
+      <p style="font-size:13px;color:var(--text-muted)">Tipo: ${data.tipo || "—"} · Estoque: ${data.estoque_atual ?? "—"}</p>
+      ${data.lote ? `<p style="font-size:12px;margin-top:6px">Lote: ${data.lote}</p>` : ""}
+    `;
+    toast("Código identificado: " + (data.nome || code), "success");
+  } catch {
+    document.getElementById("scan-result-content").innerHTML = `<p style="color:var(--danger)">Código não encontrado: ${code}</p>`;
+  }
+}
+
+function lookupManualCode() {
+  const code = document.getElementById("manual-code").value.trim();
+  if (!code) { toast("Digite um código", "error"); return; }
+  handleScanResult(code);
+}
+
+// ─── Sync ─────────────────────────────────────────────────────────────────────
+
+async function updateQueueCount() {
+  const count = await countPendingEvents();
+  document.getElementById("queue-count").textContent = count;
+}
+
+async function syncNow() {
+  if (!isOnline) { toast("Sem conexão para sincronizar", "error"); return; }
+  const pending = await getPendingEvents();
+  if (!pending.length) { toast("Nenhum evento pendente", "info"); return; }
+
+  try {
+    const res = await apiFetch("/sync", {
+      method: "POST",
+      body: JSON.stringify({ device_id: getDeviceId(), events: pending }),
+    });
+    for (const ev of pending) await markEventSynced(ev.event_id);
+    const info = `${res.processados} proc · ${res.ignorados_duplicata} dup · ${res.erros} erros`;
+    document.getElementById("last-sync-info").innerHTML = `
+      <p style="font-size:14px">✅ Sincronizado em ${new Date().toLocaleTimeString("pt-BR")}</p>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:4px">${info}</p>
+    `;
+    toast(`Sync concluído: ${res.processados} eventos`, "success");
+    updateQueueCount();
+  } catch (e) {
+    toast("Erro no sync: " + e.message, "error");
+  }
+}
+
+async function downloadBundle() {
+  toast("Baixando bundle offline...", "info");
+  try {
+    const bundle = await apiFetch("/mobile/offline-bundle");
+    localStorage.setItem("sf-bundle", JSON.stringify(bundle));
+    localStorage.setItem("sf-bundle-ts", new Date().toISOString());
+    toast(`Bundle salvo: ${Object.keys(bundle).join(", ")}`, "success");
+  } catch {
+    toast("Erro ao baixar bundle", "error");
+  }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+updateOnlineStatus();
+loadDashboard();
+</script>
+</body>
+</html>

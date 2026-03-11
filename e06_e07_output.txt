@@ -1,0 +1,12 @@
+=== E-06 ===
+E-06
+🧠 Orquestrador de Alertas Inteligentes
+P1 — Alta
+Sprint 2
+
+=== E-07 ===
+E-07
+Gestão de Estoque com PVPS e Lotes
+P0 — Crítico
+Sprint 2
+

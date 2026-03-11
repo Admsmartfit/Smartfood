@@ -1,0 +1,19 @@
+E-05.1 Modelos de Previsão Disponíveis
+O sistema oferece 3 modelos de previsão, selecionáveis pelo gestor. O modelo padrão é a Média Móvel Ponderada por ser simples, interpretável e suficientemente preciso para o volume de uma cozinha industrial pequena.
+[ROW] Modelo	Descrição	Quando Usar	Precisão Esperada
+[ROW] Média Móvel Ponderada (Padrão)	Média dos últimos 7/30/90 dias com pesos decrescentes para o passado distante. Simples e robusto.	Histórico < 6 meses ou demanda relativamente estável	±15-25% de erro médio
+[ROW] Suavização Exponencial (Holt-Winters)	Captura tendência e sazonalidade com parâmetros alpha, beta, gamma. Ideal para séries com padrão semanal claro.	Histórico > 3 meses, variação semanal visível (bar movimenta mais no fim de semana)	±10-18% de erro médio
+[ROW] Regressão Linear com Dummy Sazonal	Regressão com variáveis binárias para dia da semana, feriados e mês. Explica causas da variação.	Histórico > 6 meses, necessidade de explicabilidade para o gestor	±12-20% de erro médio
+E-05.2 Mapa de Sazonalidade — Fatores por Tipo de Dia
+[ROW] Tipo de Dia	Fator Padrão	Intervalo	Base de Cálculo	Exemplo Prático
+[ROW] Segunda a Quinta (útil)	1.0×	0.7 – 1.2	Média histórica dos úteis	Consumo normal de bares — mov. moderado
+[ROW] Sexta-feira	1.6×	1.3 – 2.0	Média das sextas ÷ média geral	Bares começam a encher → pico de pedidos
+[ROW] Sábado	2.1×	1.7 – 2.6	Média dos sábados ÷ média geral	Maior movimento semanal dos bares parceiros
+[ROW] Domingo	1.4×	1.0 – 1.8	Média dos domingos ÷ média geral	Almoço em família — consumo moderado-alto
+[ROW] Feriado Nacional	1.8×	1.4 – 2.3	Média dos feriados ÷ média geral	Comportamento similar ao sábado
+[ROW] Véspera de Feriado	2.0×	1.6 – 2.5	Média das vésperas ÷ média geral	Bar estoca com antecedência — pico de pedido
+[ROW] Evento Local (Copa, etc.)	2.8×	2.0 – 4.0	Configurável pelo gestor	Jogos do Brasil → demanda explosiva em bares
+[ROW] Janeiro / Férias	0.7×	0.5 – 0.9	Média de janeiro ÷ média anual	Queda de movimento em bares da cidade
+E-05.3 Prompt para Jules — Previsão e Sazonalidade
+[ROW] 📋  PROMPT E-05 — Cole no Jules / Google AI Studio | Implemente em Python o módulo SeasonalForecaster para o SmartFood Ops 360. Requisitos: (1) Classe DemandAnalyzer com método get_seasonality_factors(product_id) que analisa o histórico de demand_events e retorna um dicionário com fator multiplicador para cada dia da semana (0=segunda a 6=domingo); (2) Método detect_holidays(date) integrado com API de feriados brasileiros (python-holidays lib); (3) Método weighted_moving_average(series, weights=[0.5, 0.3, 0.2]) para períodos de 7, 30 e 90 dias; (4) Classe HoltWinters(alpha, beta, gamma) com fit() e forecast(steps) para produtos com histórico > 90 dias; (5) Endpoint GET /products/{id}/forecast?days=14 que seleciona automaticamente o melhor modelo baseado no tamanho do histórico disponível e retorna: modelo_usado, previsao_por_dia (lista), total_previsto, confianca_pct, proximos_picos_identificados; (6) Endpoint POST /seasonality/custom-event que permite registrar eventos especiais (ex: Copa do Mundo, show local) com fator multiplicador manual.
+[ROW] 🧠 ETAPA E-06 — Orquestrador de Alertas Inteligentes

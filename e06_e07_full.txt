@@ -1,0 +1,171 @@
+=== E-06 — FULL SECTION ===
+🧠 ETAPA E-06 — Orquestrador de Alertas Inteligentes
+E-06.1 Taxonomia Completa de Alertas
+O sistema possui 4 categorias de alertas, cada uma com severidade, canal de notificação e ação esperada definidos. O gestor configura quais alertas recebe e por qual canal.
+🔴
+Alerta
+Categoria
+Gatilho
+Canal
+Ação Sugerida
+🔴
+Margem abaixo do mínimo
+Financeiro
+Margem < threshold configurado
+Push + WhatsApp Gestor
+Recalcular preço imediatamente
+🔴
+Insumo crítico: comprar HOJE
+Estoque
+Lead time > dias restantes de estoque
+Push + WhatsApp + Email
+Acionar cotação automática
+🔴
+Produção não iniciada: pedido atrasado
+Produção
+Ordem de produção não iniciada D-1 da entrega
+WhatsApp Gestor + Operador
+Abrir OP urgente
+🟡
+Demanda prevista supera capacidade
+Capacidade
+Forecast 7 dias > capacidade diária × 7
+Push Gestor
+Revisar agenda de produção
+🟡
+Margem em risco (insumo subiu)
+Financeiro
+Insumo subiu >5% e impacta margem
+Push Gestor
+Simular novo preço
+🟡
+Insumo: comprar em 3 dias
+Estoque
+Cobertura entre lead_time e lead_time+3
+Push
+Planejar cotação
+🟡
+Sazonalidade alta detectada
+Demanda
+Próximos 7 dias incluem feriado ou fim de semana longo
+Push Gestor
+Antecipar produção
+🟢
+Produção sugerida pronta
+Produção
+Motor gera plano diário às 23h59
+Dashboard
+Revisar e aprovar plano
+🟢
+Novo pedido recebido no portal
+Comercial
+Cliente fez pedido B2B
+Push + WhatsApp Gestor
+Confirmar e planejar produção
+🟢
+Cotação respondida pelo fornecedor
+Compras
+Mensagem de cotação recebida e processada por IA
+Push
+Revisar e aprovar melhor oferta
+🔵
+SPI do fornecedor caiu
+Qualidade
+Fornecedor acumulou 2+ divergências no mês
+Dashboard
+Contato para alinhamento
+🔵
+Bar sem pedido há X dias
+Comercial
+Cliente não compra há mais dias que a média histórica
+WhatsApp automático ao bar
+Mensagem proativa de reposição
+E-06.2 Prompt para Jules — Orquestrador de Alertas
+📋  PROMPT E-06 — Cole no Jules / Google AI Studio
+Implemente o AlertOrchestrator em Python (FastAPI + APScheduler) para o SmartFood Ops 360. Requisitos: (1) Classe AlertOrchestrator com método evaluate_all() que roda a cada 15 minutos e avalia todos os alertas definidos; (2) Para cada regra, implementar: verificar condição, criar registro em system_alerts se nova, atualizar se já existente, marcar como resolvido se condição não existe mais; (3) Serviço NotificationDispatcher com métodos send_whatsapp(phone, message) via Mega API e send_push(user_id, title, body) via Firebase FCM; (4) Deduplicação: o mesmo alerta não deve ser enviado mais de uma vez a cada 4 horas; (5) Endpoint GET /alerts/active que retorna alertas agrupados por categoria e severidade; (6) Endpoint POST /alerts/{id}/snooze?hours=2 para o gestor silenciar temporariamente; (7) Configuração por usuário: endpoint PUT /notifications/preferences para definir quais alertas chegam por qual canal.
+
+=== E-07 — FULL SECTION ===
+ETAPA E-07 — Gestão de Estoque com PVPS e Rastreabilidade de Lotes
+E-07.1 Regras de Negócio do Estoque
+PVPS (Primeiro que Vence, Primeiro que Sai): O sistema sempre sugere consumir o lote mais antigo primeiro, exibindo data de validade na tela do operador
+Estoque de Segurança Dinâmico: Calculado como média_consumo_diario × (lead_time_fornecedor + 2 dias de buffer). Recalculado semanalmente pelo Motor de Demanda
+Ponto de Ressuprimento Automático: Quando estoque ≤ Estoque de Segurança + Consumo no Lead Time, alerta de compra é gerado
+Lote de Insumo → Lote de Produto: Rastreabilidade completa. Ao fazer recall ou auditoria, o sistema mostra exatamente quais produtos foram feitos com qual lote de insumo
+Ajuste de Inventário com Justificativa: Qualquer ajuste manual de estoque exige foto + motivo (quebra, validade, roubo). Auditado
+Divergência de Recebimento: Peso real vs. NF-e. Tolerância configurável (padrão ±0.5%). Acima da tolerância: chamado automático ao fornecedor
+E-07.2 Prompt para Jules — Estoque e Lotes
+📋  PROMPT E-07 — Cole no Jules / Google AI Studio
+Implemente o InventoryService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Entrada de insumos: endpoint POST /inventory/receive que recebe NF-e XML (parser com lxml), cria lote, atualiza estoque e compara peso NF vs. peso_balança_informado, gerando alerta se divergência > tolerância configurada; (2) PVPS: função get_fifo_lots(ingredient_id, qty_needed) que retorna lista de lotes a consumir em ordem de vencimento; (3) Consumo de produção: endpoint POST /production/{batch_id}/consume que deduz insumos do estoque usando PVPS; (4) Estoque de segurança: função calculate_safety_stock(ingredient_id) = media_consumo_diario × (lead_time_dias + 2); (5) Rastreabilidade: endpoint GET /traceability/product-batch/{batch_id} que retorna todos os insumos usados com seus lotes de origem; (6) Ajuste manual: endpoint POST /inventory/adjust com campos: ingredient_id, qty_ajuste, motivo, foto_base64 — registrar em log de auditoria.
+ETAPA E-08 — Gestão de Insumos Não-Alimentícios (Embalagens e Limpeza)
+Embalagens e suprimentos de limpeza são insumos de produção como qualquer outro. A falta de uma bobina de etiqueta para produção de 2.000 coxinhas é tão crítica quanto a falta da farinha. O sistema trata esses insumos com a mesma inteligência.
+Categoria
+Exemplos
+Unidade
+Lógica de Consumo
+Embalagem Primária
+Saco de vácuo 500g, saco stand-up 1kg
+unid
+Definido na BOM: 1 saco por unidade de produto
+Embalagem Secundária
+Caixa master papelão, fita adesiva
+unid / rolo
+1 caixa a cada N unidades (configurável na BOM)
+Etiqueta Térmica
+Bobina 100×60mm, 100×40mm
+bobinas
+N etiquetas por bobina ÷ unidades por lote
+Limpeza / Sanitização
+Detergente alcalino, cloro, álcool 70%
+litros
+Consumo diário fixo × dias de produção no mês
+EPI / Segurança
+Luvas descartáveis, touca, avental
+pack / unid
+Consumo diário fixo por operador × dias
+Material de Escritório
+Papel, caneta, etiqueta de caixa
+unid / resma
+Consumo mensal estimado fixo
+⚡  Regra Crítica: Lead Time de Embalagem Personalizada
+Embalagens com logo personalizado (silk screen ou impressão gráfica) têm lead time de 15 a 25 dias — muito maior que proteínas (1-3 dias). O Motor de Demanda deve tratar esses insumos com prioridade máxima no cálculo de antecedência de compra. A fórmula de alerta usa: data_producao_prevista - lead_time_embalagem = data_limite_pedido.
+E-08.2 Prompt para Jules — Insumos Não-Alimentícios
+📋  PROMPT E-08 — Cole no Jules / Google AI Studio
+Estenda o InventoryService para suportar insumos não-alimentícios (supplies) no SmartFood Ops 360. Requisitos: (1) Modelo Supply com campo tipo (embalagem_primaria | embalagem_secundaria | etiqueta | limpeza | epi | outros) e consumo_por_lote (para embalagens) ou consumo_diario_fixo (para limpeza/EPI); (2) Lógica de consumo dual: supplies de embalagem são consumidos pela BOM de produção; supplies de limpeza/EPI são consumidos por um job diário baseado em consumo_diario_fixo × num_operadores_ativos; (3) Cálculo de lead time crítico: para supplies com lead_time_dias > 10, o alerta de compra deve ser gerado com antecedência dobrada; (4) Endpoint GET /supplies/critical que lista insumos onde (estoque_atual / consumo_diario) <= (lead_time_dias + 3), ordenados por urgência; (5) Integração com Motor de Demanda: ao gerar plano de produção, incluir automaticamente a verificação de embalagens e etiquetas necessárias.
+ETAPA E-09 — Compras Hyper-Automation (Mega API + Gmail)
+E-09.1 Fluxo Completo de Cotação Automática
+Passo
+Ação / Trigger
+Dado de Entrada
+Saída / Resultado
+1
+Alerta de compra gerado pelo Motor (E-06)
+Insumo + qty necessária + data limite
+Item adicionado ao 'Carrinho de Cotação Pendente'
+2
+Gestor revisa e aprova envio de RFQ
+Seleção de fornecedores para cotar (1-5 por item)
+RFQ criado no banco com status 'pendente'
+3
+Envio simultâneo WhatsApp + Email
+Template personalizado por fornecedor + produto
+Mensagem entregue. Log de envio registrado.
+4
+IA monitora respostas (inbox unificado)
+Mensagem do fornecedor em texto livre
+Preço, prazo e condições extraídos e estruturados
+5
+Comparação automática e ranking
+Respostas estruturadas de todos os fornecedores
+Tabela: fornecedor A=R$X/14d, B=R$Y/7d. Melhor destacado.
+6
+Aprovação pelo Gestor (1 clique)
+Seleção do fornecedor vencedor
+Ordem de Compra gerada em PDF
+7
+Envio da OC ao fornecedor
+PDF da OC + confirmação de dados
+Email + WhatsApp com PDF. Status: 'OC enviada'
+8
+Recebimento e entrada no estoque (E-07)
+NF-e XML + pesagem física
+Estoque atualizado. Custo diluído na BOM.

@@ -1,0 +1,4 @@
+E-04
+🧠 Motor de Inteligência de Demanda (MRP Preditivo)
+P0 — Crítico
+Sprint 2

@@ -1,0 +1,51 @@
+{
+  "name": "SmartFood Ops 360",
+  "short_name": "SF Ops",
+  "description": "ERP mobile para operadores de produção SmartFood",
+  "start_url": "/mobile",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1a1a2e",
+  "theme_color": "#0f3460",
+  "lang": "pt-BR",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/static/icons/screenshot-dashboard.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "label": "Dashboard do Operador"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Painel do operador",
+      "url": "/mobile/dashboard",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Ordens de Produção",
+      "short_name": "OPs",
+      "description": "Ordens ativas",
+      "url": "/mobile/production-orders/active",
+      "icons": [{ "src": "/static/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

@@ -1,0 +1,811 @@
+SMARTFOOD OPS 360
+PRD — Intelligence Edition
+Gestão Industrial de Ultracongelados com IA Preditiva
+Versão 3.0  ·  Estruturado em Etapas para Geração por IA  ·  Jules / Google AI Studio
+ERP Industrial  ·  MRP II Preditivo  ·  E-commerce B2B  ·  Motor de Demanda Inteligente
+🧠
+INTELIGÊNCIA
+Previsão de demanda, alertas preditivos, motor de margem em tempo real
+🏭
+OPERAÇÃO
+MRP automático, BOM, recebimento com balança, etiquetas ZPL/TSPL
+🍺
+COMERCIAL
+Portal B2B, QR dinâmico, reposição proativa, histórico de consumo do bar
+Índice de Etapas de Desenvolvimento
+ETAPA
+MÓDULO / TEMA
+PRIORIDADE
+SPRINT
+E-01
+Fundação: Modelos de Dados e Banco
+P0 — Crítico
+Sprint 1
+E-02
+Fichas Técnicas com FC, FCoc e BOM
+P0 — Crítico
+Sprint 1
+E-03
+Motor de Precificação e Margem em Tempo Real
+P0 — Crítico
+Sprint 1
+E-04
+🧠 Motor de Inteligência de Demanda (MRP Preditivo)
+P0 — Crítico
+Sprint 2
+E-05
+🧠 Previsão de Demanda por Histórico e Sazonalidade
+P0 — Crítico
+Sprint 2
+E-06
+🧠 Orquestrador de Alertas Inteligentes
+P1 — Alta
+Sprint 2
+E-07
+Gestão de Estoque com PVPS e Lotes
+P0 — Crítico
+Sprint 2
+E-08
+Gestão de Insumos Não-Alimentícios (Embalagens, Limpeza)
+P1 — Alta
+Sprint 2
+E-09
+Compras Hyper-Automation (Mega API + Gmail)
+P1 — Alta
+Sprint 3
+E-10
+Recebimento com Balança e Validação de NF-e XML
+P1 — Alta
+Sprint 3
+E-11
+Ordens de Produção e Consumo de Insumos
+P0 — Crítico
+Sprint 3
+E-12
+Portal B2B: Catálogo, Pedidos e Recompra
+P1 — Alta
+Sprint 4
+E-13
+🧠 Inteligência B2B: Reposição Proativa do Bar
+P1 — Alta
+Sprint 4
+E-14
+Módulo de Etiquetas Parametrizadas e QR Dinâmico
+P2 — Média
+Sprint 4
+E-15
+🧠 QR Inteligente: Promoção por Vencimento
+P2 — Média
+Sprint 4
+E-16
+DRE Automatizado e Relatórios de Lote
+P2 — Média
+Sprint 5
+E-17
+SPI — Índice de Performance de Fornecedores
+P2 — Média
+Sprint 5
+E-18
+Modo Offline (SQLite) e Sincronização
+P1 — Alta
+Sprint 3
+E-19
+PWA Mobile para Operadores
+P2 — Média
+Sprint 5
+🧠  Etapas com Inteligência Artificial Embarcada
+As etapas marcadas com 🧠 são o diferencial competitivo do sistema. Elas implementam o Motor de Demanda, a Previsão por Histórico, os Alertas Preditivos e a Reposição Proativa do Bar. Sem elas, o sistema é um ERP comum. Com elas, é um parceiro de negócio.
+ETAPA E-01 — Fundação: Modelos de Dados e Banco de Dados
+E-01.1 Objetivo
+Definir a estrutura de dados que suporta TODO o sistema. Erros aqui têm custo exponencial. O banco deve suportar multi-tenancy (múltiplos chefs), rastreabilidade completa de lotes e a série temporal de eventos que alimenta o Motor de Inteligência.
+E-01.2 Entidades Principais do Banco de Dados
+Entidade
+Tabela SQL
+Campos Críticos
+Produto
+products
+id, nome, sku, categoria, fc, fcoc, markup, margem_minima, ativo
+Insumo (Alimentício)
+ingredients
+id, nome, unidade, fc_medio, custo_atual, estoque_atual, estoque_minimo, lead_time_dias
+Insumo (Embalagem/Indireto)
+supplies
+id, nome, tipo (embalagem|limpeza|epi|outros), unidade, estoque_atual, estoque_minimo, lead_time_dias, consumo_por_lote
+BOM (Receita)
+bom_items
+id, product_id, ingredient_id OU supply_id, quantidade, unidade, perda_esperada_pct
+Lote de Produção
+production_batches
+id, product_id, quantidade_planejada, quantidade_real, data_inicio, data_fim, custo_total, status
+Consumo de Insumo
+batch_ingredient_usage
+id, batch_id, ingredient_id, qty_planejada, qty_real, custo_unitario, divergencia_pct
+Evento de Demanda
+demand_events
+id, produto_id, cliente_id, quantidade, data_pedido, data_entrega, canal, sazonalidade_tag
+Previsão de Demanda
+demand_forecasts
+id, produto_id, periodo (semana|mes), qty_prevista, confianca_pct, modelo_usado, criado_em
+Alerta do Sistema
+system_alerts
+id, tipo, produto_id OU supply_id, mensagem, severidade, status, criado_em, resolvido_em
+Fornecedor
+suppliers
+id, nome, tipo, whatsapp, email, spi_score, lead_time_medio_dias
+Cotação
+rfqs
+id, supply_id, supplier_id, preco_unitario, prazo_entrega_dias, status, enviado_em, respondido_em
+Cliente (Bar)
+customers
+id, nome, whatsapp, email, tabela_preco_id, historico_volume_mensal, ultimo_pedido_em
+Pedido B2B
+orders
+id, customer_id, status, total, data_pedido, data_entrega_prevista, canal
+Item do Pedido
+order_items
+id, order_id, product_id, quantidade, preco_unitario, margem_pct
+E-01.3 Prompt para Jules — Fundação
+📋  PROMPT E-01 — Cole no Jules / Google AI Studio
+Crie o schema completo em PostgreSQL para o sistema SmartFood Ops 360 — ERP Industrial para produção de petiscos ultracongelados. Inclua as seguintes tabelas com todos os campos, tipos, constraints, índices e relacionamentos: products, ingredients, supplies, bom_items, production_batches, batch_ingredient_usage, demand_events, demand_forecasts, system_alerts, suppliers, rfqs, customers, orders, order_items. Use UUID como PK. Adicione timestamps created_at/updated_at em todas. Crie índices em produto_id, data_pedido, status. Adicione comentários SQL explicando cada tabela. Ao final, gere o código Python (SQLAlchemy ORM) com todos os modelos correspondentes.
+ETAPA E-02 — Fichas Técnicas com FC, FCoc e BOM
+E-02.1 Conceitos Fundamentais
+Conceito
+Fórmula
+Exemplo Real
+Impacto no Sistema
+Fator de Correção (FC)
+FC = Peso Bruto ÷ Peso Líquido
+Frango inteiro: 1,38 (38% de osso e pele)
+Custo real = Preço/kg × FC
+Fator de Cocção (FCoc)
+FCoc = Peso Cozido ÷ Peso Cru
+Frango assado: 0,72 (28% de perda de água)
+Custo final = (Custo×FC) ÷ FCoc
+Labor Cost
+LC = Salário ÷ (Dias × Horas × 60min)
+R$2.200 ÷ (22×8×60) = R$0,21/min
+Custo mão de obra por produto
+Custo Embalagem
+CE = Σ insumos indiretos por unidade
+Saco+etiqueta+caixa/20 = R$0,92/un
+Soma ao custo direto na BOM
+Margem Real
+M = (Preço - CustoTotal) ÷ Preço × 100
+R$22 - R$11,40 = 48,2% margem
+Threshold configurável por produto
+E-02.2 Fórmula Mestre de Precificação
+FÓRMULA MESTRE — PREÇO SUGERIDO
+Preço = [ (Custo_Insumo × FC ÷ FCoc) + Custo_Embalagem + Labor_min × Tempo_prod + Energia ] × Markup
+Aplicada automaticamente a cada Ordem de Produção. Markup configurável por canal de venda.
+E-02.3 Prompt para Jules — Fichas Técnicas
+📋  PROMPT E-02 — Cole no Jules / Google AI Studio
+Usando FastAPI e SQLAlchemy (schema da E-01), implemente o CRUD completo de Fichas Técnicas (BOM) para o SmartFood Ops 360. Requisitos: (1) Endpoint POST /products/{id}/bom que recebe lista de insumos (alimentícios e de embalagem) com quantidade e unidade; (2) Endpoint GET /products/{id}/cost-calculation que retorna o custo detalhado aplicando FC, FCoc e Labor Cost por minuto, retornando: custo_insumos, custo_embalagem, custo_labor, custo_energia, custo_total, preco_sugerido, margem_pct; (3) Lógica em Python puro da calculadora de custo; (4) Validação: alerta se FC < 1.0 ou margem_calculada < margem_minima do produto; (5) Banco pré-populado com FC/FCoc médios: frango=1.38/0.72, bovino=1.45/0.68, bacalhau=1.52/0.74, suíno=1.30/0.75, massa=1.05/0.90.
+ETAPA E-03 — Motor de Precificação e Monitor de Margem em Tempo Real
+E-03.1 Comportamento do Monitor de Margem
+O monitor não é um relatório estático. É um daemon que roda a cada 15 minutos e recalcula a margem de TODOS os produtos ativos com base nos custos atuais dos insumos. Ao detectar violação de threshold, dispara alerta imediato.
+Situação
+Gatilho
+Ação do Sistema
+Interface Visual
+Margem OK
+Margem atual ≥ Margem mínima
+Nenhuma ação. Registra no log.
+Indicador verde no dashboard
+Margem em risco
+Margem atual entre mínima e mínima-5pp
+Alerta amarelo + notificação WhatsApp ao gestor
+Badge amarelo piscante no produto
+Margem violada
+Margem atual < Margem mínima
+Alerta vermelho + sugestão de novo preço calculado + bloqueia novo lote opcional
+Banner vermelho no topo + produto em destaque
+Insumo subiu
+Novo preço de insumo recebido via NF-e ou cotação
+Recalcula margem de todos os produtos que usam esse insumo
+Linha de impacto: 'Óleo subiu 12% → 4 produtos afetados'
+Markup insuficiente
+Markup atual não cobre custos + meta de margem
+Simulação automática: novo markup sugerido para atingir meta
+Painel 'O que preciso cobrar?' no dashboard
+E-03.2 Prompt para Jules — Motor de Margem
+📋  PROMPT E-03 — Cole no Jules / Google AI Studio
+Implemente em Python (FastAPI) o MarginMonitor para o SmartFood Ops 360. Requisitos: (1) Serviço assíncrono que roda a cada 15 minutos recalculando a margem de todos os produtos ativos; (2) Endpoint PATCH /ingredients/{id}/price que ao receber novo preço, dispara recálculo em cascata de todos os produtos da BOM; (3) Lógica de threshold: verde (>=mínima), amarelo (mínima-5pp a mínima), vermelho (<mínima); (4) Função suggest_new_price(product_id, target_margin) que retorna o preço mínimo necessário para atingir a margem alvo; (5) Endpoint GET /dashboard/margin-alerts que retorna lista de produtos em risco ordenados por urgência; (6) Integração com tabela system_alerts: inserir alerta ao violar threshold, marcar como resolvido ao voltar para verde.
+🧠 ETAPA E-04 — Motor de Inteligência de Demanda (MRP Preditivo)
+🧠  A INTELIGÊNCIA CENTRAL DO SISTEMA
+Este é o módulo que transforma o SmartFood Ops 360 de um ERP em um parceiro inteligente. Ele analisa o histórico completo de pedidos, padrões de consumo, sazonalidade (fim de semana, feriados, Copa do Mundo) e estoque atual para responder a pergunta fundamental: O QUE, QUANTO e QUANDO produzir e comprar?
+E-04.1 Arquitetura do Motor de Demanda
+Camada
+Responsabilidade
+Entrada → Saída
+Camada 1: Coleta
+Registra TODOS os eventos de demanda: pedidos, cancelamentos, devoluções, histórico de consumo do bar
+Eventos brutos → Serie temporal por produto
+Camada 2: Análise
+Calcula médias móveis (7d, 30d, 90d), detecta tendências, identifica picos sazonais
+Serie temporal → Métricas de demanda
+Camada 3: Previsão
+Projeta demanda para os próximos 7, 14 e 30 dias com nível de confiança
+Métricas → Forecast com intervalo de confiança
+Camada 4: MRP
+Com o forecast, calcula necessidade bruta de insumos subtraindo estoque e considerando lead time
+Forecast + Estoque → Plano de compra e produção
+Camada 5: Alertas
+Gera alertas priorizados: 'Iniciar produção em X dias', 'Comprar Y kg de Z em W dias'
+Plano → Alertas acionáveis com data
+E-04.2 Fluxo Completo de Decisão Inteligente
+Passo
+Ação / Trigger
+Dado de Entrada
+Saída / Resultado
+1
+Análise Noturna (23h59 todo dia)
+Histórico de pedidos últimos 90 dias por produto
+Demanda média diária, desvio padrão, tendência de crescimento
+2
+Detecção de Sazonalidade
+Calendário: feriados, finais de semana, eventos locais
+Fator multiplicador: ex. sexta-feira = ×1.8 da média
+3
+Previsão de 14 dias
+Média móvel + fator sazonal + tendência
+Forecast: 'Coxinha: 340 unid/semana próxima (conf: 82%)'
+4
+Verificação de Estoque
+Estoque atual de produto acabado + insumos
+Gap: 'Faltam 200 unid de coxinha para cobrir previsão'
+5
+Cálculo de Necessidade de Produção
+Gap + estoque de segurança configurado
+Plano: 'Produzir 250 unid de coxinha até quinta-feira'
+6
+Explosão de BOM (MRP)
+Plano de produção + Fichas Técnicas (BOM)
+Necessidade bruta: '18kg de frango limpo, 15 bobinas de etiqueta'
+7
+Verificação de Insumos
+Estoque atual de cada insumo necessário
+Déficit: 'Frango: OK. Etiquetas: faltam 8 bobinas (estoque=7, need=15)'
+8
+Cálculo de Prazo de Compra
+Déficit + Lead time do fornecedor + data prevista produção
+Alerta: 'Comprar etiquetas HOJE — lead 5 dias, produção em 4 dias'
+9
+Geração de Alertas Priorizados
+Todos os déficits ordenados por urgência
+Dashboard com semáforo: vermelho=hoje, amarelo=3 dias, verde=7 dias
+10
+Disparo de Cotação Automática
+Insumos com alerta vermelho + fornecedores cadastrados
+RFQ enviado via WhatsApp e e-mail ao fornecedor preferencial
+E-04.3 Saídas do Motor de Demanda — O Que o Chef Vê
+Tela / Relatório
+Conteúdo Gerado pela IA
+📊 Card de Previsão Semanal
+'Previsão para próxima semana: Coxinha 340 unid (+18% vs semana passada) | Confiança: 85%'
+🏭 Painel de Produção Sugerida
+Lista de ordens de produção recomendadas com data de início ideal, ordenadas por urgência
+🛒 Lista de Compras Automática
+Insumos a comprar, quantidade exata, data limite do pedido, fornecedor sugerido, custo estimado
+⚠️ Central de Alertas
+Semáforo vermelho/amarelo/verde com: 'Iniciar produção de Kibe em 2 dias' ou 'Comprar frango hoje'
+📈 Gráfico de Tendência
+Histórico 90 dias + linha de previsão 30 dias por produto. Destaque de picos sazonais identificados
+🔮 Simulador 'E se?'
+'Se eu receber um pedido de 500 unid hoje, terei insumos? Em quanto tempo consigo produzir?'
+E-04.4 Prompt para Jules — Motor de Demanda
+📋  PROMPT E-04 — Cole no Jules / Google AI Studio (Motor Central de IA)
+Implemente em Python o DemandEngine para o SmartFood Ops 360. Este é o módulo mais crítico do sistema. Requisitos completos:
+
+(1) COLETA: Função record_demand_event(product_id, customer_id, qty, date, channel) que registra na tabela demand_events com tag de sazonalidade automática (fim_de_semana, feriado, dia_util).
+
+(2) ANÁLISE: Função analyze_demand(product_id, days=90) que retorna: media_diaria, desvio_padrao, tendencia_crescimento_pct, melhor_dia_semana, pior_dia_semana, fator_sazonal_por_dia_semana.
+
+(3) PREVISÃO: Função forecast_demand(product_id, horizon_days=14) usando média móvel ponderada (pesos: últimos 7d=50%, últimos 30d=30%, últimos 90d=20%) multiplicada pelo fator sazonal do dia. Retornar previsão_diaria, previsao_total_periodo, confianca_pct, intervalo_min, intervalo_max.
+
+(4) MRP: Função calculate_production_plan(product_id, forecast_qty) que: subtrai estoque atual, adiciona estoque de segurança (configurável, padrão 15%), explode a BOM e retorna lista de insumos necessários com quantidade.
+
+(5) TIMING: Função calculate_purchase_alerts(ingredient_id, qty_needed) que compara estoque atual + pedidos em aberto com necessidade, subtrai lead_time do fornecedor da data de produção, retorna days_to_order e urgencia (critico|atencao|ok).
+
+(6) SCHEDULER: Job diário às 23h59 que executa toda a pipeline acima para todos os produtos ativos e popula a tabela demand_forecasts e system_alerts.
+🧠 ETAPA E-05 — Previsão de Demanda por Histórico e Sazonalidade
+E-05.1 Modelos de Previsão Disponíveis
+O sistema oferece 3 modelos de previsão, selecionáveis pelo gestor. O modelo padrão é a Média Móvel Ponderada por ser simples, interpretável e suficientemente preciso para o volume de uma cozinha industrial pequena.
+Modelo
+Descrição
+Quando Usar
+Precisão Esperada
+Média Móvel Ponderada (Padrão)
+Média dos últimos 7/30/90 dias com pesos decrescentes para o passado distante. Simples e robusto.
+Histórico < 6 meses ou demanda relativamente estável
+±15-25% de erro médio
+Suavização Exponencial (Holt-Winters)
+Captura tendência e sazonalidade com parâmetros alpha, beta, gamma. Ideal para séries com padrão semanal claro.
+Histórico > 3 meses, variação semanal visível (bar movimenta mais no fim de semana)
+±10-18% de erro médio
+Regressão Linear com Dummy Sazonal
+Regressão com variáveis binárias para dia da semana, feriados e mês. Explica causas da variação.
+Histórico > 6 meses, necessidade de explicabilidade para o gestor
+±12-20% de erro médio
+E-05.2 Mapa de Sazonalidade — Fatores por Tipo de Dia
+Tipo de Dia
+Fator Padrão
+Intervalo
+Base de Cálculo
+Exemplo Prático
+Segunda a Quinta (útil)
+1.0×
+0.7 – 1.2
+Média histórica dos úteis
+Consumo normal de bares — mov. moderado
+Sexta-feira
+1.6×
+1.3 – 2.0
+Média das sextas ÷ média geral
+Bares começam a encher → pico de pedidos
+Sábado
+2.1×
+1.7 – 2.6
+Média dos sábados ÷ média geral
+Maior movimento semanal dos bares parceiros
+Domingo
+1.4×
+1.0 – 1.8
+Média dos domingos ÷ média geral
+Almoço em família — consumo moderado-alto
+Feriado Nacional
+1.8×
+1.4 – 2.3
+Média dos feriados ÷ média geral
+Comportamento similar ao sábado
+Véspera de Feriado
+2.0×
+1.6 – 2.5
+Média das vésperas ÷ média geral
+Bar estoca com antecedência — pico de pedido
+Evento Local (Copa, etc.)
+2.8×
+2.0 – 4.0
+Configurável pelo gestor
+Jogos do Brasil → demanda explosiva em bares
+Janeiro / Férias
+0.7×
+0.5 – 0.9
+Média de janeiro ÷ média anual
+Queda de movimento em bares da cidade
+E-05.3 Prompt para Jules — Previsão e Sazonalidade
+📋  PROMPT E-05 — Cole no Jules / Google AI Studio
+Implemente em Python o módulo SeasonalForecaster para o SmartFood Ops 360. Requisitos: (1) Classe DemandAnalyzer com método get_seasonality_factors(product_id) que analisa o histórico de demand_events e retorna um dicionário com fator multiplicador para cada dia da semana (0=segunda a 6=domingo); (2) Método detect_holidays(date) integrado com API de feriados brasileiros (python-holidays lib); (3) Método weighted_moving_average(series, weights=[0.5, 0.3, 0.2]) para períodos de 7, 30 e 90 dias; (4) Classe HoltWinters(alpha, beta, gamma) com fit() e forecast(steps) para produtos com histórico > 90 dias; (5) Endpoint GET /products/{id}/forecast?days=14 que seleciona automaticamente o melhor modelo baseado no tamanho do histórico disponível e retorna: modelo_usado, previsao_por_dia (lista), total_previsto, confianca_pct, proximos_picos_identificados; (6) Endpoint POST /seasonality/custom-event que permite registrar eventos especiais (ex: Copa do Mundo, show local) com fator multiplicador manual.
+🧠 ETAPA E-06 — Orquestrador de Alertas Inteligentes
+E-06.1 Taxonomia Completa de Alertas
+O sistema possui 4 categorias de alertas, cada uma com severidade, canal de notificação e ação esperada definidos. O gestor configura quais alertas recebe e por qual canal.
+🔴
+Alerta
+Categoria
+Gatilho
+Canal
+Ação Sugerida
+🔴
+Margem abaixo do mínimo
+Financeiro
+Margem < threshold configurado
+Push + WhatsApp Gestor
+Recalcular preço imediatamente
+🔴
+Insumo crítico: comprar HOJE
+Estoque
+Lead time > dias restantes de estoque
+Push + WhatsApp + Email
+Acionar cotação automática
+🔴
+Produção não iniciada: pedido atrasado
+Produção
+Ordem de produção não iniciada D-1 da entrega
+WhatsApp Gestor + Operador
+Abrir OP urgente
+🟡
+Demanda prevista supera capacidade
+Capacidade
+Forecast 7 dias > capacidade diária × 7
+Push Gestor
+Revisar agenda de produção
+🟡
+Margem em risco (insumo subiu)
+Financeiro
+Insumo subiu >5% e impacta margem
+Push Gestor
+Simular novo preço
+🟡
+Insumo: comprar em 3 dias
+Estoque
+Cobertura entre lead_time e lead_time+3
+Push
+Planejar cotação
+🟡
+Sazonalidade alta detectada
+Demanda
+Próximos 7 dias incluem feriado ou fim de semana longo
+Push Gestor
+Antecipar produção
+🟢
+Produção sugerida pronta
+Produção
+Motor gera plano diário às 23h59
+Dashboard
+Revisar e aprovar plano
+🟢
+Novo pedido recebido no portal
+Comercial
+Cliente fez pedido B2B
+Push + WhatsApp Gestor
+Confirmar e planejar produção
+🟢
+Cotação respondida pelo fornecedor
+Compras
+Mensagem de cotação recebida e processada por IA
+Push
+Revisar e aprovar melhor oferta
+🔵
+SPI do fornecedor caiu
+Qualidade
+Fornecedor acumulou 2+ divergências no mês
+Dashboard
+Contato para alinhamento
+🔵
+Bar sem pedido há X dias
+Comercial
+Cliente não compra há mais dias que a média histórica
+WhatsApp automático ao bar
+Mensagem proativa de reposição
+E-06.2 Prompt para Jules — Orquestrador de Alertas
+📋  PROMPT E-06 — Cole no Jules / Google AI Studio
+Implemente o AlertOrchestrator em Python (FastAPI + APScheduler) para o SmartFood Ops 360. Requisitos: (1) Classe AlertOrchestrator com método evaluate_all() que roda a cada 15 minutos e avalia todos os alertas definidos; (2) Para cada regra, implementar: verificar condição, criar registro em system_alerts se nova, atualizar se já existente, marcar como resolvido se condição não existe mais; (3) Serviço NotificationDispatcher com métodos send_whatsapp(phone, message) via Mega API e send_push(user_id, title, body) via Firebase FCM; (4) Deduplicação: o mesmo alerta não deve ser enviado mais de uma vez a cada 4 horas; (5) Endpoint GET /alerts/active que retorna alertas agrupados por categoria e severidade; (6) Endpoint POST /alerts/{id}/snooze?hours=2 para o gestor silenciar temporariamente; (7) Configuração por usuário: endpoint PUT /notifications/preferences para definir quais alertas chegam por qual canal.
+ETAPA E-07 — Gestão de Estoque com PVPS e Rastreabilidade de Lotes
+E-07.1 Regras de Negócio do Estoque
+PVPS (Primeiro que Vence, Primeiro que Sai): O sistema sempre sugere consumir o lote mais antigo primeiro, exibindo data de validade na tela do operador
+Estoque de Segurança Dinâmico: Calculado como média_consumo_diario × (lead_time_fornecedor + 2 dias de buffer). Recalculado semanalmente pelo Motor de Demanda
+Ponto de Ressuprimento Automático: Quando estoque ≤ Estoque de Segurança + Consumo no Lead Time, alerta de compra é gerado
+Lote de Insumo → Lote de Produto: Rastreabilidade completa. Ao fazer recall ou auditoria, o sistema mostra exatamente quais produtos foram feitos com qual lote de insumo
+Ajuste de Inventário com Justificativa: Qualquer ajuste manual de estoque exige foto + motivo (quebra, validade, roubo). Auditado
+Divergência de Recebimento: Peso real vs. NF-e. Tolerância configurável (padrão ±0.5%). Acima da tolerância: chamado automático ao fornecedor
+E-07.2 Prompt para Jules — Estoque e Lotes
+📋  PROMPT E-07 — Cole no Jules / Google AI Studio
+Implemente o InventoryService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Entrada de insumos: endpoint POST /inventory/receive que recebe NF-e XML (parser com lxml), cria lote, atualiza estoque e compara peso NF vs. peso_balança_informado, gerando alerta se divergência > tolerância configurada; (2) PVPS: função get_fifo_lots(ingredient_id, qty_needed) que retorna lista de lotes a consumir em ordem de vencimento; (3) Consumo de produção: endpoint POST /production/{batch_id}/consume que deduz insumos do estoque usando PVPS; (4) Estoque de segurança: função calculate_safety_stock(ingredient_id) = media_consumo_diario × (lead_time_dias + 2); (5) Rastreabilidade: endpoint GET /traceability/product-batch/{batch_id} que retorna todos os insumos usados com seus lotes de origem; (6) Ajuste manual: endpoint POST /inventory/adjust com campos: ingredient_id, qty_ajuste, motivo, foto_base64 — registrar em log de auditoria.
+ETAPA E-08 — Gestão de Insumos Não-Alimentícios (Embalagens e Limpeza)
+Embalagens e suprimentos de limpeza são insumos de produção como qualquer outro. A falta de uma bobina de etiqueta para produção de 2.000 coxinhas é tão crítica quanto a falta da farinha. O sistema trata esses insumos com a mesma inteligência.
+Categoria
+Exemplos
+Unidade
+Lógica de Consumo
+Embalagem Primária
+Saco de vácuo 500g, saco stand-up 1kg
+unid
+Definido na BOM: 1 saco por unidade de produto
+Embalagem Secundária
+Caixa master papelão, fita adesiva
+unid / rolo
+1 caixa a cada N unidades (configurável na BOM)
+Etiqueta Térmica
+Bobina 100×60mm, 100×40mm
+bobinas
+N etiquetas por bobina ÷ unidades por lote
+Limpeza / Sanitização
+Detergente alcalino, cloro, álcool 70%
+litros
+Consumo diário fixo × dias de produção no mês
+EPI / Segurança
+Luvas descartáveis, touca, avental
+pack / unid
+Consumo diário fixo por operador × dias
+Material de Escritório
+Papel, caneta, etiqueta de caixa
+unid / resma
+Consumo mensal estimado fixo
+⚡  Regra Crítica: Lead Time de Embalagem Personalizada
+Embalagens com logo personalizado (silk screen ou impressão gráfica) têm lead time de 15 a 25 dias — muito maior que proteínas (1-3 dias). O Motor de Demanda deve tratar esses insumos com prioridade máxima no cálculo de antecedência de compra. A fórmula de alerta usa: data_producao_prevista - lead_time_embalagem = data_limite_pedido.
+E-08.2 Prompt para Jules — Insumos Não-Alimentícios
+📋  PROMPT E-08 — Cole no Jules / Google AI Studio
+Estenda o InventoryService para suportar insumos não-alimentícios (supplies) no SmartFood Ops 360. Requisitos: (1) Modelo Supply com campo tipo (embalagem_primaria | embalagem_secundaria | etiqueta | limpeza | epi | outros) e consumo_por_lote (para embalagens) ou consumo_diario_fixo (para limpeza/EPI); (2) Lógica de consumo dual: supplies de embalagem são consumidos pela BOM de produção; supplies de limpeza/EPI são consumidos por um job diário baseado em consumo_diario_fixo × num_operadores_ativos; (3) Cálculo de lead time crítico: para supplies com lead_time_dias > 10, o alerta de compra deve ser gerado com antecedência dobrada; (4) Endpoint GET /supplies/critical que lista insumos onde (estoque_atual / consumo_diario) <= (lead_time_dias + 3), ordenados por urgência; (5) Integração com Motor de Demanda: ao gerar plano de produção, incluir automaticamente a verificação de embalagens e etiquetas necessárias.
+ETAPA E-09 — Compras Hyper-Automation (Mega API + Gmail)
+E-09.1 Fluxo Completo de Cotação Automática
+Passo
+Ação / Trigger
+Dado de Entrada
+Saída / Resultado
+1
+Alerta de compra gerado pelo Motor (E-06)
+Insumo + qty necessária + data limite
+Item adicionado ao 'Carrinho de Cotação Pendente'
+2
+Gestor revisa e aprova envio de RFQ
+Seleção de fornecedores para cotar (1-5 por item)
+RFQ criado no banco com status 'pendente'
+3
+Envio simultâneo WhatsApp + Email
+Template personalizado por fornecedor + produto
+Mensagem entregue. Log de envio registrado.
+4
+IA monitora respostas (inbox unificado)
+Mensagem do fornecedor em texto livre
+Preço, prazo e condições extraídos e estruturados
+5
+Comparação automática e ranking
+Respostas estruturadas de todos os fornecedores
+Tabela: fornecedor A=R$X/14d, B=R$Y/7d. Melhor destacado.
+6
+Aprovação pelo Gestor (1 clique)
+Seleção do fornecedor vencedor
+Ordem de Compra gerada em PDF
+7
+Envio da OC ao fornecedor
+PDF da OC + confirmação de dados
+Email + WhatsApp com PDF. Status: 'OC enviada'
+8
+Recebimento e entrada no estoque (E-07)
+NF-e XML + pesagem física
+Estoque atualizado. Custo diluído na BOM.
+E-09.2 Prompt para Jules — Compras Automation
+📋  PROMPT E-09 — Cole no Jules / Google AI Studio
+Implemente o PurchaseAutomation em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Serviço MegaAPIClient com métodos send_message(phone, text) e send_document(phone, file_bytes, filename) integrando com Mega API REST; (2) RFQTemplate engine: gera mensagem personalizada 'Olá [nome], preciso cotar [qty] [unidade] de [produto]. Entrega até [data]. Qual o melhor preço?'; (3) Webhook POST /webhooks/mega-api que recebe respostas de WhatsApp. IA (chamada à API do Gemini com prompt de extração) analisa a mensagem e extrai: preco_unitario, prazo_dias, observacoes; (4) Webhook POST /webhooks/gmail que processa respostas de email via Gmail API com mesma lógica de extração; (5) Endpoint GET /rfqs/{supply_id}/comparison que retorna tabela comparativa de todas as respostas com score automático (peso: 60% preço, 40% prazo); (6) Endpoint POST /rfqs/{rfq_id}/approve que gera PDF da Ordem de Compra usando reportlab e envia ao fornecedor via email e WhatsApp.
+ETAPA E-11 — Ordens de Produção e Consumo de Insumos
+E-11.1 Ciclo de Vida de uma Ordem de Produção
+Passo
+Ação / Trigger
+Dado de Entrada
+Saída / Resultado
+1
+Motor de Demanda sugere OP (ou Gestor cria manualmente)
+Produto + qty + data entrega desejada
+OP criada com status RASCUNHO
+2
+Verificação de viabilidade (pré-produção)
+BOM + estoque atual de todos os insumos
+Relatório: 'Todos insumos OK' ou 'Falta X de insumo Y'
+3
+Gestor aprova OP
+Confirmação manual ou automática
+OP status → APROVADA. Insumos reservados (soft lock)
+4
+Operador inicia produção (mobile)
+Scan QR da OP ou seleção manual
+OP status → EM_PRODUCAO. Timer iniciado.
+5
+Operador confirma consumo de insumos
+Checklist com lotes PVPS sugeridos + pesagem real
+Consumo registrado. Estoque deduzido. Divergência registrada.
+6
+Registro do lote produzido
+Quantidade real, hora início/fim, operador
+Lote criado. Custo real calculado com insumos consumidos.
+7
+Geração e impressão de etiquetas
+Dados do lote + produto + vencimento
+Etiquetas impressas via ZPL/TSPL. QR ativo.
+8
+Entrada no estoque de produto acabado
+Quantidade, lote, localização no freezer
+Estoque atualizado. OP status → CONCLUÍDA.
+E-11.2 Prompt para Jules — Ordens de Produção
+📋  PROMPT E-11 — Cole no Jules / Google AI Studio
+Implemente o ProductionService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) CRUD de Ordens de Produção com máquina de estados: RASCUNHO → APROVADA → EM_PRODUCAO → CONCLUIDA | CANCELADA; (2) Endpoint POST /production-orders/{id}/feasibility-check que verifica se todos os insumos da BOM têm estoque suficiente para a quantidade planejada, listando déficits; (3) Endpoint POST /production-orders/{id}/start que registra hora_inicio, operador_id e faz soft-lock dos insumos; (4) Endpoint POST /production-orders/{id}/record-usage com lista de {ingredient_id, lot_id, qty_real} — calcula divergência, deduz estoque usando PVPS; (5) Endpoint POST /production-orders/{id}/complete que registra hora_fim, quantidade_real_produzida, calcula custo_total_real = soma(insumos_consumidos × custo_unitario) + labor_cost_por_tempo + energia_estimada, gera lote de produto acabado; (6) Cálculo de Labor Cost em tempo real: (hora_fim - hora_inicio).minutes × labor_cost_por_minuto.
+ETAPAS E-12 e E-13 — Portal B2B e Inteligência de Reposição Proativa
+E-12.1 Portal B2B — Funcionalidades
+Catálogo digital com fotos de alta resolução, descrição 'apetite appeal', tabela nutricional, alérgenos e ficha de preparo
+Tabela de preço por cliente: grupo A (grandes redes), B (bares parceiros), C (cliente spot)
+Área logada: histórico de pedidos, download de boletos e NF-e, botão 'Repetir Pedido Anterior'
+Rastreamento de entrega: status em tempo real (Produzindo → Em rota → Entregue)
+Avaliação de entrega: NPS automático via WhatsApp após confirmação de entrega
+E-13.1 🧠 Inteligência de Reposição Proativa do Bar
+O sistema analisa o histórico de pedidos de cada bar e projeta quando o estoque dele vai acabar. Antes que o bar perceba, o sistema envia uma mensagem proativa sugerindo o pedido.
+Regra de Reposição
+Cálculo
+Mensagem Enviada ao Bar
+Bar não pediu há mais de X dias
+X = média_dias_entre_pedidos × 1.2
+'Olá Zé! Faz 8 dias do seu último pedido de coxinha. Devo separar mais 200 unid para você?'
+Forecast indica que o estoque dele acabou
+(último_pedido × 1/consumo_diario_estimado) < hoje
+'Seu estoque de Kibe provavelmente acabou ontem. Posso incluir no pedido de amanhã?'
+Fim de semana longo se aproxima
+Próximos 7 dias contêm feriado + fim de semana
+'Final de semana longo em 4 dias! Histórico mostra que você consome 2.4× mais. Quer fazer um pedido maior agora?'
+Produto novo em catálogo
+Novo SKU adicionado com perfil de clientes-alvo
+'Zé, lançamos o Mini Hot Dog 30g! Clientes com perfil parecido com o seu amaram. Quer uma amostra grátis na próxima entrega?'
+E-13.2 Prompt para Jules — B2B e Reposição Inteligente
+📋  PROMPT E-12+E-13 — Cole no Jules / Google AI Studio
+Implemente o B2BService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) CRUD de pedidos B2B com máquina de estados: RASCUNHO → CONFIRMADO → EM_PRODUCAO → PRONTO → ENTREGUE; (2) Endpoint GET /customers/{id}/suggested-order que usa o histórico de pedidos para calcular: dias_desde_ultimo_pedido, media_intervalo_pedidos, produtos_mais_pedidos_com_qty_media, próximo_pedido_sugerido; (3) Job diário que avalia cada cliente ativo: se dias_desde_ultimo > media_intervalo × 1.2, gerar alerta tipo BAR_SEM_PEDIDO e enviar mensagem proativa personalizada via Mega API; (4) Detector de sazonalidade do bar: se nos próximos 5 dias há feriado ou fim de semana longo (verificar calendário), enviar mensagem de antecipação; (5) Endpoint POST /orders com cálculo automático de margem por item, total e seleção de tabela de preço pelo grupo do cliente; (6) Endpoint GET /portal/catalog que retorna produtos com fotos_urls, descricao_marketing, tabela_nutricional, instrucoes_preparo_url filtrado pelo grupo de preço do cliente logado.
+ETAPAS E-14 e E-15 — Etiquetas Parametrizadas e QR Inteligente
+E-14.1 Especificações do Módulo de Etiquetas
+Parâmetro
+Especificação
+Formatos suportados
+ZPL (Zebra GK420t, ZD420, ZD230) e TSPL (Elgin L42, Argox OS-214). Detecção automática pelo modelo da impressora.
+Tamanhos configuráveis
+Editor visual drag-and-drop. Presets: 100×60mm, 100×40mm, 75×50mm, 50×25mm. Tamanho customizado em mm.
+Campos automáticos
+Nome do produto, peso líquido, lote, data de fabricação, data de validade, temperatura de armazenamento, alérgenos, código de barras EAN-13.
+QR Code dinâmico
+URL gerada pelo sistema com parâmetros do lote. Redirecionamento pelo backend baseado em regras. Ver E-15.
+Impressão em lote
+Ao fechar OP, imprime todas as etiquetas do lote de uma vez. Sem configurar uma a uma.
+Preview antes de imprimir
+Renderização visual da etiqueta no browser antes de enviar à impressora.
+E-15.1 🧠 QR Code Dinâmico — Lógica de Redirecionamento
+O QR Code impresso na etiqueta aponta sempre para o mesmo URL fixo (ex: smartfood.app/q/LOT-2024-090). O backend decide em tempo real para onde redirecionar, baseado nas regras abaixo:
+Regra de Redirecionamento
+Condição
+Destino
+Benefício
+Tutorial de Preparo (padrão)
+Produto sem condição especial
+Vídeo <60s de instrução de fritura no padrão da marca
+Padroniza qualidade no bar. Reduz reclamações.
+Promoção de Vencimento
+Lote com validade ≤ D+7
+Página de oferta: '10% de desconto hoje' + botão de pedido
+Gira estoque antes de vencer. Protege margem.
+Rastreio de Lote (consumidor)
+QR lido por consumidor final (não pelo bar)
+Página pública com: origem, data prod., ingredientes, sem conservantes
+Confiança do consumidor. Marketing de transparência.
+Pesquisa de satisfação
+Produto entregue há > 5 dias (primeiro QR lido após esse prazo)
+Formulário de 2 perguntas: sabor e entrega
+Dados de NPS do produto final.
+Novo produto relacionado
+QR lido após produto descontinuado ou sazonal encerrado
+Página com sugestão de produto substituto
+Evita perda de venda por produto esgotado.
+E-14+E-15.2 Prompt para Jules — Etiquetas e QR
+📋  PROMPT E-14+E-15 — Cole no Jules / Google AI Studio
+Implemente o LabelService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Endpoint POST /labels/template com campos: impressora_tipo (ZPL|TSPL), largura_mm, altura_mm, campos_config (JSON com posições de cada campo). Armazena template por produto; (2) Endpoint POST /production-orders/{id}/print-labels que gera automaticamente o ZPL ou TSPL para todas as unidades do lote usando o template do produto, preenchendo: nome, lote, fab, val, peso, QR URL; (3) Gerador ZPL: função generate_zpl(fields, template) → string ZPL pronta para envio TCP/IP à impressora Zebra; (4) Gerador TSPL: função generate_tspl(fields, template) → string TSPL para Elgin/Argox; (5) Endpoint GET /qr/{lot_code} que implementa o redirecionamento dinâmico: consulta no banco as regras aplicáveis ao lote (validade, numero_de_scans, dias_desde_producao) e faz HTTP redirect para URL correta; (6) Endpoint POST /qr-rules que permite ao gestor configurar as regras de redirecionamento por produto ou lote.
+BACKLOG COMPLETO — User Stories por Etapa para o Desenvolvedor
+Lista consolidada de User Stories com critério de aceite, prioridade e etapa. Formato direto para importação em Jira, Linear ou Notion.
+ID
+User Story
+Critério de Aceite
+Prioridade
+Etapa
+US-001
+Como gestor, quero criar uma ficha técnica com FC e FCoc para que o custo real do produto seja calculado automaticamente
+Dado FC=1.38 e FCoc=0.72 e custo_kg=R$9.50, então custo_calculado=R$18.14/kg limpo após cocção
+P0
+E-02
+US-002
+Como gestor, quero receber alerta quando a margem de qualquer produto cair abaixo do mínimo configurado
+Dado que óleo sobe 12% e produto X usava óleo, então alerta em <15min com sugestão de novo preço
+P0
+E-03
+US-003
+Como gestor, quero ver a previsão de demanda para os próximos 14 dias de cada produto
+Dado histórico de 90 dias, então forecast com confiança_pct e previsão_por_dia exibidos no dashboard
+P0
+E-05
+US-004
+Como gestor, quero que o sistema me avise quando devo INICIAR a produção de um produto para cumprir a demanda prevista
+Dado forecast=300un em 7 dias e capacidade=100un/dia e 1 dia setup, então alerta 'iniciar produção em 4 dias'
+P0
+E-04
+US-005
+Como gestor, quero que o sistema me avise quando devo COMPRAR cada insumo considerando o lead time do fornecedor
+Dado estoque=50kg, consumo_previsto=80kg, lead_time=5d, então alerta 'comprar 30kg em até 2 dias'
+P0
+E-04
+US-006
+Como gestor, quero disparar cotação simultânea para 3 fornecedores via WhatsApp e Email com 1 clique
+Dado aprovação de RFQ, então mensagens enviadas para todos fornecedores em <30s com log de entrega
+P1
+E-09
+US-007
+Como gestor, quero ver as respostas de cotação organizadas em tabela comparativa com a melhor opção destacada
+Dado 3 respostas recebidas, então tabela com preço/prazo/score e badge 'Melhor Oferta' no vencedor
+P1
+E-09
+US-008
+Como conferente, quero importar o XML da NF-e e ver automaticamente a divergência entre peso da nota e peso da balança
+Dado XML importado e peso_balança=147.8kg e peso_nf=150kg, então divergência -2.2kg exibida e alerta gerado
+P0
+E-07
+US-009
+Como operador, quero ver na tela quais lotes de insumo devo usar primeiro (PVPS) ao iniciar uma OP
+Dado 2 lotes do mesmo insumo com vencimentos diferentes, então lote mais antigo destacado na tela
+P0
+E-11
+US-010
+Como operador, quero registrar o consumo real de insumos em uma OP e ser alertado se houver desvio significativo do planejado
+Dado qty_planejada=10kg e qty_real=11.5kg, então divergência +15% exibida e registrada no log
+P0
+E-11
+US-011
+Como gestor, quero que o sistema envie mensagem proativa ao bar antes que ele perceba que vai ficar sem estoque
+Dado que bar X não pediu há 1.2× a média histórica, então WhatsApp enviado automaticamente com sugestão de pedido
+P1
+E-13
+US-012
+Como dono de bar, quero repetir meu último pedido em 1 clique pelo portal B2B
+Dado pedido anterior, então endpoint /orders/repeat cria novo pedido idêntico com data de entrega +2 dias úteis
+P1
+E-12
+US-013
+Como gestor, quero imprimir etiquetas de um lote inteiro ao fechar a OP, sem configurar uma a uma
+Dado OP concluída com 200un, então 200 etiquetas ZPL geradas e enviadas à Zebra via TCP em <10s
+P1
+E-14
+US-014
+Como gestor, quero que o QR Code da etiqueta mostre promoção automaticamente quando o lote estiver a 7 dias do vencimento
+Dado lote com val=D+6, então QR redireciona para página de oferta 10% OFF ao invés do tutorial
+P2
+E-15
+US-015
+Como gestor, quero ver o DRE por lote de produção com custo real vs. receita gerada
+Dado OP concluída e pedidos vinculados, então DRE do lote com: receita, custo_insumos, custo_labor, margem_bruta, margem_liquida
+P2
+E-16
+US-016
+Como gestor, quero simular o impacto na margem se eu trocar um insumo por um fornecedor mais barato
+Dado novo preço simulado para ingrediente X, então recálculo de margem de todos os produtos afetados em tempo real
+P1
+E-03
+US-017
+Como gestor, quero ver o ranking de fornecedores por SPI (pontualidade + acuracidade de peso)
+Dado histórico de recebimentos, então ranking com score 0-100 para cada fornecedor atualizado mensalmente
+P2
+E-17
+US-018
+Como gestor, quero que o sistema calcule o estoque de segurança de cada insumo automaticamente com base no histórico
+Dado consumo_medio_diario=5kg e lead_time=3d, então safety_stock=(5×3)+2dias_buffer=25kg, recalculado semanalmente
+P0
+E-07
+US-019
+Como operador, quero usar o sistema sem internet e ter os dados sincronizados quando a rede voltar
+Dado perda de conexão durante OP, então sistema continua funcionando offline e sincroniza ao reconectar sem perda de dados
+P1
+E-18
+US-020
+Como gestor, quero receber um relatório diário às 7h com: o que produzir hoje, o que comprar urgente, pedidos a entregar
+Dado execução do job às 7h, então resumo enviado via WhatsApp com 3 seções: Produção / Compras / Entregas do dia
+P1
+E-06
+ARQUITETURA TÉCNICA — Stack Completo para Desenvolvedores Python/HTML
+Camada
+Tecnologia
+Justificativa / Detalhe
+API Backend
+Python 3.11 + FastAPI + Uvicorn
+Você já conhece Python. FastAPI gera OpenAPI docs automático, suporte a async nativo para integrações.
+ORM / Banco
+SQLAlchemy 2.0 + PostgreSQL 15 + Alembic
+Migrations versionadas. JSON fields para dados semi-estruturados (BOM, forecast).
+Cache / Filas
+Redis 7 + Celery 5
+Redis para cache de margem e previsão. Celery para jobs assíncronos (análise noturna, alertas).
+Frontend
+HTML5 + Tailwind CSS + HTMX + Alpine.js
+Você já conhece HTML. HTMX elimina React. Alpine para interatividade leve. Zero build step.
+Scheduler
+APScheduler (jobs in-process)
+Jobs simples dentro do FastAPI: análise noturna, monitor de margem, relatório diário.
+WhatsApp
+Evolution API (self-hosted, open source)
+Grátis, auto-hospedável na mesma VPS. Suporte a QR auth, webhooks e envio de PDF.
+Email
+Gmail API + google-auth-oauthlib
+Autenticação OAuth2. Envio e recebimento de cotações e OCs.
+IA / Extração
+Google Gemini API (gemini-1.5-flash)
+Extração de preço/prazo de respostas de fornecedores. Custo baixíssimo por token.
+Impressora
+ZPL via socket TCP / TSPL via socket TCP
+Python socket puro. Sem driver. Zebra e Elgin aceitam ZPL/TSPL direto na porta 9100.
+PDF / Reports
+ReportLab + WeasyPrint
+ReportLab para OCs e DRE. WeasyPrint para portal B2B (HTML → PDF).
+Deploy
+Docker Compose + Nginx + VPS Hetzner CX22
+~R$60/mês. SSL automático via Certbot. Backup para Google Drive via rclone.
+Offline / Sync
+SQLite (local no device) + endpoint de sync
+App mobile/tablet do operador usa SQLite. Ao reconectar, POST /sync envia os events.
+📋  PROMPT INICIAL — Cole no Jules ANTES de tudo (Context Setup)
+Você vai me ajudar a construir o SmartFood Ops 360, um ERP Industrial para produção de petiscos ultracongelados para bares e restaurantes (mercado B2B). O sistema é composto por 19 etapas (E-01 a E-19). Cada etapa eu vou te enviar um prompt específico. Para cada prompt: (1) Escreva código Python limpo com FastAPI e SQLAlchemy; (2) Use type hints em todas as funções; (3) Adicione docstrings explicando a lógica de negócio; (4) Inclua tratamento de erros com HTTPException; (5) Siga o schema de banco de dados que definimos na E-01; (6) Gere testes unitários básicos para as funções de cálculo. Confirme que entendeu o contexto geral antes de começarmos.
+SmartFood Ops 360  ·  PRD Intelligence Edition v3.0  ·  Confidencial

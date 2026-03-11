@@ -1,0 +1,47 @@
+E-04.1 Arquitetura do Motor de Demanda
+ROW: Camada || Responsabilidade || Entrada → Saída
+ROW: Camada 1: Coleta || Registra TODOS os eventos de demanda: pedidos, cancelamentos, devoluções, histórico de consumo do bar || Eventos brutos → Serie temporal por produto
+ROW: Camada 2: Análise || Calcula médias móveis (7d, 30d, 90d), detecta tendências, identifica picos sazonais || Serie temporal → Métricas de demanda
+ROW: Camada 3: Previsão || Projeta demanda para os próximos 7, 14 e 30 dias com nível de confiança || Métricas → Forecast com intervalo de confiança
+ROW: Camada 4: MRP || Com o forecast, calcula necessidade bruta de insumos subtraindo estoque e considerando lead time || Forecast + Estoque → Plano de compra e produção
+ROW: Camada 5: Alertas || Gera alertas priorizados: 'Iniciar produção em X dias', 'Comprar Y kg de Z em W dias' || Plano → Alertas acionáveis com data
+---TABLE END---
+E-04.2 Fluxo Completo de Decisão Inteligente
+ROW: Passo || Ação / Trigger || Dado de Entrada || Saída / Resultado
+ROW: 1 || Análise Noturna (23h59 todo dia) || Histórico de pedidos últimos 90 dias por produto || Demanda média diária, desvio padrão, tendência de crescimento
+ROW: 2 || Detecção de Sazonalidade || Calendário: feriados, finais de semana, eventos locais || Fator multiplicador: ex. sexta-feira = ×1.8 da média
+ROW: 3 || Previsão de 14 dias || Média móvel + fator sazonal + tendência || Forecast: 'Coxinha: 340 unid/semana próxima (conf: 82%)'
+ROW: 4 || Verificação de Estoque || Estoque atual de produto acabado + insumos || Gap: 'Faltam 200 unid de coxinha para cobrir previsão'
+ROW: 5 || Cálculo de Necessidade de Produção || Gap + estoque de segurança configurado || Plano: 'Produzir 250 unid de coxinha até quinta-feira'
+ROW: 6 || Explosão de BOM (MRP) || Plano de produção + Fichas Técnicas (BOM) || Necessidade bruta: '18kg de frango limpo, 15 bobinas de etiqueta'
+ROW: 7 || Verificação de Insumos || Estoque atual de cada insumo necessário || Déficit: 'Frango: OK. Etiquetas: faltam 8 bobinas (estoque=7, need=15)'
+ROW: 8 || Cálculo de Prazo de Compra || Déficit + Lead time do fornecedor + data prevista produção || Alerta: 'Comprar etiquetas HOJE — lead 5 dias, produção em 4 dias'
+ROW: 9 || Geração de Alertas Priorizados || Todos os déficits ordenados por urgência || Dashboard com semáforo: vermelho=hoje, amarelo=3 dias, verde=7 dias
+ROW: 10 || Disparo de Cotação Automática || Insumos com alerta vermelho + fornecedores cadastrados || RFQ enviado via WhatsApp e e-mail ao fornecedor preferencial
+---TABLE END---
+E-04.3 Saídas do Motor de Demanda — O Que o Chef Vê
+ROW: Tela / Relatório || Conteúdo Gerado pela IA
+ROW: 📊 Card de Previsão Semanal || 'Previsão para próxima semana: Coxinha 340 unid (+18% vs semana passada) | Confiança: 85%'
+ROW: 🏭 Painel de Produção Sugerida || Lista de ordens de produção recomendadas com data de início ideal, ordenadas por urgência
+ROW: 🛒 Lista de Compras Automática || Insumos a comprar, quantidade exata, data limite do pedido, fornecedor sugerido, custo estimado
+ROW: ⚠️ Central de Alertas || Semáforo vermelho/amarelo/verde com: 'Iniciar produção de Kibe em 2 dias' ou 'Comprar frango hoje'
+ROW: 📈 Gráfico de Tendência || Histórico 90 dias + linha de previsão 30 dias por produto. Destaque de picos sazonais identificados
+ROW: 🔮 Simulador 'E se?' || 'Se eu receber um pedido de 500 unid hoje, terei insumos? Em quanto tempo consigo produzir?'
+---TABLE END---
+E-04.4 Prompt para Jules — Motor de Demanda
+ROW: 📋  PROMPT E-04 — Cole no Jules / Google AI Studio (Motor Central de IA) | Implemente em Python o DemandEngine para o SmartFood Ops 360. Este é o módulo mais crítico do sistema. Requisitos completos:
+
+(1) COLETA: Função record_demand_event(product_id, customer_id, qty, date, channel) que registra na tabela demand_events com tag de sazonalidade automática (fim_de_semana, feriado, dia_util).
+
+(2) ANÁLISE: Função analyze_demand(product_id, days=90) que retorna: media_diaria, desvio_padrao, tendencia_crescimento_pct, melhor_dia_semana, pior_dia_semana, fator_sazonal_por_dia_semana.
+
+(3) PREVISÃO: Função forecast_demand(product_id, horizon_days=14) usando média móvel ponderada (pesos: últimos 7d=50%, últimos 30d=30%, últimos 90d=20%) multiplicada pelo fator sazonal do dia. Retornar previsão_diaria, previsao_total_periodo, confianca_pct, intervalo_min, intervalo_max.
+
+(4) MRP: Função calculate_production_plan(product_id, forecast_qty) que: subtrai estoque atual, adiciona estoque de segurança (configurável, padrão 15%), explode a BOM e retorna lista de insumos necessários com quantidade.
+
+(5) TIMING: Função calculate_purchase_alerts(ingredient_id, qty_needed) que compara estoque atual + pedidos em aberto com necessidade, subtrai lead_time do fornecedor da data de produção, retorna days_to_order e urgencia (critico|atencao|ok).
+
+(6) SCHEDULER: Job diário às 23h59 que executa toda a pipeline acima para todos os produtos ativos e popula a tabela demand_forecasts e system_alerts.
+---TABLE END---
+ROW: 🧠 ETAPA E-05 — Previsão de Demanda por Histórico e Sazonalidade
+---TABLE END---

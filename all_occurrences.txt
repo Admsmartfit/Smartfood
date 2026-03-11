@@ -1,0 +1,18 @@
+All occurrences of E-06:
+  [39]: E-06
+  [365]: 🧠 ETAPA E-06 — Orquestrador de Alertas Inteligentes
+  [366]: E-06.1 Taxonomia Completa de Alertas
+  [446]: E-06.2 Prompt para Jules — Orquestrador de Alertas
+  [447]: 📋  PROMPT E-06 — Cole no Jules / Google AI Studio
+  [502]: Alerta de compra gerado pelo Motor (E-06)
+  [755]: E-06
+
+All occurrences of E-07:
+  [43]: E-07
+  [449]: ETAPA E-07 — Gestão de Estoque com PVPS e Rastreabilidade de Lotes
+  [450]: E-07.1 Regras de Negócio do Estoque
+  [457]: E-07.2 Prompt para Jules — Estoque e Lotes
+  [458]: 📋  PROMPT E-07 — Cole no Jules / Google AI Studio
+  [530]: Recebimento e entrada no estoque (E-07)
+  [695]: E-07
+  [745]: E-07

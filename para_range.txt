@@ -1,0 +1,22 @@
+=== Paragraphs 35-55 ===
+[35]: E-05
+[36]: 🧠 Previsão de Demanda por Histórico e Sazonalidade
+[37]: P0 — Crítico
+[38]: Sprint 2
+[39]: E-06
+[40]: 🧠 Orquestrador de Alertas Inteligentes
+[41]: P1 — Alta
+[42]: Sprint 2
+[43]: E-07
+[44]: Gestão de Estoque com PVPS e Lotes
+[45]: P0 — Crítico
+[46]: Sprint 2
+[47]: E-08
+[48]: Gestão de Insumos Não-Alimentícios (Embalagens, Limpeza)
+[49]: P1 — Alta
+[50]: Sprint 2
+[51]: E-09
+[52]: Compras Hyper-Automation (Mega API + Gmail)
+[53]: P1 — Alta
+[54]: Sprint 3
+[55]: E-10
