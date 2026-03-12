@@ -1,0 +1,26 @@
+{# Fragmento: Card de confirmação após envio de reposição proativa #}
+{% if error %}
+<div class="bg-white rounded-xl border border-red-300 border-l-4 border-l-red-500 p-5">
+  <div class="flex items-center gap-2 text-red-700 font-semibold mb-1">
+    <i class="ph-fill ph-x-circle" aria-hidden="true"></i>
+    Erro ao enviar
+  </div>
+  <p class="text-sm text-red-600">{{ error }}</p>
+</div>
+{% else %}
+<div class="bg-green-50 rounded-xl border border-green-300 border-l-4 border-l-green-500 p-5">
+  <div class="flex items-center gap-2 text-green-800 font-semibold mb-1">
+    <i class="ph-fill ph-check-circle text-xl" aria-hidden="true"></i>
+    Mensagem enviada!
+  </div>
+  <p class="text-sm text-green-700">
+    Sugestão de reposição enviada para
+    <strong>{{ customer.nome }}</strong>
+    {% if customer.whatsapp %}via WhatsApp{% endif %}
+    às <strong>{{ sent_at }}</strong>.
+  </p>
+  <p class="text-xs text-green-600 mt-2">
+    O cliente receberá a notificação e poderá confirmar o pedido diretamente.
+  </p>
+</div>
+{% endif %}

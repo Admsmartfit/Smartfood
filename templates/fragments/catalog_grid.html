@@ -1,0 +1,92 @@
+{# Fragmento: Grid de produtos do catálogo B2B #}
+{% if products %}
+<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5">
+  {% for p in products %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden
+              hover:shadow-md hover:border-blue-200 transition-all group"
+       id="product-{{ p.id }}">
+
+    <!-- Imagem ou placeholder -->
+    {% if p.foto_url %}
+    <img src="{{ p.foto_url }}" alt="{{ p.nome }}"
+         class="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-300">
+    {% else %}
+    <div class="w-full h-40 bg-slate-100 flex items-center justify-center">
+      <i class="ph ph-package text-4xl text-slate-300" aria-hidden="true"></i>
+    </div>
+    {% endif %}
+
+    <div class="p-4">
+      <!-- Nome + SKU -->
+      <div class="flex items-start justify-between gap-2 mb-1">
+        <h3 class="font-semibold text-gray-900 text-sm leading-tight">{{ p.nome }}</h3>
+        <span class="text-xs text-gray-400 whitespace-nowrap">{{ p.sku or '' }}</span>
+      </div>
+
+      <!-- Categoria -->
+      {% if p.categoria %}
+      <span class="inline-block text-xs text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded mb-2">
+        {{ p.categoria }}
+      </span>
+      {% endif %}
+
+      <!-- Descrição -->
+      {% if p.descricao_marketing %}
+      <p class="text-xs text-gray-500 mb-3 line-clamp-2">{{ p.descricao_marketing }}</p>
+      {% endif %}
+
+      <!-- Preço + Disponibilidade -->
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <p class="text-lg font-bold text-blue-700">R$ {{ p.preco_tabela | round(2) }}</p>
+          <p class="text-xs text-gray-400">por unidade</p>
+        </div>
+        {% if p.estoque_disponivel > 0 %}
+        <span class="text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-medium">
+          Disponível
+        </span>
+        {% else %}
+        <span class="text-xs text-red-700 bg-red-50 px-2 py-0.5 rounded-full font-medium">
+          Indisponível
+        </span>
+        {% endif %}
+      </div>
+
+      <!-- Botão adicionar ao carrinho -->
+      <form class="flex items-center gap-2"
+            hx-post="/portal/cart/add"
+            hx-target="#cart-count"
+            hx-swap="innerHTML">
+        <input type="hidden" name="product_id" value="{{ p.id }}">
+        <input type="hidden" name="product_nome" value="{{ p.nome }}">
+        <input type="hidden" name="preco" value="{{ p.preco_tabela }}">
+        <input type="number" name="quantidade"
+               value="1" min="1" step="1"
+               class="w-20 px-2 py-2 border border-slate-300 rounded-lg text-sm text-center
+                      focus:outline-none focus:ring-2 focus:ring-blue-500"
+               aria-label="Quantidade">
+        <button type="submit"
+                {% if p.estoque_disponivel <= 0 %}disabled{% endif %}
+                class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold
+                       rounded-lg transition-colors flex items-center justify-center gap-1.5
+                       disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="ph ph-shopping-cart" aria-hidden="true"></i>
+          Adicionar
+        </button>
+      </form>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="flex flex-col items-center justify-center py-16 text-gray-400">
+  <i class="ph ph-storefront text-5xl mb-3" aria-hidden="true"></i>
+  {% if query %}
+  <p class="text-sm font-medium text-gray-500">Nenhum produto para "<strong>{{ query }}</strong>"</p>
+  {% else %}
+  <p class="text-sm font-medium text-gray-500">Catálogo vazio</p>
+  {% endif %}
+</div>
+{% endif %}

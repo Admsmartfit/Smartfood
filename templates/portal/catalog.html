@@ -1,13 +1,52 @@
 {% extends "base.html" %}
-{% block title %}Catálogo B2B{% endblock %}
-{% block page_title %}Catálogo B2B{% endblock %}
-{% block page_subtitle %}FE-05 — Em implementação{% endblock %}
+{% block page_title %}Catalogo B2B{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-storefront text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Catálogo B2B</p>
-    <p class="text-sm mt-1">Módulo FE-05 — será implementado em breve.</p>
+<div class="p-6 space-y-5 max-w-7xl mx-auto">
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Catalogo de Produtos</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Selecione produtos e adicione ao pedido</p>
+    </div>
+  </div>
+  <div class="flex flex-wrap gap-3">
+    <div class="relative flex-1 min-w-48">
+      <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" aria-hidden="true"></i>
+      <input type="search" name="q" placeholder="Buscar produto..."
+             class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+             hx-get="/api/b2b/catalog"
+             hx-target="#catalog-grid"
+             hx-trigger="keyup changed delay:300ms, search"
+             hx-include="[name=q],[name=categoria]">
+    </div>
+    <select name="categoria"
+            class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+            hx-get="/api/b2b/catalog"
+            hx-target="#catalog-grid"
+            hx-trigger="change"
+            hx-include="[name=q],[name=categoria]">
+      <option value="">Todas as categorias</option>
+      <option value="congelados">Congelados</option>
+      <option value="porcoes">Porcoes</option>
+      <option value="hamburguers">Hamburguers</option>
+    </select>
+  </div>
+  <div id="catalog-grid"
+       hx-get="/api/b2b/catalog"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5 animate-pulse">
+      {% for _ in range(6) %}
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="w-full h-40 bg-slate-200"></div>
+        <div class="p-4 space-y-3">
+          <div class="h-4 bg-slate-200 rounded w-3/4"></div>
+          <div class="h-3 bg-slate-100 rounded w-full"></div>
+          <div class="h-8 bg-slate-200 rounded-lg w-full mt-3"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 </div>
 {% endblock %}

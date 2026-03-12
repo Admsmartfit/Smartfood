@@ -1,0 +1,78 @@
+{# Fragmento: Cards de reposição proativa B2B #}
+{% if customers %}
+<div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4"
+     x-data="{ filter: 'todos' }">
+
+  <!-- Filtros Alpine (sem reload) -->
+  <div class="md:col-span-2 xl:col-span-3 flex gap-2">
+    {% for val, label in [('todos','Todos'), ('critical','Crítico'), ('warning','Atenção')] %}
+    <button class="px-3 py-1.5 rounded-full text-xs font-medium border transition-colors"
+            :class="filter === '{{ val }}'
+              ? 'bg-blue-600 text-white border-blue-600'
+              : 'bg-white text-gray-600 border-slate-300 hover:border-blue-400'"
+            @click="filter = '{{ val }}'">
+      {{ label }}
+    </button>
+    {% endfor %}
+  </div>
+
+  {% for customer in customers %}
+  <div id="card-{{ customer.id }}"
+       class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm
+              {% if customer.urgency == 'critical' %}border-l-4 border-l-red-500{% else %}border-l-4 border-l-yellow-400{% endif %}"
+       x-show="filter === 'todos' || filter === '{{ customer.urgency }}'">
+
+    <!-- Header do card -->
+    <div class="flex items-start justify-between mb-3">
+      <div>
+        <h3 class="font-semibold text-gray-900">{{ customer.nome }}</h3>
+        {% if customer.whatsapp %}
+        <p class="text-xs text-gray-400 mt-0.5">{{ customer.whatsapp }}</p>
+        {% endif %}
+      </div>
+      <span class="text-xs font-bold px-2 py-1 rounded-full flex-shrink-0
+            {% if customer.urgency == 'critical' %}bg-red-100 text-red-700
+            {% else %}bg-yellow-100 text-yellow-700{% endif %}">
+        {{ customer.urgency_label }}
+      </span>
+    </div>
+
+    <!-- Produtos em risco -->
+    <ul class="text-sm text-gray-600 space-y-1.5 mb-4">
+      {% for prod in customer.running_low %}
+      <li class="flex justify-between items-center">
+        <span class="truncate">{{ prod.nome }}</span>
+        {% if prod.esgotado %}
+        <span class="ml-2 text-red-600 font-semibold text-xs whitespace-nowrap">
+          <i class="ph-fill ph-warning" aria-hidden="true"></i> Esgotado
+        </span>
+        {% else %}
+        <span class="ml-2 text-amber-600 font-medium text-xs whitespace-nowrap">
+          ~{{ prod.days_remaining }}d restantes
+        </span>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+
+    <!-- Botão enviar WhatsApp -->
+    <button hx-post="/commercial/b2b/send-replenishment/{{ customer.id }}"
+            hx-target="#card-{{ customer.id }}"
+            hx-swap="outerHTML"
+            class="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg
+                   font-medium transition-colors flex items-center justify-center gap-2 text-sm">
+      <i class="ph ph-whatsapp-logo" aria-hidden="true"></i>
+      Enviar Sugestão de Reposição
+    </button>
+
+  </div>
+  {% endfor %}
+
+</div>
+{% else %}
+<div class="flex flex-col items-center justify-center py-16 text-gray-400">
+  <i class="ph ph-smiley text-5xl mb-3" aria-hidden="true"></i>
+  <p class="font-medium text-gray-600 text-sm">Nenhum cliente em risco de ruptura</p>
+  <p class="text-xs mt-1">O motor de demanda não detectou esgotamentos previstos.</p>
+</div>
+{% endif %}

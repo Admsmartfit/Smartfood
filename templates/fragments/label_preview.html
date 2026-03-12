@@ -1,0 +1,88 @@
+{# Fragmento: Preview visual HTML de etiqueta #}
+<div class="flex flex-col items-center gap-4">
+
+  <!-- Etiqueta simulada -->
+  <div class="bg-white border-4 border-gray-900 rounded font-mono text-sm p-4 shadow-inner"
+       style="width: {{ [template.width_mm * 2, 200] | max }}px;
+              min-height: {{ [template.height_mm * 2, 120] | max }}px;"
+       role="img"
+       aria-label="Preview da etiqueta">
+
+    <!-- Nome do produto — destaque -->
+    <div class="font-bold text-base uppercase tracking-wide text-center border-b-2 border-gray-900 pb-1 mb-2">
+      {{ fields.product_name or 'NOME DO PRODUTO' }}
+    </div>
+
+    <!-- Corpo da etiqueta -->
+    <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+      <div>
+        <span class="text-gray-500">LOTE:</span>
+        <span class="font-bold ml-1">{{ fields.lot or '—' }}</span>
+      </div>
+      <div>
+        <span class="text-gray-500">PESO:</span>
+        <span class="font-bold ml-1">{{ fields.weight_g | int if fields.weight_g else '—' }}g</span>
+      </div>
+      <div>
+        <span class="text-gray-500">FAB:</span>
+        <span class="font-bold ml-1">{{ fields.fab_date or '—' }}</span>
+      </div>
+      <div>
+        <span class="text-gray-500">VAL:</span>
+        <span class="font-bold ml-1 {% if fields.exp_date %}text-red-800{% endif %}">
+          {{ fields.exp_date or '—' }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Área QR + Barcode -->
+    <div class="flex items-center justify-between mt-3 pt-2 border-t border-gray-300">
+
+      <!-- QR placeholder -->
+      <div class="w-14 h-14 border-2 border-gray-600 rounded flex items-center justify-center
+                  bg-white text-gray-400 text-xs text-center leading-tight select-none">
+        <div>
+          <div class="text-xl font-bold">▒▒</div>
+          <div class="text-[9px]">QR</div>
+        </div>
+      </div>
+
+      <!-- Barcode placeholder -->
+      <div class="flex-1 ml-3">
+        <div class="flex items-end gap-px h-10">
+          {% for i in range(40) %}
+          <div class="bg-gray-900 flex-1"
+               style="height: {% if loop.index % 5 == 0 %}100%{% elif loop.index % 3 == 0 %}70%{% elif loop.index % 2 == 0 %}85%{% else %}90%{% endif %}">
+          </div>
+          {% endfor %}
+        </div>
+        <p class="text-center text-[9px] mt-0.5 tracking-widest">
+          {{ fields.lot or '000000000000' }}
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Metadados da etiqueta -->
+  <div class="text-xs text-gray-500 flex gap-4">
+    <span>{{ template.width_mm }}×{{ template.height_mm }} mm</span>
+    <span>{{ template.printer_type }}</span>
+    {% if zpl_preview %}
+    <span>{{ zpl_preview | length }} bytes</span>
+    {% endif %}
+  </div>
+
+  {% if zpl_preview %}
+  <!-- Código ZPL/TSPL expansível -->
+  <details class="w-full">
+    <summary class="text-xs text-blue-600 cursor-pointer hover:text-blue-800">
+      Ver código {{ template.printer_type }}
+    </summary>
+    <pre class="mt-2 p-3 bg-slate-900 text-green-400 text-xs rounded-lg overflow-x-auto
+                max-h-48 whitespace-pre-wrap">{{ zpl_preview }}</pre>
+  </details>
+  {% endif %}
+
+</div>

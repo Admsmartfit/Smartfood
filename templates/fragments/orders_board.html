@@ -1,0 +1,99 @@
+{# Fragmento: Kanban de pedidos B2B agrupados por status #}
+<div class="flex gap-4 overflow-x-auto pb-4 min-h-64">
+  {% for col in columns %}
+  <div class="flex-shrink-0 w-72">
+
+    <!-- Cabeçalho da coluna -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
+                     {{ col.col_bg }} {{ col.col_txt }}">
+          {{ col.label }}
+        </span>
+        <span class="text-xs text-gray-400">({{ col.orders | length }})</span>
+      </div>
+    </div>
+
+    <!-- Cards do status -->
+    <div class="space-y-3" id="kanban-col-{{ col.status }}">
+      {% if col.orders %}
+        {% for order in col.orders %}
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm
+                    hover:shadow-md hover:border-blue-200 transition-all cursor-default"
+             id="order-card-{{ order.id }}">
+
+          <!-- Cliente + número -->
+          <div class="flex items-start justify-between gap-2 mb-2">
+            <div>
+              <p class="font-semibold text-sm text-gray-900 leading-tight">
+                {{ order.get('cliente_nome', 'Cliente') }}
+              </p>
+              <p class="text-xs text-gray-400 mt-0.5">
+                #{{ order.get('numero', order.get('id', '')[:8].upper()) }}
+              </p>
+            </div>
+            <span class="text-xs font-semibold text-blue-700 whitespace-nowrap">
+              R$ {{ order.get('total', 0) | round(2) }}
+            </span>
+          </div>
+
+          <!-- Itens (resumo) -->
+          {% if order.get('items') %}
+          <ul class="text-xs text-gray-500 space-y-0.5 mb-3">
+            {% for it in order.items[:3] %}
+            <li class="flex justify-between">
+              <span class="truncate">{{ it.get('produto_nome', '—') }}</span>
+              <span class="ml-2 font-medium">{{ it.get('quantidade', 0) | round(1) }}</span>
+            </li>
+            {% endfor %}
+            {% if order.items | length > 3 %}
+            <li class="text-gray-400 italic">+{{ order.items | length - 3 }} item(ns)…</li>
+            {% endif %}
+          </ul>
+          {% endif %}
+
+          <!-- Data de entrega -->
+          {% if order.get('data_entrega_prevista') %}
+          <div class="flex items-center gap-1 text-xs text-gray-400 mb-3">
+            <i class="ph ph-calendar-blank" aria-hidden="true"></i>
+            <span>Entrega: {{ order.data_entrega_prevista[:10] }}</span>
+          </div>
+          {% endif %}
+
+          <!-- Ação de avanço de status -->
+          {% set next_map = {
+            'RASCUNHO':    ('CONFIRMADO',  'Confirmar',    'bg-blue-600 hover:bg-blue-700'),
+            'CONFIRMADO':  ('EM_PRODUCAO', 'Iniciar OP',   'bg-yellow-500 hover:bg-yellow-600'),
+            'EM_PRODUCAO': ('PRONTO',      'Marcar Pronto','bg-purple-600 hover:bg-purple-700'),
+            'PRONTO':      ('ENTREGUE',    'Entregar',     'bg-green-600 hover:bg-green-700'),
+          } %}
+          {% if order.get('status') in next_map %}
+          {% set next_status, btn_label, btn_cls = next_map[order.status] %}
+          <form hx-post="/api/b2b/orders/{{ order.id }}/status"
+                hx-target="#order-card-{{ order.id }}"
+                hx-swap="outerHTML"
+                class="mt-auto">
+            <input type="hidden" name="new_status" value="{{ next_status }}">
+            <button type="submit"
+                    class="w-full py-1.5 text-xs font-semibold text-white rounded-lg
+                           transition-colors {{ btn_cls }}">
+              {{ btn_label }}
+            </button>
+          </form>
+          {% endif %}
+
+        </div>
+        {% endfor %}
+
+      {% else %}
+        <div class="flex flex-col items-center justify-center py-8 rounded-xl
+                    border-2 border-dashed border-slate-200 text-gray-300">
+          <i class="ph ph-tray text-2xl mb-1" aria-hidden="true"></i>
+          <span class="text-xs">Nenhum pedido</span>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endfor %}
+</div>

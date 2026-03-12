@@ -1,0 +1,22 @@
+{# Fragmento: Confirmação de repetição de pedido #}
+{% if error %}
+<div class="flex items-center gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+  <i class="ph-fill ph-x-circle text-xl flex-shrink-0" aria-hidden="true"></i>
+  <span>{{ error }}</span>
+</div>
+{% elif order %}
+<div class="flex items-start gap-4 p-4 rounded-lg bg-green-50 border border-green-200">
+  <i class="ph-fill ph-check-circle text-2xl text-green-600 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+  <div>
+    <p class="font-semibold text-green-800 text-sm">Pedido repetido com sucesso!</p>
+    <p class="text-sm text-green-700 mt-0.5">
+      Novo pedido criado — entrega prevista para
+      <strong>{{ order.get('data_entrega_prevista', '')[:10] }}</strong>.
+    </p>
+    <p class="text-xs text-green-600 mt-1">
+      Total: R$ {{ order.get('total', 0) | round(2) }}
+      · {{ order.get('total_itens', 0) }} item(ns)
+    </p>
+  </div>
+</div>
+{% endif %}
