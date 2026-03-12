@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Visão geral em tempo real — {{ hoje }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- ── Cabeçalho de boas-vindas ── -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">Bom dia! 👋</h2>
+      <p class="text-sm text-gray-500 mt-0.5">
+        {{ hoje }} · Dados atualizados a cada 2 minutos
+      </p>
+    </div>
+    <button hx-get="/api/fragments/kpis"
+            hx-target="#kpi-container"
+            hx-swap="innerHTML"
+            hx-indicator="#kpi-loading"
+            class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white
+                   text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors
+                   min-h-[44px] self-start sm:self-auto"
+            aria-label="Atualizar dados do dashboard">
+      <i class="ph ph-arrows-clockwise" aria-hidden="true"></i>
+      Atualizar
+      <span id="kpi-loading" class="htmx-indicator">
+        <i class="ph ph-spinner animate-spin" aria-hidden="true"></i>
+      </span>
+    </button>
+  </div>
+
+  <!-- ── KPI Cards ── -->
+  <div id="kpi-container"
+       hx-get="/api/fragments/kpis"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <!-- Skeleton loading -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {% for i in range(4) %}
+      <div class="bg-white rounded-xl border border-slate-200 p-5 animate-pulse">
+        <div class="h-4 bg-slate-200 rounded w-1/2 mb-3"></div>
+        <div class="h-8 bg-slate-200 rounded w-2/3 mb-2"></div>
+        <div class="h-3 bg-slate-200 rounded w-1/3"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ── Grade: Margem + Alertas ── -->
+  <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+    <!-- Tabela de Margem (2/3 da largura) -->
+    <div class="xl:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+        <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+          <i class="ph ph-chart-bar text-blue-600 text-lg" aria-hidden="true"></i>
+          Monitor de Margem
+        </h3>
+        <span class="text-xs text-gray-400">Atualizado automaticamente</span>
+      </div>
+      <div id="margin-table-container"
+           hx-get="/api/fragments/margin-table"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <div class="p-8 text-center text-sm text-gray-400 animate-pulse">
+          Carregando margens...
+        </div>
+      </div>
+    </div>
+
+    <!-- Painel lateral: Alertas + Ações Rápidas (1/3) -->
+    <div class="space-y-4">
+
+      <!-- Alertas Críticos -->
+      <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 class="font-semibold text-gray-900 flex items-center gap-2">
+            <i class="ph ph-bell-ringing text-red-500 text-lg" aria-hidden="true"></i>
+            Alertas
+          </h3>
+          <a href="/intelligence/alerts"
+             hx-get="/intelligence/alerts"
+             hx-target="#main-content"
+             hx-select="#main-content"
+             hx-push-url="true"
+             class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+             aria-label="Ver central de alertas">
+            Ver todos
+          </a>
+        </div>
+        <div id="dashboard-alerts"
+             hx-get="/api/fragments/alerts"
+             hx-trigger="load, every 60s"
+             hx-swap="innerHTML"
+             class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+          <div class="p-6 text-center text-sm text-gray-400 animate-pulse">
+            Carregando...
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações Rápidas -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <i class="ph ph-lightning text-yellow-500 text-lg" aria-hidden="true"></i>
+          Ações Rápidas
+        </h3>
+        <div class="space-y-2">
+          <a href="/operations/production"
+             hx-get="/operations/production"
+             hx-target="#main-content"
+             hx-select="#main-content"
+             hx-push-url="true"
+             class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50
+                    hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-700
+                    transition-colors group min-h-[44px]"
+             aria-label="Ir para ordens de produção">
+            <i class="ph ph-factory text-gray-400 group-hover:text-blue-600 text-base" aria-hidden="true"></i>
+            Ordens de Produção
+          </a>
+          <a href="/operations/receiving"
+             hx-get="/operations/receiving"
+             hx-target="#main-content"
+             hx-select="#main-content"
+             hx-push-url="true"
+             class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50
+                    hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-700
+                    transition-colors group min-h-[44px]"
+             aria-label="Ir para recebimento NF-e">
+            <i class="ph ph-truck text-gray-400 group-hover:text-blue-600 text-base" aria-hidden="true"></i>
+            Recebimento NF-e
+          </a>
+          <a href="/commercial/purchasing"
+             hx-get="/commercial/purchasing"
+             hx-target="#main-content"
+             hx-select="#main-content"
+             hx-push-url="true"
+             class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50
+                    hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-700
+                    transition-colors group min-h-[44px]"
+             aria-label="Ir para cotações">
+            <i class="ph ph-shopping-cart text-gray-400 group-hover:text-blue-600 text-base" aria-hidden="true"></i>
+            Cotações / Compras
+          </a>
+          <a href="/briefing/preview"
+             target="_blank"
+             class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-50
+                    hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-700
+                    transition-colors group min-h-[44px]"
+             aria-label="Ver briefing diário">
+            <i class="ph ph-newspaper text-gray-400 group-hover:text-blue-600 text-base" aria-hidden="true"></i>
+            Briefing Diário
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}

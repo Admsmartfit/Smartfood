@@ -1,811 +1,1088 @@
+
 SMARTFOOD OPS 360
-PRD — Intelligence Edition
-Gestão Industrial de Ultracongelados com IA Preditiva
-Versão 3.0  ·  Estruturado em Etapas para Geração por IA  ·  Jules / Google AI Studio
-ERP Industrial  ·  MRP II Preditivo  ·  E-commerce B2B  ·  Motor de Demanda Inteligente
+PRD — Frontend Intelligence
+Interface Hypermedia-Driven para o Sistema de Gestão Industrial de Ultracongelados
+Stack: FastAPI  ·  Jinja2  ·  HTMX  ·  Tailwind CSS  ·  Alpine.js  ·  Phosphor Icons
+
+Integrado ao PRD Intelligence v3.0  ·  E-01 a E-19  ·  Estruturado em 8 Etapas Frontend (FE-01 a FE-08)
+
+⚡
+PERFORMANCE
+< 50kb HTML puro. Resposta HTMX < 150ms. Zero reload de página completa.
+📱
+MOBILE-FIRST
+Operadores no chão de fábrica com tablet ou celular. Botões touch-friendly ≥ 48px.
 🧠
-INTELIGÊNCIA
-Previsão de demanda, alertas preditivos, motor de margem em tempo real
-🏭
-OPERAÇÃO
-MRP automático, BOM, recebimento com balança, etiquetas ZPL/TSPL
-🍺
-COMERCIAL
-Portal B2B, QR dinâmico, reposição proativa, histórico de consumo do bar
-Índice de Etapas de Desenvolvimento
-ETAPA
-MÓDULO / TEMA
-PRIORIDADE
-SPRINT
-E-01
-Fundação: Modelos de Dados e Banco
-P0 — Crítico
-Sprint 1
-E-02
-Fichas Técnicas com FC, FCoc e BOM
-P0 — Crítico
-Sprint 1
-E-03
-Motor de Precificação e Margem em Tempo Real
-P0 — Crítico
-Sprint 1
-E-04
-🧠 Motor de Inteligência de Demanda (MRP Preditivo)
-P0 — Crítico
-Sprint 2
-E-05
-🧠 Previsão de Demanda por Histórico e Sazonalidade
-P0 — Crítico
-Sprint 2
-E-06
-🧠 Orquestrador de Alertas Inteligentes
-P1 — Alta
-Sprint 2
-E-07
-Gestão de Estoque com PVPS e Lotes
-P0 — Crítico
-Sprint 2
-E-08
-Gestão de Insumos Não-Alimentícios (Embalagens, Limpeza)
-P1 — Alta
-Sprint 2
-E-09
-Compras Hyper-Automation (Mega API + Gmail)
-P1 — Alta
-Sprint 3
-E-10
-Recebimento com Balança e Validação de NF-e XML
-P1 — Alta
-Sprint 3
-E-11
-Ordens de Produção e Consumo de Insumos
-P0 — Crítico
-Sprint 3
-E-12
-Portal B2B: Catálogo, Pedidos e Recompra
-P1 — Alta
-Sprint 4
-E-13
-🧠 Inteligência B2B: Reposição Proativa do Bar
-P1 — Alta
-Sprint 4
-E-14
-Módulo de Etiquetas Parametrizadas e QR Dinâmico
-P2 — Média
-Sprint 4
-E-15
-🧠 QR Inteligente: Promoção por Vencimento
-P2 — Média
-Sprint 4
-E-16
-DRE Automatizado e Relatórios de Lote
-P2 — Média
-Sprint 5
-E-17
-SPI — Índice de Performance de Fornecedores
-P2 — Média
-Sprint 5
-E-18
-Modo Offline (SQLite) e Sincronização
-P1 — Alta
-Sprint 3
-E-19
-PWA Mobile para Operadores
-P2 — Média
-Sprint 5
-🧠  Etapas com Inteligência Artificial Embarcada
-As etapas marcadas com 🧠 são o diferencial competitivo do sistema. Elas implementam o Motor de Demanda, a Previsão por Histórico, os Alertas Preditivos e a Reposição Proativa do Bar. Sem elas, o sistema é um ERP comum. Com elas, é um parceiro de negócio.
-ETAPA E-01 — Fundação: Modelos de Dados e Banco de Dados
-E-01.1 Objetivo
-Definir a estrutura de dados que suporta TODO o sistema. Erros aqui têm custo exponencial. O banco deve suportar multi-tenancy (múltiplos chefs), rastreabilidade completa de lotes e a série temporal de eventos que alimenta o Motor de Inteligência.
-E-01.2 Entidades Principais do Banco de Dados
-Entidade
-Tabela SQL
-Campos Críticos
-Produto
-products
-id, nome, sku, categoria, fc, fcoc, markup, margem_minima, ativo
-Insumo (Alimentício)
-ingredients
-id, nome, unidade, fc_medio, custo_atual, estoque_atual, estoque_minimo, lead_time_dias
-Insumo (Embalagem/Indireto)
-supplies
-id, nome, tipo (embalagem|limpeza|epi|outros), unidade, estoque_atual, estoque_minimo, lead_time_dias, consumo_por_lote
-BOM (Receita)
-bom_items
-id, product_id, ingredient_id OU supply_id, quantidade, unidade, perda_esperada_pct
-Lote de Produção
-production_batches
-id, product_id, quantidade_planejada, quantidade_real, data_inicio, data_fim, custo_total, status
-Consumo de Insumo
-batch_ingredient_usage
-id, batch_id, ingredient_id, qty_planejada, qty_real, custo_unitario, divergencia_pct
-Evento de Demanda
-demand_events
-id, produto_id, cliente_id, quantidade, data_pedido, data_entrega, canal, sazonalidade_tag
+INTELIGÊNCIA VISÍVEL
+Motor de Demanda e alertas preditivos surfacados em tempo real no dashboard.
+
+1. Visão Geral e Filosofia de Interface
+Este PRD especifica o frontend do SmartFood Ops 360, complementando o PRD Intelligence v3.0 (backend). A interface adota a filosofia Hypermedia-Driven: o servidor retorna HTML fragmentado (partials) em vez de JSON, e o HTMX troca pedaços do DOM de forma cirúrgica. O resultado é uma experiência de SPA sem a complexidade de React ou Vue — perfeita para um desenvolvedor Python que já domina HTML.
+
+💡  Por Que HTMX + FastAPI em Vez de React?
+React exige: Node.js, npm, webpack/vite, JSX, estado global, API REST separada e deploy de dois projetos. HTMX exige: um arquivo .js no <head> e atributos HTML. O FastAPI já retorna o HTML via Jinja2. Resultado: um único projeto Python que serve backend E frontend, deploy em uma VPS de R$60/mês, e manutenção por um único desenvolvedor.
+
+1.1 Princípios de Design (Design System)
+Princípio
+Implementação Concreta
+Regra 80/20 de Espaço
+80% da tela: fundo Slate 50 (#F8FAFC) respirando. 20%: dados críticos com cor. Margem crítica em Red 500, previsão de demanda em Blue 600.
+Navegação Preditiva
+Menu lateral organizado pelo fluxo de trabalho: 🧠 Inteligência → 🏭 Operação → 🍺 Comercial. Não por módulo técnico.
+Interação de Baixa Fricção
+Inline editing: clicar em um número na tabela abre input no lugar. Sem modais. Atualizações parciais via HTMX sem piscar a tela.
+Tipografia Legível
+Inter (Google Fonts). Tamanho base 14px. Gray 800 (#1F2937) em textos. Jamais fonte menor que 12px em dados operacionais.
+Paleta Sóbria Industrial
+Fundo: Slate 50. Texto: Gray 800. Ação Primária: Blue 600. Crítico: Red 500. Atenção: Yellow 500. Sucesso: Green 600. SEM purple, pink ou gradientes decorativos.
+Touch-Friendly Obrigatório
+Todos os botões e links: mínimo 48×48px de área de toque. Espaçamento vertical generoso em listas (min 44px por linha em mobile).
+Ícones Consistentes
+Phosphor Icons (traços finos). Tamanho padrão: 20px (sidebar), 16px (tabelas), 24px (botões de ação). Sempre com aria-label.
+Toast de Feedback
+Toda ação HTMX retorna header HX-Trigger com evento toast. Alpine.js exibe notificação no canto inferior direito por 3 segundos. SEM alert() do browser.
+
+2. Mapa Completo de Telas e Rotas
+Cada rota serve uma página completa (GET → HTML full) ou um fragmento (GET/POST → HTML partial). O HTMX injeta fragmentos dentro de containers específicos sem recarregar o layout.
+
+Módulo
+Rota FastAPI
+Template Jinja2
+Tipo
+Etapa FE
+Layout Base
+GET /
+base.html
+Página Completa
+FE-01
+Dashboard
+GET /dashboard
+dashboard/index.html
+Página Completa
+FE-02
+Fragmento KPIs
+GET /api/fragments/kpis
+fragments/kpis.html
+Partial HTMX
+FE-02
+Fragmento Margem
+GET /api/fragments/margin-table
+fragments/margin_table.html
+Partial HTMX
+FE-02
+Fragmento Alertas
+GET /api/fragments/alerts
+fragments/alerts_dropdown.html
+Partial HTMX
+FE-02
 Previsão de Demanda
-demand_forecasts
-id, produto_id, periodo (semana|mes), qty_prevista, confianca_pct, modelo_usado, criado_em
-Alerta do Sistema
-system_alerts
-id, tipo, produto_id OU supply_id, mensagem, severidade, status, criado_em, resolvido_em
-Fornecedor
-suppliers
-id, nome, tipo, whatsapp, email, spi_score, lead_time_medio_dias
-Cotação
-rfqs
-id, supply_id, supplier_id, preco_unitario, prazo_entrega_dias, status, enviado_em, respondido_em
-Cliente (Bar)
-customers
-id, nome, whatsapp, email, tabela_preco_id, historico_volume_mensal, ultimo_pedido_em
-Pedido B2B
-orders
-id, customer_id, status, total, data_pedido, data_entrega_prevista, canal
-Item do Pedido
-order_items
-id, order_id, product_id, quantidade, preco_unitario, margem_pct
-E-01.3 Prompt para Jules — Fundação
-📋  PROMPT E-01 — Cole no Jules / Google AI Studio
-Crie o schema completo em PostgreSQL para o sistema SmartFood Ops 360 — ERP Industrial para produção de petiscos ultracongelados. Inclua as seguintes tabelas com todos os campos, tipos, constraints, índices e relacionamentos: products, ingredients, supplies, bom_items, production_batches, batch_ingredient_usage, demand_events, demand_forecasts, system_alerts, suppliers, rfqs, customers, orders, order_items. Use UUID como PK. Adicione timestamps created_at/updated_at em todas. Crie índices em produto_id, data_pedido, status. Adicione comentários SQL explicando cada tabela. Ao final, gere o código Python (SQLAlchemy ORM) com todos os modelos correspondentes.
-ETAPA E-02 — Fichas Técnicas com FC, FCoc e BOM
-E-02.1 Conceitos Fundamentais
-Conceito
-Fórmula
-Exemplo Real
-Impacto no Sistema
-Fator de Correção (FC)
-FC = Peso Bruto ÷ Peso Líquido
-Frango inteiro: 1,38 (38% de osso e pele)
-Custo real = Preço/kg × FC
-Fator de Cocção (FCoc)
-FCoc = Peso Cozido ÷ Peso Cru
-Frango assado: 0,72 (28% de perda de água)
-Custo final = (Custo×FC) ÷ FCoc
-Labor Cost
-LC = Salário ÷ (Dias × Horas × 60min)
-R$2.200 ÷ (22×8×60) = R$0,21/min
-Custo mão de obra por produto
-Custo Embalagem
-CE = Σ insumos indiretos por unidade
-Saco+etiqueta+caixa/20 = R$0,92/un
-Soma ao custo direto na BOM
-Margem Real
-M = (Preço - CustoTotal) ÷ Preço × 100
-R$22 - R$11,40 = 48,2% margem
-Threshold configurável por produto
-E-02.2 Fórmula Mestre de Precificação
-FÓRMULA MESTRE — PREÇO SUGERIDO
-Preço = [ (Custo_Insumo × FC ÷ FCoc) + Custo_Embalagem + Labor_min × Tempo_prod + Energia ] × Markup
-Aplicada automaticamente a cada Ordem de Produção. Markup configurável por canal de venda.
-E-02.3 Prompt para Jules — Fichas Técnicas
-📋  PROMPT E-02 — Cole no Jules / Google AI Studio
-Usando FastAPI e SQLAlchemy (schema da E-01), implemente o CRUD completo de Fichas Técnicas (BOM) para o SmartFood Ops 360. Requisitos: (1) Endpoint POST /products/{id}/bom que recebe lista de insumos (alimentícios e de embalagem) com quantidade e unidade; (2) Endpoint GET /products/{id}/cost-calculation que retorna o custo detalhado aplicando FC, FCoc e Labor Cost por minuto, retornando: custo_insumos, custo_embalagem, custo_labor, custo_energia, custo_total, preco_sugerido, margem_pct; (3) Lógica em Python puro da calculadora de custo; (4) Validação: alerta se FC < 1.0 ou margem_calculada < margem_minima do produto; (5) Banco pré-populado com FC/FCoc médios: frango=1.38/0.72, bovino=1.45/0.68, bacalhau=1.52/0.74, suíno=1.30/0.75, massa=1.05/0.90.
-ETAPA E-03 — Motor de Precificação e Monitor de Margem em Tempo Real
-E-03.1 Comportamento do Monitor de Margem
-O monitor não é um relatório estático. É um daemon que roda a cada 15 minutos e recalcula a margem de TODOS os produtos ativos com base nos custos atuais dos insumos. Ao detectar violação de threshold, dispara alerta imediato.
-Situação
-Gatilho
-Ação do Sistema
-Interface Visual
-Margem OK
-Margem atual ≥ Margem mínima
-Nenhuma ação. Registra no log.
-Indicador verde no dashboard
-Margem em risco
-Margem atual entre mínima e mínima-5pp
-Alerta amarelo + notificação WhatsApp ao gestor
-Badge amarelo piscante no produto
-Margem violada
-Margem atual < Margem mínima
-Alerta vermelho + sugestão de novo preço calculado + bloqueia novo lote opcional
-Banner vermelho no topo + produto em destaque
-Insumo subiu
-Novo preço de insumo recebido via NF-e ou cotação
-Recalcula margem de todos os produtos que usam esse insumo
-Linha de impacto: 'Óleo subiu 12% → 4 produtos afetados'
-Markup insuficiente
-Markup atual não cobre custos + meta de margem
-Simulação automática: novo markup sugerido para atingir meta
-Painel 'O que preciso cobrar?' no dashboard
-E-03.2 Prompt para Jules — Motor de Margem
-📋  PROMPT E-03 — Cole no Jules / Google AI Studio
-Implemente em Python (FastAPI) o MarginMonitor para o SmartFood Ops 360. Requisitos: (1) Serviço assíncrono que roda a cada 15 minutos recalculando a margem de todos os produtos ativos; (2) Endpoint PATCH /ingredients/{id}/price que ao receber novo preço, dispara recálculo em cascata de todos os produtos da BOM; (3) Lógica de threshold: verde (>=mínima), amarelo (mínima-5pp a mínima), vermelho (<mínima); (4) Função suggest_new_price(product_id, target_margin) que retorna o preço mínimo necessário para atingir a margem alvo; (5) Endpoint GET /dashboard/margin-alerts que retorna lista de produtos em risco ordenados por urgência; (6) Integração com tabela system_alerts: inserir alerta ao violar threshold, marcar como resolvido ao voltar para verde.
-🧠 ETAPA E-04 — Motor de Inteligência de Demanda (MRP Preditivo)
-🧠  A INTELIGÊNCIA CENTRAL DO SISTEMA
-Este é o módulo que transforma o SmartFood Ops 360 de um ERP em um parceiro inteligente. Ele analisa o histórico completo de pedidos, padrões de consumo, sazonalidade (fim de semana, feriados, Copa do Mundo) e estoque atual para responder a pergunta fundamental: O QUE, QUANTO e QUANDO produzir e comprar?
-E-04.1 Arquitetura do Motor de Demanda
-Camada
-Responsabilidade
-Entrada → Saída
-Camada 1: Coleta
-Registra TODOS os eventos de demanda: pedidos, cancelamentos, devoluções, histórico de consumo do bar
-Eventos brutos → Serie temporal por produto
-Camada 2: Análise
-Calcula médias móveis (7d, 30d, 90d), detecta tendências, identifica picos sazonais
-Serie temporal → Métricas de demanda
-Camada 3: Previsão
-Projeta demanda para os próximos 7, 14 e 30 dias com nível de confiança
-Métricas → Forecast com intervalo de confiança
-Camada 4: MRP
-Com o forecast, calcula necessidade bruta de insumos subtraindo estoque e considerando lead time
-Forecast + Estoque → Plano de compra e produção
-Camada 5: Alertas
-Gera alertas priorizados: 'Iniciar produção em X dias', 'Comprar Y kg de Z em W dias'
-Plano → Alertas acionáveis com data
-E-04.2 Fluxo Completo de Decisão Inteligente
-Passo
-Ação / Trigger
-Dado de Entrada
-Saída / Resultado
-1
-Análise Noturna (23h59 todo dia)
-Histórico de pedidos últimos 90 dias por produto
-Demanda média diária, desvio padrão, tendência de crescimento
-2
-Detecção de Sazonalidade
-Calendário: feriados, finais de semana, eventos locais
-Fator multiplicador: ex. sexta-feira = ×1.8 da média
-3
-Previsão de 14 dias
-Média móvel + fator sazonal + tendência
-Forecast: 'Coxinha: 340 unid/semana próxima (conf: 82%)'
-4
-Verificação de Estoque
-Estoque atual de produto acabado + insumos
-Gap: 'Faltam 200 unid de coxinha para cobrir previsão'
-5
-Cálculo de Necessidade de Produção
-Gap + estoque de segurança configurado
-Plano: 'Produzir 250 unid de coxinha até quinta-feira'
-6
-Explosão de BOM (MRP)
-Plano de produção + Fichas Técnicas (BOM)
-Necessidade bruta: '18kg de frango limpo, 15 bobinas de etiqueta'
-7
-Verificação de Insumos
-Estoque atual de cada insumo necessário
-Déficit: 'Frango: OK. Etiquetas: faltam 8 bobinas (estoque=7, need=15)'
-8
-Cálculo de Prazo de Compra
-Déficit + Lead time do fornecedor + data prevista produção
-Alerta: 'Comprar etiquetas HOJE — lead 5 dias, produção em 4 dias'
-9
-Geração de Alertas Priorizados
-Todos os déficits ordenados por urgência
-Dashboard com semáforo: vermelho=hoje, amarelo=3 dias, verde=7 dias
-10
-Disparo de Cotação Automática
-Insumos com alerta vermelho + fornecedores cadastrados
-RFQ enviado via WhatsApp e e-mail ao fornecedor preferencial
-E-04.3 Saídas do Motor de Demanda — O Que o Chef Vê
-Tela / Relatório
-Conteúdo Gerado pela IA
-📊 Card de Previsão Semanal
-'Previsão para próxima semana: Coxinha 340 unid (+18% vs semana passada) | Confiança: 85%'
-🏭 Painel de Produção Sugerida
-Lista de ordens de produção recomendadas com data de início ideal, ordenadas por urgência
-🛒 Lista de Compras Automática
-Insumos a comprar, quantidade exata, data limite do pedido, fornecedor sugerido, custo estimado
-⚠️ Central de Alertas
-Semáforo vermelho/amarelo/verde com: 'Iniciar produção de Kibe em 2 dias' ou 'Comprar frango hoje'
-📈 Gráfico de Tendência
-Histórico 90 dias + linha de previsão 30 dias por produto. Destaque de picos sazonais identificados
-🔮 Simulador 'E se?'
-'Se eu receber um pedido de 500 unid hoje, terei insumos? Em quanto tempo consigo produzir?'
-E-04.4 Prompt para Jules — Motor de Demanda
-📋  PROMPT E-04 — Cole no Jules / Google AI Studio (Motor Central de IA)
-Implemente em Python o DemandEngine para o SmartFood Ops 360. Este é o módulo mais crítico do sistema. Requisitos completos:
+GET /intelligence/forecast
+intelligence/forecast.html
+Página Completa
+FE-02
+Fragmento Forecast Chart
+GET /api/fragments/forecast/{id}
+fragments/forecast_chart.html
+Partial HTMX
+FE-02
+Simulador 'E se?'
+POST /api/intelligence/simulate
+fragments/simulate_result.html
+Partial HTMX
+FE-02
+Central de Alertas
+GET /intelligence/alerts
+intelligence/alerts.html
+Página Completa
+FE-02
+Lista Fichas Técnicas
+GET /operations/bom
+operations/bom_list.html
+Página Completa
+FE-03
+Busca Ficha (live)
+GET /api/fragments/bom-search
+fragments/bom_rows.html
+Partial HTMX
+FE-03
+Detalhe Ficha
+GET /operations/bom/{id}
+operations/bom_detail.html
+Página Completa
+FE-03
+Calculadora de Custo
+POST /api/bom/{id}/calculate
+fragments/cost_result.html
+Partial HTMX
+FE-03
+Estoque — Inventário
+GET /operations/inventory
+operations/inventory.html
+Página Completa
+FE-03
+Busca Estoque (live)
+GET /api/fragments/inventory-search
+fragments/inventory_rows.html
+Partial HTMX
+FE-03
+Recebimento NF-e
+GET /operations/receiving
+operations/receiving.html
+Página Completa
+FE-03
+Processar NF-e
+POST /api/receiving/process-nfe
+fragments/nfe_result.html
+Partial HTMX
+FE-03
+Ordens de Produção
+GET /operations/production
+operations/production_list.html
+Página Completa
+FE-03
+Iniciar OP (operador)
+POST /api/production/{id}/start
+fragments/op_status.html
+Partial HTMX
+FE-03
+Registrar Consumo
+POST /api/production/{id}/usage
+fragments/usage_result.html
+Partial HTMX
+FE-04
+Compras — Cotações
+GET /commercial/purchasing
+commercial/purchasing.html
+Página Completa
+FE-04
+Inbox de Cotações
+GET /api/fragments/rfq-inbox
+fragments/rfq_inbox.html
+Partial HTMX
+FE-04
+Aprovar Cotação
+POST /api/rfqs/{id}/approve
+fragments/rfq_approved.html
+Partial HTMX
+FE-04
+Portal B2B — Pedidos
+GET /commercial/orders
+commercial/orders.html
+Página Completa
+FE-05
+Reposição Proativa
+GET /commercial/b2b-intelligence
+commercial/b2b_intel.html
+Página Completa
+FE-05
+Catálogo B2B (bar)
+GET /portal/catalog
+portal/catalog.html
+Página Completa
+FE-05
+Etiquetas — Editor
+GET /operations/labels
+operations/labels.html
+Página Completa
+FE-06
+Preview Etiqueta
+POST /api/labels/preview
+fragments/label_preview.html
+Partial HTMX
+FE-06
+Fornecedores / SPI
+GET /commercial/suppliers
+commercial/suppliers.html
+Página Completa
+FE-07
+DRE e Relatórios
+GET /commercial/dre
+commercial/dre.html
+Página Completa
+FE-07
+Config e Preferências
+GET /settings
+settings/index.html
+Página Completa
+FE-08
+QR Redirect (público)
+GET /qr/{lot_code}
+—  (HTTP Redirect puro)
+Redirect 302
+FE-06
 
-(1) COLETA: Função record_demand_event(product_id, customer_id, qty, date, channel) que registra na tabela demand_events com tag de sazonalidade automática (fim_de_semana, feriado, dia_util).
+3. Estrutura de Arquivos do Projeto
+Organização de pastas que permite ao Jules gerar cada arquivo de forma modular, sem conflitos de import ou dependência circular.
 
-(2) ANÁLISE: Função analyze_demand(product_id, days=90) que retorna: media_diaria, desvio_padrao, tendencia_crescimento_pct, melhor_dia_semana, pior_dia_semana, fator_sazonal_por_dia_semana.
+smartfood/
+├── main.py                    # FastAPI app, middleware, routers
+├── config.py                  # Settings (pydantic-settings)
+├── database.py                # SQLAlchemy engine + session
+│
+├── routers/                   # Um router por módulo
+│   ├── ui_dashboard.py        # Rotas de página completa: /dashboard
+│   ├── ui_intelligence.py     # /intelligence/*
+│   ├── ui_operations.py       # /operations/*
+│   ├── ui_commercial.py       # /commercial/*, /portal/*
+│   ├── ui_settings.py         # /settings
+│   ├── api_fragments.py       # /api/fragments/* (partials HTMX)
+│   ├── api_intelligence.py    # /api/intelligence/* (simulate, forecast)
+│   ├── api_bom.py             # /api/bom/* (calculate, save)
+│   ├── api_inventory.py       # /api/inventory/* (adjust, receive)
+│   ├── api_production.py      # /api/production/* (start, usage, complete)
+│   ├── api_purchasing.py      # /api/rfqs/* (approve, send)
+│   ├── api_labels.py          # /api/labels/* (preview, print)
+│   └── api_webhooks.py        # /webhooks/mega-api, /webhooks/gmail
+│
+├── services/                  # Lógica de negócio pura (sem HTTP)
+│   ├── demand_engine.py       # Motor de Demanda (E-04)
+│   ├── seasonal_forecaster.py # Previsão sazonal (E-05)
+│   ├── alert_orchestrator.py  # Alertas (E-06)
+│   ├── margin_monitor.py      # Motor de Margem (E-03)
+│   ├── inventory_service.py   # Estoque + PVPS (E-07)
+│   ├── production_service.py  # Ordens de Produção (E-11)
+│   ├── purchase_automation.py # Cotações + Mega API (E-09)
+│   ├── b2b_service.py         # Portal + Reposição Proativa (E-12/13)
+│   └── label_service.py       # ZPL/TSPL + QR Redirect (E-14/15)
+│
+├── models/                    # SQLAlchemy ORM models (E-01)
+│   └── *.py
+│
+├── schemas/                   # Pydantic schemas (request/response)
+│   └── *.py
+│
+├── templates/                 # Jinja2 — TODA a UI vive aqui
+│   ├── base.html              # Shell: sidebar, topbar, toast, scripts
+│   ├── macros/
+│   │   ├── alerts.html        # Macro: render_alert(alert)
+│   │   ├── tables.html        # Macro: sortable_table(headers, rows)
+│   │   ├── cards.html         # Macro: kpi_card(label, value, delta, color)
+│   │   └── forms.html         # Macro: field(name, label, type, value)
+│   ├── fragments/             # Partials retornados pelo HTMX
+│   │   ├── kpis.html
+│   │   ├── margin_table.html
+│   │   ├── alerts_dropdown.html
+│   │   ├── forecast_chart.html
+│   │   ├── simulate_result.html
+│   │   ├── bom_rows.html
+│   │   ├── inventory_rows.html
+│   │   ├── nfe_result.html
+│   │   ├── op_status.html
+│   │   ├── rfq_inbox.html
+│   │   ├── rfq_approved.html
+│   │   ├── label_preview.html
+│   │   └── cost_result.html
+│   ├── dashboard/
+│   │   └── index.html
+│   ├── intelligence/
+│   │   ├── forecast.html
+│   │   └── alerts.html
+│   ├── operations/
+│   │   ├── bom_list.html
+│   │   ├── bom_detail.html
+│   │   ├── inventory.html
+│   │   ├── receiving.html
+│   │   ├── production_list.html
+│   │   └── labels.html
+│   ├── commercial/
+│   │   ├── purchasing.html
+│   │   ├── orders.html
+│   │   ├── b2b_intel.html
+│   │   ├── suppliers.html
+│   │   └── dre.html
+│   ├── portal/
+│   │   └── catalog.html
+│   └── settings/
+│       └── index.html
+│
+└── static/
+    ├── css/output.css          # Tailwind purged (build) ou CDN em dev
+    └── js/app.js               # Handlers Alpine: toast, sidebar, offline
 
-(3) PREVISÃO: Função forecast_demand(product_id, horizon_days=14) usando média móvel ponderada (pesos: últimos 7d=50%, últimos 30d=30%, últimos 90d=20%) multiplicada pelo fator sazonal do dia. Retornar previsão_diaria, previsao_total_periodo, confianca_pct, intervalo_min, intervalo_max.
+FE-01 — Fundação: Shell, Layout Base e Infraestrutura HTMX
+base.html · sidebar · topbar · toast · Alpine.js setup · Jinja2 config
 
-(4) MRP: Função calculate_production_plan(product_id, forecast_qty) que: subtrai estoque atual, adiciona estoque de segurança (configurável, padrão 15%), explode a BOM e retorna lista de insumos necessários com quantidade.
+FE-01.1 Objetivo
+Criar o invólucro da aplicação que todas as outras páginas vão herdar. O base.html define o <head> com as CDNs, a sidebar colapsável, o topbar com o orquestrador de alertas, o container principal <main> onde os fragmentos HTMX serão injetados, e o sistema de Toast notifications.
 
-(5) TIMING: Função calculate_purchase_alerts(ingredient_id, qty_needed) que compara estoque atual + pedidos em aberto com necessidade, subtrai lead_time do fornecedor da data de produção, retorna days_to_order e urgencia (critico|atencao|ok).
-
-(6) SCHEDULER: Job diário às 23h59 que executa toda a pipeline acima para todos os produtos ativos e popula a tabela demand_forecasts e system_alerts.
-🧠 ETAPA E-05 — Previsão de Demanda por Histórico e Sazonalidade
-E-05.1 Modelos de Previsão Disponíveis
-O sistema oferece 3 modelos de previsão, selecionáveis pelo gestor. O modelo padrão é a Média Móvel Ponderada por ser simples, interpretável e suficientemente preciso para o volume de uma cozinha industrial pequena.
-Modelo
-Descrição
-Quando Usar
-Precisão Esperada
-Média Móvel Ponderada (Padrão)
-Média dos últimos 7/30/90 dias com pesos decrescentes para o passado distante. Simples e robusto.
-Histórico < 6 meses ou demanda relativamente estável
-±15-25% de erro médio
-Suavização Exponencial (Holt-Winters)
-Captura tendência e sazonalidade com parâmetros alpha, beta, gamma. Ideal para séries com padrão semanal claro.
-Histórico > 3 meses, variação semanal visível (bar movimenta mais no fim de semana)
-±10-18% de erro médio
-Regressão Linear com Dummy Sazonal
-Regressão com variáveis binárias para dia da semana, feriados e mês. Explica causas da variação.
-Histórico > 6 meses, necessidade de explicabilidade para o gestor
-±12-20% de erro médio
-E-05.2 Mapa de Sazonalidade — Fatores por Tipo de Dia
-Tipo de Dia
-Fator Padrão
-Intervalo
-Base de Cálculo
-Exemplo Prático
-Segunda a Quinta (útil)
-1.0×
-0.7 – 1.2
-Média histórica dos úteis
-Consumo normal de bares — mov. moderado
-Sexta-feira
-1.6×
-1.3 – 2.0
-Média das sextas ÷ média geral
-Bares começam a encher → pico de pedidos
-Sábado
-2.1×
-1.7 – 2.6
-Média dos sábados ÷ média geral
-Maior movimento semanal dos bares parceiros
-Domingo
-1.4×
-1.0 – 1.8
-Média dos domingos ÷ média geral
-Almoço em família — consumo moderado-alto
-Feriado Nacional
-1.8×
-1.4 – 2.3
-Média dos feriados ÷ média geral
-Comportamento similar ao sábado
-Véspera de Feriado
-2.0×
-1.6 – 2.5
-Média das vésperas ÷ média geral
-Bar estoca com antecedência — pico de pedido
-Evento Local (Copa, etc.)
-2.8×
-2.0 – 4.0
-Configurável pelo gestor
-Jogos do Brasil → demanda explosiva em bares
-Janeiro / Férias
-0.7×
-0.5 – 0.9
-Média de janeiro ÷ média anual
-Queda de movimento em bares da cidade
-E-05.3 Prompt para Jules — Previsão e Sazonalidade
-📋  PROMPT E-05 — Cole no Jules / Google AI Studio
-Implemente em Python o módulo SeasonalForecaster para o SmartFood Ops 360. Requisitos: (1) Classe DemandAnalyzer com método get_seasonality_factors(product_id) que analisa o histórico de demand_events e retorna um dicionário com fator multiplicador para cada dia da semana (0=segunda a 6=domingo); (2) Método detect_holidays(date) integrado com API de feriados brasileiros (python-holidays lib); (3) Método weighted_moving_average(series, weights=[0.5, 0.3, 0.2]) para períodos de 7, 30 e 90 dias; (4) Classe HoltWinters(alpha, beta, gamma) com fit() e forecast(steps) para produtos com histórico > 90 dias; (5) Endpoint GET /products/{id}/forecast?days=14 que seleciona automaticamente o melhor modelo baseado no tamanho do histórico disponível e retorna: modelo_usado, previsao_por_dia (lista), total_previsto, confianca_pct, proximos_picos_identificados; (6) Endpoint POST /seasonality/custom-event que permite registrar eventos especiais (ex: Copa do Mundo, show local) com fator multiplicador manual.
-🧠 ETAPA E-06 — Orquestrador de Alertas Inteligentes
-E-06.1 Taxonomia Completa de Alertas
-O sistema possui 4 categorias de alertas, cada uma com severidade, canal de notificação e ação esperada definidos. O gestor configura quais alertas recebe e por qual canal.
-🔴
-Alerta
-Categoria
-Gatilho
-Canal
-Ação Sugerida
-🔴
-Margem abaixo do mínimo
-Financeiro
-Margem < threshold configurado
-Push + WhatsApp Gestor
-Recalcular preço imediatamente
-🔴
-Insumo crítico: comprar HOJE
-Estoque
-Lead time > dias restantes de estoque
-Push + WhatsApp + Email
-Acionar cotação automática
-🔴
-Produção não iniciada: pedido atrasado
-Produção
-Ordem de produção não iniciada D-1 da entrega
-WhatsApp Gestor + Operador
-Abrir OP urgente
-🟡
-Demanda prevista supera capacidade
-Capacidade
-Forecast 7 dias > capacidade diária × 7
-Push Gestor
-Revisar agenda de produção
-🟡
-Margem em risco (insumo subiu)
-Financeiro
-Insumo subiu >5% e impacta margem
-Push Gestor
-Simular novo preço
-🟡
-Insumo: comprar em 3 dias
-Estoque
-Cobertura entre lead_time e lead_time+3
-Push
-Planejar cotação
-🟡
-Sazonalidade alta detectada
-Demanda
-Próximos 7 dias incluem feriado ou fim de semana longo
-Push Gestor
-Antecipar produção
-🟢
-Produção sugerida pronta
-Produção
-Motor gera plano diário às 23h59
-Dashboard
-Revisar e aprovar plano
-🟢
-Novo pedido recebido no portal
-Comercial
-Cliente fez pedido B2B
-Push + WhatsApp Gestor
-Confirmar e planejar produção
-🟢
-Cotação respondida pelo fornecedor
-Compras
-Mensagem de cotação recebida e processada por IA
-Push
-Revisar e aprovar melhor oferta
-🔵
-SPI do fornecedor caiu
-Qualidade
-Fornecedor acumulou 2+ divergências no mês
-Dashboard
-Contato para alinhamento
-🔵
-Bar sem pedido há X dias
-Comercial
-Cliente não compra há mais dias que a média histórica
-WhatsApp automático ao bar
-Mensagem proativa de reposição
-E-06.2 Prompt para Jules — Orquestrador de Alertas
-📋  PROMPT E-06 — Cole no Jules / Google AI Studio
-Implemente o AlertOrchestrator em Python (FastAPI + APScheduler) para o SmartFood Ops 360. Requisitos: (1) Classe AlertOrchestrator com método evaluate_all() que roda a cada 15 minutos e avalia todos os alertas definidos; (2) Para cada regra, implementar: verificar condição, criar registro em system_alerts se nova, atualizar se já existente, marcar como resolvido se condição não existe mais; (3) Serviço NotificationDispatcher com métodos send_whatsapp(phone, message) via Mega API e send_push(user_id, title, body) via Firebase FCM; (4) Deduplicação: o mesmo alerta não deve ser enviado mais de uma vez a cada 4 horas; (5) Endpoint GET /alerts/active que retorna alertas agrupados por categoria e severidade; (6) Endpoint POST /alerts/{id}/snooze?hours=2 para o gestor silenciar temporariamente; (7) Configuração por usuário: endpoint PUT /notifications/preferences para definir quais alertas chegam por qual canal.
-ETAPA E-07 — Gestão de Estoque com PVPS e Rastreabilidade de Lotes
-E-07.1 Regras de Negócio do Estoque
-PVPS (Primeiro que Vence, Primeiro que Sai): O sistema sempre sugere consumir o lote mais antigo primeiro, exibindo data de validade na tela do operador
-Estoque de Segurança Dinâmico: Calculado como média_consumo_diario × (lead_time_fornecedor + 2 dias de buffer). Recalculado semanalmente pelo Motor de Demanda
-Ponto de Ressuprimento Automático: Quando estoque ≤ Estoque de Segurança + Consumo no Lead Time, alerta de compra é gerado
-Lote de Insumo → Lote de Produto: Rastreabilidade completa. Ao fazer recall ou auditoria, o sistema mostra exatamente quais produtos foram feitos com qual lote de insumo
-Ajuste de Inventário com Justificativa: Qualquer ajuste manual de estoque exige foto + motivo (quebra, validade, roubo). Auditado
-Divergência de Recebimento: Peso real vs. NF-e. Tolerância configurável (padrão ±0.5%). Acima da tolerância: chamado automático ao fornecedor
-E-07.2 Prompt para Jules — Estoque e Lotes
-📋  PROMPT E-07 — Cole no Jules / Google AI Studio
-Implemente o InventoryService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Entrada de insumos: endpoint POST /inventory/receive que recebe NF-e XML (parser com lxml), cria lote, atualiza estoque e compara peso NF vs. peso_balança_informado, gerando alerta se divergência > tolerância configurada; (2) PVPS: função get_fifo_lots(ingredient_id, qty_needed) que retorna lista de lotes a consumir em ordem de vencimento; (3) Consumo de produção: endpoint POST /production/{batch_id}/consume que deduz insumos do estoque usando PVPS; (4) Estoque de segurança: função calculate_safety_stock(ingredient_id) = media_consumo_diario × (lead_time_dias + 2); (5) Rastreabilidade: endpoint GET /traceability/product-batch/{batch_id} que retorna todos os insumos usados com seus lotes de origem; (6) Ajuste manual: endpoint POST /inventory/adjust com campos: ingredient_id, qty_ajuste, motivo, foto_base64 — registrar em log de auditoria.
-ETAPA E-08 — Gestão de Insumos Não-Alimentícios (Embalagens e Limpeza)
-Embalagens e suprimentos de limpeza são insumos de produção como qualquer outro. A falta de uma bobina de etiqueta para produção de 2.000 coxinhas é tão crítica quanto a falta da farinha. O sistema trata esses insumos com a mesma inteligência.
-Categoria
-Exemplos
-Unidade
-Lógica de Consumo
-Embalagem Primária
-Saco de vácuo 500g, saco stand-up 1kg
-unid
-Definido na BOM: 1 saco por unidade de produto
-Embalagem Secundária
-Caixa master papelão, fita adesiva
-unid / rolo
-1 caixa a cada N unidades (configurável na BOM)
-Etiqueta Térmica
-Bobina 100×60mm, 100×40mm
-bobinas
-N etiquetas por bobina ÷ unidades por lote
-Limpeza / Sanitização
-Detergente alcalino, cloro, álcool 70%
-litros
-Consumo diário fixo × dias de produção no mês
-EPI / Segurança
-Luvas descartáveis, touca, avental
-pack / unid
-Consumo diário fixo por operador × dias
-Material de Escritório
-Papel, caneta, etiqueta de caixa
-unid / resma
-Consumo mensal estimado fixo
-⚡  Regra Crítica: Lead Time de Embalagem Personalizada
-Embalagens com logo personalizado (silk screen ou impressão gráfica) têm lead time de 15 a 25 dias — muito maior que proteínas (1-3 dias). O Motor de Demanda deve tratar esses insumos com prioridade máxima no cálculo de antecedência de compra. A fórmula de alerta usa: data_producao_prevista - lead_time_embalagem = data_limite_pedido.
-E-08.2 Prompt para Jules — Insumos Não-Alimentícios
-📋  PROMPT E-08 — Cole no Jules / Google AI Studio
-Estenda o InventoryService para suportar insumos não-alimentícios (supplies) no SmartFood Ops 360. Requisitos: (1) Modelo Supply com campo tipo (embalagem_primaria | embalagem_secundaria | etiqueta | limpeza | epi | outros) e consumo_por_lote (para embalagens) ou consumo_diario_fixo (para limpeza/EPI); (2) Lógica de consumo dual: supplies de embalagem são consumidos pela BOM de produção; supplies de limpeza/EPI são consumidos por um job diário baseado em consumo_diario_fixo × num_operadores_ativos; (3) Cálculo de lead time crítico: para supplies com lead_time_dias > 10, o alerta de compra deve ser gerado com antecedência dobrada; (4) Endpoint GET /supplies/critical que lista insumos onde (estoque_atual / consumo_diario) <= (lead_time_dias + 3), ordenados por urgência; (5) Integração com Motor de Demanda: ao gerar plano de produção, incluir automaticamente a verificação de embalagens e etiquetas necessárias.
-ETAPA E-09 — Compras Hyper-Automation (Mega API + Gmail)
-E-09.1 Fluxo Completo de Cotação Automática
-Passo
-Ação / Trigger
-Dado de Entrada
-Saída / Resultado
-1
-Alerta de compra gerado pelo Motor (E-06)
-Insumo + qty necessária + data limite
-Item adicionado ao 'Carrinho de Cotação Pendente'
-2
-Gestor revisa e aprova envio de RFQ
-Seleção de fornecedores para cotar (1-5 por item)
-RFQ criado no banco com status 'pendente'
-3
-Envio simultâneo WhatsApp + Email
-Template personalizado por fornecedor + produto
-Mensagem entregue. Log de envio registrado.
-4
-IA monitora respostas (inbox unificado)
-Mensagem do fornecedor em texto livre
-Preço, prazo e condições extraídos e estruturados
-5
-Comparação automática e ranking
-Respostas estruturadas de todos os fornecedores
-Tabela: fornecedor A=R$X/14d, B=R$Y/7d. Melhor destacado.
-6
-Aprovação pelo Gestor (1 clique)
-Seleção do fornecedor vencedor
-Ordem de Compra gerada em PDF
-7
-Envio da OC ao fornecedor
-PDF da OC + confirmação de dados
-Email + WhatsApp com PDF. Status: 'OC enviada'
-8
-Recebimento e entrada no estoque (E-07)
-NF-e XML + pesagem física
-Estoque atualizado. Custo diluído na BOM.
-E-09.2 Prompt para Jules — Compras Automation
-📋  PROMPT E-09 — Cole no Jules / Google AI Studio
-Implemente o PurchaseAutomation em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Serviço MegaAPIClient com métodos send_message(phone, text) e send_document(phone, file_bytes, filename) integrando com Mega API REST; (2) RFQTemplate engine: gera mensagem personalizada 'Olá [nome], preciso cotar [qty] [unidade] de [produto]. Entrega até [data]. Qual o melhor preço?'; (3) Webhook POST /webhooks/mega-api que recebe respostas de WhatsApp. IA (chamada à API do Gemini com prompt de extração) analisa a mensagem e extrai: preco_unitario, prazo_dias, observacoes; (4) Webhook POST /webhooks/gmail que processa respostas de email via Gmail API com mesma lógica de extração; (5) Endpoint GET /rfqs/{supply_id}/comparison que retorna tabela comparativa de todas as respostas com score automático (peso: 60% preço, 40% prazo); (6) Endpoint POST /rfqs/{rfq_id}/approve que gera PDF da Ordem de Compra usando reportlab e envia ao fornecedor via email e WhatsApp.
-ETAPA E-11 — Ordens de Produção e Consumo de Insumos
-E-11.1 Ciclo de Vida de uma Ordem de Produção
-Passo
-Ação / Trigger
-Dado de Entrada
-Saída / Resultado
-1
-Motor de Demanda sugere OP (ou Gestor cria manualmente)
-Produto + qty + data entrega desejada
-OP criada com status RASCUNHO
-2
-Verificação de viabilidade (pré-produção)
-BOM + estoque atual de todos os insumos
-Relatório: 'Todos insumos OK' ou 'Falta X de insumo Y'
-3
-Gestor aprova OP
-Confirmação manual ou automática
-OP status → APROVADA. Insumos reservados (soft lock)
-4
-Operador inicia produção (mobile)
-Scan QR da OP ou seleção manual
-OP status → EM_PRODUCAO. Timer iniciado.
-5
-Operador confirma consumo de insumos
-Checklist com lotes PVPS sugeridos + pesagem real
-Consumo registrado. Estoque deduzido. Divergência registrada.
-6
-Registro do lote produzido
-Quantidade real, hora início/fim, operador
-Lote criado. Custo real calculado com insumos consumidos.
-7
-Geração e impressão de etiquetas
-Dados do lote + produto + vencimento
-Etiquetas impressas via ZPL/TSPL. QR ativo.
-8
-Entrada no estoque de produto acabado
-Quantidade, lote, localização no freezer
-Estoque atualizado. OP status → CONCLUÍDA.
-E-11.2 Prompt para Jules — Ordens de Produção
-📋  PROMPT E-11 — Cole no Jules / Google AI Studio
-Implemente o ProductionService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) CRUD de Ordens de Produção com máquina de estados: RASCUNHO → APROVADA → EM_PRODUCAO → CONCLUIDA | CANCELADA; (2) Endpoint POST /production-orders/{id}/feasibility-check que verifica se todos os insumos da BOM têm estoque suficiente para a quantidade planejada, listando déficits; (3) Endpoint POST /production-orders/{id}/start que registra hora_inicio, operador_id e faz soft-lock dos insumos; (4) Endpoint POST /production-orders/{id}/record-usage com lista de {ingredient_id, lot_id, qty_real} — calcula divergência, deduz estoque usando PVPS; (5) Endpoint POST /production-orders/{id}/complete que registra hora_fim, quantidade_real_produzida, calcula custo_total_real = soma(insumos_consumidos × custo_unitario) + labor_cost_por_tempo + energia_estimada, gera lote de produto acabado; (6) Cálculo de Labor Cost em tempo real: (hora_fim - hora_inicio).minutes × labor_cost_por_minuto.
-ETAPAS E-12 e E-13 — Portal B2B e Inteligência de Reposição Proativa
-E-12.1 Portal B2B — Funcionalidades
-Catálogo digital com fotos de alta resolução, descrição 'apetite appeal', tabela nutricional, alérgenos e ficha de preparo
-Tabela de preço por cliente: grupo A (grandes redes), B (bares parceiros), C (cliente spot)
-Área logada: histórico de pedidos, download de boletos e NF-e, botão 'Repetir Pedido Anterior'
-Rastreamento de entrega: status em tempo real (Produzindo → Em rota → Entregue)
-Avaliação de entrega: NPS automático via WhatsApp após confirmação de entrega
-E-13.1 🧠 Inteligência de Reposição Proativa do Bar
-O sistema analisa o histórico de pedidos de cada bar e projeta quando o estoque dele vai acabar. Antes que o bar perceba, o sistema envia uma mensagem proativa sugerindo o pedido.
-Regra de Reposição
-Cálculo
-Mensagem Enviada ao Bar
-Bar não pediu há mais de X dias
-X = média_dias_entre_pedidos × 1.2
-'Olá Zé! Faz 8 dias do seu último pedido de coxinha. Devo separar mais 200 unid para você?'
-Forecast indica que o estoque dele acabou
-(último_pedido × 1/consumo_diario_estimado) < hoje
-'Seu estoque de Kibe provavelmente acabou ontem. Posso incluir no pedido de amanhã?'
-Fim de semana longo se aproxima
-Próximos 7 dias contêm feriado + fim de semana
-'Final de semana longo em 4 dias! Histórico mostra que você consome 2.4× mais. Quer fazer um pedido maior agora?'
-Produto novo em catálogo
-Novo SKU adicionado com perfil de clientes-alvo
-'Zé, lançamos o Mini Hot Dog 30g! Clientes com perfil parecido com o seu amaram. Quer uma amostra grátis na próxima entrega?'
-E-13.2 Prompt para Jules — B2B e Reposição Inteligente
-📋  PROMPT E-12+E-13 — Cole no Jules / Google AI Studio
-Implemente o B2BService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) CRUD de pedidos B2B com máquina de estados: RASCUNHO → CONFIRMADO → EM_PRODUCAO → PRONTO → ENTREGUE; (2) Endpoint GET /customers/{id}/suggested-order que usa o histórico de pedidos para calcular: dias_desde_ultimo_pedido, media_intervalo_pedidos, produtos_mais_pedidos_com_qty_media, próximo_pedido_sugerido; (3) Job diário que avalia cada cliente ativo: se dias_desde_ultimo > media_intervalo × 1.2, gerar alerta tipo BAR_SEM_PEDIDO e enviar mensagem proativa personalizada via Mega API; (4) Detector de sazonalidade do bar: se nos próximos 5 dias há feriado ou fim de semana longo (verificar calendário), enviar mensagem de antecipação; (5) Endpoint POST /orders com cálculo automático de margem por item, total e seleção de tabela de preço pelo grupo do cliente; (6) Endpoint GET /portal/catalog que retorna produtos com fotos_urls, descricao_marketing, tabela_nutricional, instrucoes_preparo_url filtrado pelo grupo de preço do cliente logado.
-ETAPAS E-14 e E-15 — Etiquetas Parametrizadas e QR Inteligente
-E-14.1 Especificações do Módulo de Etiquetas
-Parâmetro
-Especificação
-Formatos suportados
-ZPL (Zebra GK420t, ZD420, ZD230) e TSPL (Elgin L42, Argox OS-214). Detecção automática pelo modelo da impressora.
-Tamanhos configuráveis
-Editor visual drag-and-drop. Presets: 100×60mm, 100×40mm, 75×50mm, 50×25mm. Tamanho customizado em mm.
-Campos automáticos
-Nome do produto, peso líquido, lote, data de fabricação, data de validade, temperatura de armazenamento, alérgenos, código de barras EAN-13.
-QR Code dinâmico
-URL gerada pelo sistema com parâmetros do lote. Redirecionamento pelo backend baseado em regras. Ver E-15.
-Impressão em lote
-Ao fechar OP, imprime todas as etiquetas do lote de uma vez. Sem configurar uma a uma.
-Preview antes de imprimir
-Renderização visual da etiqueta no browser antes de enviar à impressora.
-E-15.1 🧠 QR Code Dinâmico — Lógica de Redirecionamento
-O QR Code impresso na etiqueta aponta sempre para o mesmo URL fixo (ex: smartfood.app/q/LOT-2024-090). O backend decide em tempo real para onde redirecionar, baseado nas regras abaixo:
-Regra de Redirecionamento
-Condição
-Destino
-Benefício
-Tutorial de Preparo (padrão)
-Produto sem condição especial
-Vídeo <60s de instrução de fritura no padrão da marca
-Padroniza qualidade no bar. Reduz reclamações.
-Promoção de Vencimento
-Lote com validade ≤ D+7
-Página de oferta: '10% de desconto hoje' + botão de pedido
-Gira estoque antes de vencer. Protege margem.
-Rastreio de Lote (consumidor)
-QR lido por consumidor final (não pelo bar)
-Página pública com: origem, data prod., ingredientes, sem conservantes
-Confiança do consumidor. Marketing de transparência.
-Pesquisa de satisfação
-Produto entregue há > 5 dias (primeiro QR lido após esse prazo)
-Formulário de 2 perguntas: sabor e entrega
-Dados de NPS do produto final.
-Novo produto relacionado
-QR lido após produto descontinuado ou sazonal encerrado
-Página com sugestão de produto substituto
-Evita perda de venda por produto esgotado.
-E-14+E-15.2 Prompt para Jules — Etiquetas e QR
-📋  PROMPT E-14+E-15 — Cole no Jules / Google AI Studio
-Implemente o LabelService em Python (FastAPI) para o SmartFood Ops 360. Requisitos: (1) Endpoint POST /labels/template com campos: impressora_tipo (ZPL|TSPL), largura_mm, altura_mm, campos_config (JSON com posições de cada campo). Armazena template por produto; (2) Endpoint POST /production-orders/{id}/print-labels que gera automaticamente o ZPL ou TSPL para todas as unidades do lote usando o template do produto, preenchendo: nome, lote, fab, val, peso, QR URL; (3) Gerador ZPL: função generate_zpl(fields, template) → string ZPL pronta para envio TCP/IP à impressora Zebra; (4) Gerador TSPL: função generate_tspl(fields, template) → string TSPL para Elgin/Argox; (5) Endpoint GET /qr/{lot_code} que implementa o redirecionamento dinâmico: consulta no banco as regras aplicáveis ao lote (validade, numero_de_scans, dias_desde_producao) e faz HTTP redirect para URL correta; (6) Endpoint POST /qr-rules que permite ao gestor configurar as regras de redirecionamento por produto ou lote.
-BACKLOG COMPLETO — User Stories por Etapa para o Desenvolvedor
-Lista consolidada de User Stories com critério de aceite, prioridade e etapa. Formato direto para importação em Jira, Linear ou Notion.
-ID
-User Story
-Critério de Aceite
-Prioridade
-Etapa
-US-001
-Como gestor, quero criar uma ficha técnica com FC e FCoc para que o custo real do produto seja calculado automaticamente
-Dado FC=1.38 e FCoc=0.72 e custo_kg=R$9.50, então custo_calculado=R$18.14/kg limpo após cocção
-P0
-E-02
-US-002
-Como gestor, quero receber alerta quando a margem de qualquer produto cair abaixo do mínimo configurado
-Dado que óleo sobe 12% e produto X usava óleo, então alerta em <15min com sugestão de novo preço
-P0
-E-03
-US-003
-Como gestor, quero ver a previsão de demanda para os próximos 14 dias de cada produto
-Dado histórico de 90 dias, então forecast com confiança_pct e previsão_por_dia exibidos no dashboard
-P0
-E-05
-US-004
-Como gestor, quero que o sistema me avise quando devo INICIAR a produção de um produto para cumprir a demanda prevista
-Dado forecast=300un em 7 dias e capacidade=100un/dia e 1 dia setup, então alerta 'iniciar produção em 4 dias'
-P0
-E-04
-US-005
-Como gestor, quero que o sistema me avise quando devo COMPRAR cada insumo considerando o lead time do fornecedor
-Dado estoque=50kg, consumo_previsto=80kg, lead_time=5d, então alerta 'comprar 30kg em até 2 dias'
-P0
-E-04
-US-006
-Como gestor, quero disparar cotação simultânea para 3 fornecedores via WhatsApp e Email com 1 clique
-Dado aprovação de RFQ, então mensagens enviadas para todos fornecedores em <30s com log de entrega
-P1
-E-09
-US-007
-Como gestor, quero ver as respostas de cotação organizadas em tabela comparativa com a melhor opção destacada
-Dado 3 respostas recebidas, então tabela com preço/prazo/score e badge 'Melhor Oferta' no vencedor
-P1
-E-09
-US-008
-Como conferente, quero importar o XML da NF-e e ver automaticamente a divergência entre peso da nota e peso da balança
-Dado XML importado e peso_balança=147.8kg e peso_nf=150kg, então divergência -2.2kg exibida e alerta gerado
-P0
-E-07
-US-009
-Como operador, quero ver na tela quais lotes de insumo devo usar primeiro (PVPS) ao iniciar uma OP
-Dado 2 lotes do mesmo insumo com vencimentos diferentes, então lote mais antigo destacado na tela
-P0
-E-11
-US-010
-Como operador, quero registrar o consumo real de insumos em uma OP e ser alertado se houver desvio significativo do planejado
-Dado qty_planejada=10kg e qty_real=11.5kg, então divergência +15% exibida e registrada no log
-P0
-E-11
-US-011
-Como gestor, quero que o sistema envie mensagem proativa ao bar antes que ele perceba que vai ficar sem estoque
-Dado que bar X não pediu há 1.2× a média histórica, então WhatsApp enviado automaticamente com sugestão de pedido
-P1
-E-13
-US-012
-Como dono de bar, quero repetir meu último pedido em 1 clique pelo portal B2B
-Dado pedido anterior, então endpoint /orders/repeat cria novo pedido idêntico com data de entrega +2 dias úteis
-P1
-E-12
-US-013
-Como gestor, quero imprimir etiquetas de um lote inteiro ao fechar a OP, sem configurar uma a uma
-Dado OP concluída com 200un, então 200 etiquetas ZPL geradas e enviadas à Zebra via TCP em <10s
-P1
-E-14
-US-014
-Como gestor, quero que o QR Code da etiqueta mostre promoção automaticamente quando o lote estiver a 7 dias do vencimento
-Dado lote com val=D+6, então QR redireciona para página de oferta 10% OFF ao invés do tutorial
-P2
-E-15
-US-015
-Como gestor, quero ver o DRE por lote de produção com custo real vs. receita gerada
-Dado OP concluída e pedidos vinculados, então DRE do lote com: receita, custo_insumos, custo_labor, margem_bruta, margem_liquida
-P2
-E-16
-US-016
-Como gestor, quero simular o impacto na margem se eu trocar um insumo por um fornecedor mais barato
-Dado novo preço simulado para ingrediente X, então recálculo de margem de todos os produtos afetados em tempo real
-P1
-E-03
-US-017
-Como gestor, quero ver o ranking de fornecedores por SPI (pontualidade + acuracidade de peso)
-Dado histórico de recebimentos, então ranking com score 0-100 para cada fornecedor atualizado mensalmente
-P2
-E-17
-US-018
-Como gestor, quero que o sistema calcule o estoque de segurança de cada insumo automaticamente com base no histórico
-Dado consumo_medio_diario=5kg e lead_time=3d, então safety_stock=(5×3)+2dias_buffer=25kg, recalculado semanalmente
-P0
-E-07
-US-019
-Como operador, quero usar o sistema sem internet e ter os dados sincronizados quando a rede voltar
-Dado perda de conexão durante OP, então sistema continua funcionando offline e sincroniza ao reconectar sem perda de dados
-P1
-E-18
-US-020
-Como gestor, quero receber um relatório diário às 7h com: o que produzir hoje, o que comprar urgente, pedidos a entregar
-Dado execução do job às 7h, então resumo enviado via WhatsApp com 3 seções: Produção / Compras / Entregas do dia
-P1
+FE-01.2 Componentes da Fundação
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+base.html
+Template pai com bloco {% block content %}. Importa Tailwind CDN, HTMX 1.9, Alpine.js 3, Phosphor Icons. Define hx-boost='true' no <body> para navegação progressiva.
+hx-boost='true'
+hx-indicator='#nprogress'
+—
+sidebar.html (include)
+Sidebar fixa no desktop (w-64), off-canvas no mobile (translate-x-0/-full). Estado aberto/fechado gerenciado por Alpine x-data {open:true}. Links de menu disparam hx-get para injetar página em #main-content.
+hx-get='/dashboard'
+hx-target='#main-content'
+hx-push-url='true'
+—
+topbar.html (include)
+Barra superior com: título da página atual, busca global, dropdown de alertas (hx-get polling a cada 60s), botão de tema, avatar do usuário.
+hx-get='/api/fragments/alerts'
+hx-trigger='every 60s'
+hx-target='#alerts-dropdown'
 E-06
-ARQUITETURA TÉCNICA — Stack Completo para Desenvolvedores Python/HTML
-Camada
-Tecnologia
-Justificativa / Detalhe
-API Backend
-Python 3.11 + FastAPI + Uvicorn
-Você já conhece Python. FastAPI gera OpenAPI docs automático, suporte a async nativo para integrações.
-ORM / Banco
-SQLAlchemy 2.0 + PostgreSQL 15 + Alembic
-Migrations versionadas. JSON fields para dados semi-estruturados (BOM, forecast).
-Cache / Filas
-Redis 7 + Celery 5
-Redis para cache de margem e previsão. Celery para jobs assíncronos (análise noturna, alertas).
-Frontend
-HTML5 + Tailwind CSS + HTMX + Alpine.js
-Você já conhece HTML. HTMX elimina React. Alpine para interatividade leve. Zero build step.
-Scheduler
-APScheduler (jobs in-process)
-Jobs simples dentro do FastAPI: análise noturna, monitor de margem, relatório diário.
-WhatsApp
-Evolution API (self-hosted, open source)
-Grátis, auto-hospedável na mesma VPS. Suporte a QR auth, webhooks e envio de PDF.
-Email
-Gmail API + google-auth-oauthlib
-Autenticação OAuth2. Envio e recebimento de cotações e OCs.
-IA / Extração
-Google Gemini API (gemini-1.5-flash)
-Extração de preço/prazo de respostas de fornecedores. Custo baixíssimo por token.
-Impressora
-ZPL via socket TCP / TSPL via socket TCP
-Python socket puro. Sem driver. Zebra e Elgin aceitam ZPL/TSPL direto na porta 9100.
-PDF / Reports
-ReportLab + WeasyPrint
-ReportLab para OCs e DRE. WeasyPrint para portal B2B (HTML → PDF).
-Deploy
-Docker Compose + Nginx + VPS Hetzner CX22
-~R$60/mês. SSL automático via Certbot. Backup para Google Drive via rclone.
-Offline / Sync
-SQLite (local no device) + endpoint de sync
-App mobile/tablet do operador usa SQLite. Ao reconectar, POST /sync envia os events.
-📋  PROMPT INICIAL — Cole no Jules ANTES de tudo (Context Setup)
-Você vai me ajudar a construir o SmartFood Ops 360, um ERP Industrial para produção de petiscos ultracongelados para bares e restaurantes (mercado B2B). O sistema é composto por 19 etapas (E-01 a E-19). Cada etapa eu vou te enviar um prompt específico. Para cada prompt: (1) Escreva código Python limpo com FastAPI e SQLAlchemy; (2) Use type hints em todas as funções; (3) Adicione docstrings explicando a lógica de negócio; (4) Inclua tratamento de erros com HTTPException; (5) Siga o schema de banco de dados que definimos na E-01; (6) Gere testes unitários básicos para as funções de cálculo. Confirme que entendeu o contexto geral antes de começarmos.
-SmartFood Ops 360  ·  PRD Intelligence Edition v3.0  ·  Confidencial
+toast-system (Alpine)
+Componente Alpine global (x-data em body) que escuta evento htmx:afterRequest e lê header HX-Trigger para exibir mensagens. Desaparece em 3s.
+Escuta: htmx:afterRequest
+Header: HX-Trigger: toast
+—
+nprogress-bar
+Barra de progresso fina no topo (similar ao YouTube) que aparece durante requests HTMX. Usando NProgress.js via CDN.
+Evento: htmx:beforeRequest
+Evento: htmx:afterRequest
+—
+offline-detector (Alpine)
+Script que monitora window 'offline'/'online'. Se offline: banner amarelo 'Modo Offline — dados salvos localmente'. Se reconectar: dispara sync.
+x-data com @offline / @online
+window.addEventListener
+E-18
+
+FE-01.3 Estrutura HTML do base.html
+<!DOCTYPE html>
+<html lang='pt-BR' x-data='appState()'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>SmartFood Ops 360 — {% block title %}{% endblock %}</title>
+  <!-- Tailwind CSS (CDN dev / build prod) -->
+  <script src='https://cdn.tailwindcss.com'></script>
+  <!-- HTMX -->
+  <script src='https://unpkg.com/htmx.org@1.9.12'></script>
+  <!-- Alpine.js -->
+  <script src='https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js' defer></script>
+  <!-- Phosphor Icons -->
+  <script src='https://unpkg.com/@phosphor-icons/web'></script>
+  <!-- NProgress (loading bar) -->
+  <link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/nprogress/nprogress.css'>
+  <script src='https://cdn.jsdelivr.net/npm/nprogress/nprogress.min.js'></script>
+</head>
+<body class='bg-slate-50 text-gray-800 font-sans antialiased'
+      hx-boost='true'
+      @htmx:before-request='NProgress.start()'
+      @htmx:after-request='NProgress.done()'>
+
+  <!-- Toast Container -->
+  <div id='toast-container' class='fixed bottom-4 right-4 z-50 space-y-2'
+       x-show='toasts.length > 0'></div>
+
+  <!-- Offline Banner -->
+  <div x-show='isOffline'
+       class='fixed top-0 inset-x-0 bg-yellow-500 text-white text-center py-2 z-50'>
+    ⚠️  Modo Offline — dados salvos localmente. Reconectando...
+  </div>
+
+  <div class='flex h-screen overflow-hidden'>
+    <!-- Sidebar -->
+    {% include 'includes/sidebar.html' %}
+
+    <!-- Main Area -->
+    <div class='flex-1 flex flex-col overflow-hidden'>
+      {% include 'includes/topbar.html' %}
+      <main id='main-content'
+            class='flex-1 overflow-y-auto p-6'>
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <script src='/static/js/app.js'></script>
+</body>
+</html>
+
+FE-01.4 Menu Lateral — Estrutura de Navegação
+Seção
+Item de Menu
+Ícone Phosphor
+Rota HTMX (hx-get)
+🧠 Inteligência
+Dashboard Principal
+ph-squares-four
+/dashboard
+🧠 Inteligência
+Previsão de Demanda
+ph-chart-line-up
+/intelligence/forecast
+🧠 Inteligência
+Central de Alertas
+ph-bell-ringing
+/intelligence/alerts
+🧠 Inteligência
+Simulador E se?
+ph-flask
+/intelligence/forecast#simulator
+🏭 Operação
+Fichas Técnicas (BOM)
+ph-notebook
+/operations/bom
+🏭 Operação
+Estoque / Inventário
+ph-package
+/operations/inventory
+🏭 Operação
+Recebimento (NF-e)
+ph-truck
+/operations/receiving
+🏭 Operação
+Ordens de Produção
+ph-factory
+/operations/production
+🏭 Operação
+Etiquetas
+ph-tag
+/operations/labels
+🍺 Comercial
+Cotações / Compras
+ph-shopping-cart
+/commercial/purchasing
+🍺 Comercial
+Pedidos B2B
+ph-clipboard-text
+/commercial/orders
+🍺 Comercial
+Reposição Proativa 🧠
+ph-robot
+/commercial/b2b-intelligence
+🍺 Comercial
+Fornecedores / SPI
+ph-handshake
+/commercial/suppliers
+🍺 Comercial
+DRE e Relatórios
+ph-chart-bar
+/commercial/dre
+⚙️ Sistema
+Configurações
+ph-gear
+/settings
+
+📋  PROMPT PARA JULES — FE-01 — Shell e Layout Base
+Você vai construir o frontend do SmartFood Ops 360 usando FastAPI + Jinja2 + HTMX + Tailwind CSS + Alpine.js.
+Stack: Python 3.11, FastAPI, Jinja2Templates, HTMX 1.9, Alpine.js 3, Tailwind CSS (CDN), Phosphor Icons.
+Filosofia: O servidor retorna HTML (não JSON). HTMX troca partes do DOM sem reload. Alpine gerencia estado local.
+Tarefa FE-01: Crie os seguintes arquivos:
+1. main.py: FastAPI app com Jinja2Templates apontando para pasta 'templates/', StaticFiles em '/static', rota GET / que redireciona para /dashboard, middleware CORS básico.
+2. templates/base.html: Layout master com Tailwind CDN, HTMX, Alpine.js, Phosphor Icons, NProgress. Inclui sidebar colapsável (Alpine x-data), topbar, container #main-content, sistema de Toast (Alpine escutando header HX-Trigger: {"showToast": {"message":"...", "type":"success|error|warning"}}), banner de modo offline.
+3. templates/includes/sidebar.html: Sidebar com as 3 seções (Inteligência, Operação, Comercial), links com hx-get + hx-target='#main-content' + hx-push-url='true'. Colapsável no mobile (hamburger menu off-canvas).
+4. templates/includes/topbar.html: Barra com título dinâmico, dropdown de alertas com hx-get='/api/fragments/alerts' hx-trigger='every 60s', busca global.
+5. static/js/app.js: Função Alpine appState() com: toasts array, isOffline boolean, addToast(msg, type) que remove automaticamente após 3s, listener de window offline/online.
+Regras de estilo: fundo bg-slate-50, textos text-gray-800, ações text-blue-600, alertas críticos text-red-500, avisos text-yellow-500. Fonte Inter via Google Fonts. Botões mínimo h-12 para touch. Todos ícones com aria-label.
+
+FE-02 — Dashboard e Módulo de Inteligência (O Que o Chef Vê)
+dashboard · forecast · alertas · monitor de margem · simulador E se?
+
+FE-02.1 Widgets do Dashboard Principal
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+cards/kpis.html (fragment)
+4 cards no topo: Previsão Semanal, Compras Urgentes, Produção Pendente, Margem Média. Cada card tem ícone Phosphor, valor principal em grande, delta vs. semana anterior, e cor de fundo condicional.
+hx-get='/api/fragments/kpis'
+hx-trigger='load, every 120s'
+hx-target='#kpi-container'
+E-04 / E-03
+margin_table.html (fragment)
+Tabela de produtos com: nome, custo/unid, preço venda, margem%, status (verde/amarelo/vermelho). Linha vermelha = margem abaixo do mínimo. Botão 'Recalcular' em linha.
+hx-get='/api/fragments/margin-table'
+hx-trigger='load'
+hx-swap='innerHTML'
+E-03
+alerts_dropdown.html (fragment)
+Dropdown no topbar com lista de alertas ativos, agrupados por severidade (🔴🟡🟢). Cada alerta tem ação rápida inline (ex: 'Cotar agora').
+hx-get='/api/fragments/alerts'
+hx-trigger='every 60s'
+E-06
+forecast.html (página)
+Página de Previsão de Demanda. Seletor de produto (dropdown), gráfico de barras em SVG puro (sem lib), tabela de previsão diária 14d, confiança%, próximos picos identificados.
+hx-get='/api/fragments/forecast/{id}'
+hx-trigger='change from:#product-select'
+E-05
+simulate_result.html (fragment)
+Resultado do Simulador 'E se?'. Formulário: produto + quantidade solicitada. POST retorna: tem insumos? Sim/Não. Quanto tempo para produzir? Quais insumos faltam?
+hx-post='/api/intelligence/simulate'
+hx-target='#sim-result'
+hx-indicator='#sim-spinner'
+E-04
+alerts.html (página)
+Central de Alertas completa. Filtro por categoria (Financeiro, Estoque, Produção, Comercial). Botão 'Soneca 2h' por alerta. Histórico de alertas resolvidos.
+hx-post='/api/alerts/{id}/snooze'
+hx-swap='outerHTML'
+E-06
+
+FE-02.2 Card KPI — Especificação Visual
+📐  Anatomy de um KPI Card
+Estrutura: div.bg-white.rounded-xl.shadow-sm.p-6.border.border-slate-100 | Ícone Phosphor (24px, text-blue-600) + Label (12px, text-gray-500, uppercase) | Valor principal (36px, font-bold, text-gray-900) | Delta: seta ↑↓ + percentual (14px, text-green-600 ou text-red-600) | Cor de fundo condicional: bg-red-50 se crítico.
+
+FE-02.3 Monitor de Margem — Lógica Visual
+Condição
+Classe Tailwind
+Ícone
+Comportamento HTMX
+Margem ≥ mínima
+text-green-700 bg-green-50
+ph-check-circle (green)
+Sem destaque. Linha normal.
+Mínima -5pp a mínima
+text-yellow-700 bg-yellow-50
+ph-warning (yellow)
+Linha destacada. Badge 'Em Risco'.
+Abaixo da mínima
+text-red-700 bg-red-50 font-bold
+ph-x-circle (red)
+Linha vermelha + botão 'Recalcular Preço' (hx-post inline).
+Insumo subiu (trigger)
+text-orange-700 bg-orange-50
+ph-trend-up (orange)
+Tooltip explicando qual insumo causou o impacto.
+
+📋  PROMPT PARA JULES — FE-02 — Dashboard e Inteligência
+Tarefa FE-02: Crie os templates e rotas FastAPI para o Dashboard e módulo de Inteligência do SmartFood Ops 360.
+1. routers/ui_dashboard.py:
+   - GET /dashboard → renderiza templates/dashboard/index.html
+   - GET /intelligence/forecast → renderiza templates/intelligence/forecast.html
+   - GET /intelligence/alerts → renderiza templates/intelligence/alerts.html
+2. routers/api_fragments.py:
+   - GET /api/fragments/kpis → retorna templates/fragments/kpis.html com dados MOCK (depois integrar com services)
+     Dados: [{label, value, delta_pct, delta_direction, icon, is_critical}]
+   - GET /api/fragments/margin-table → retorna templates/fragments/margin_table.html
+     Dados: [{product_name, cost_per_unit, price, margin_pct, status (ok|warning|critical), threshold}]
+   - GET /api/fragments/alerts → retorna templates/fragments/alerts_dropdown.html
+     Dados: [{message, severity, category, action_url, created_at}]
+3. routers/api_intelligence.py:
+   - GET /api/fragments/forecast/{product_id} → retorna templates/fragments/forecast_chart.html
+     SVG simples de barras (14 barras = 14 dias) gerado via Jinja2 com valores do forecast.
+   - POST /api/intelligence/simulate → body: {product_id, qty_requested}
+     Retorna templates/fragments/simulate_result.html com: can_produce (bool), missing_ingredients list, estimated_hours.
+4. Templates: Crie todos os templates usando Tailwind CSS (classes inline), sem CSS customizado. Cards com bg-white rounded-xl shadow-sm p-6. Tabelas com tabela striped (odd:bg-white even:bg-slate-50). Margin status com classes condicionais Jinja2: {%if margin < threshold %}text-red-600 bg-red-50{% endif %}.
+5. Endpoint deve retornar HTMLResponse com header HX-Trigger: {"showToast": {"message": "Dados atualizados", "type": "success"}} após cada atualização.
+
+FE-03 — Módulos Operacionais: Fichas, Estoque, Recebimento e Produção
+CRUD com busca live · PVPS visual · validação NF-e · OP mobile-friendly
+
+FE-03.1 Fichas Técnicas (BOM) — UX de Busca Live
+A lista de fichas usa busca em tempo real: o usuário digita e a tabela se filtra sem apertar Enter. A ficha de detalhe exibe a calculadora de custo inline — altere FC ou FCoc e o custo recalcula via HTMX.
+
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+bom_list.html
+Lista de fichas técnicas com: nome produto, SKU, FC, FCoc, custo atual, margem%. Input de busca com hx-trigger='keyup changed delay:500ms'. Botão '+ Nova Ficha' que expande inline.
+hx-get='/api/fragments/bom-search'
+hx-trigger='keyup changed delay:500ms'
+hx-target='#bom-tbody'
+E-02
+bom_detail.html
+Detalhe de uma ficha: tabela de ingredientes (diretos + indiretos), colunas: insumo, unidade, FC, qty, custo_unitário, custo_total. Totalizadores no rodapé. Calculadora inline.
+hx-post='/api/bom/{id}/calculate'
+hx-target='#cost-result'
+hx-include='[name]'
+E-02/03
+fragments/bom_rows.html
+Apenas as <tr> da tabela de fichas. Retornado pelo endpoint de busca live. Inclui highlight do termo buscado.
+Retornado por: GET /api/fragments/bom-search?q={query}
+E-02
+fragments/cost_result.html
+Resultado da calculadora de custo: custo_insumos, custo_embalagem, custo_labor, custo_total, preço_sugerido, margem%. Com semáforo visual.
+Retornado por: POST /api/bom/{id}/calculate
+E-02/03
+inventory.html
+Inventário com filtros: categoria (alimentício | embalagem | limpeza | epi), status (ok | atenção | crítico). Barra de cobertura visual (dias restantes vs. lead time).
+hx-get='/api/fragments/inventory-search'
+hx-trigger='change from:.filter-select'
+E-07/08
+receiving.html
+Formulário de recebimento: upload XML NF-e, campo peso balança, botão 'Validar'. Resultado mostra divergência com destaque vermelho se > tolerância.
+hx-post='/api/receiving/process-nfe'
+hx-encoding='multipart/form-data'
+hx-target='#nfe-result'
+E-07
+production_list.html
+Lista de OPs com status (Rascunho → Aprovada → Em Produção → Concluída). Botões de ação por status. Timer em tempo real (Alpine) para OPs em andamento.
+hx-post='/api/production/{id}/start'
+hx-swap='outerHTML swap:0.5s'
+E-11
+
+FE-03.2 Barra de Cobertura de Estoque — Lógica Visual
+Cobertura (dias)
+vs Lead Time
+Cor da Barra
+Ação Sugerida
+> Lead time + 5d
+Seguro
+bg-green-400 (Verde)
+Nenhuma
+Lead time + 1d a +5d
+Atenção
+bg-yellow-400 (Amarelo)
+Planejar compra
+Lead time ou menos
+Crítico
+bg-red-500 (Vermelho piscando)
+Comprar HOJE
+< Lead time
+Emergência
+bg-red-700 + pulse animation
+Cotação automática disparada
+
+FE-03.3 Interface de OP — Mobile (Operador no Chão)
+📱  Design Touch-First para Operadores
+Em telas menores que 768px: cada linha da tabela vira um card empilhado (grid-cols-1). Botões 'Iniciar', 'Registrar Consumo' e 'Concluir' com h-14 (56px altura). Checklist de insumos com checkboxes grandes (w-6 h-6). Campo de quantidade com input numérico aumentado (text-2xl). Timer com fonte monoespaciada grande para fácil leitura à distância.
+
+📋  PROMPT PARA JULES — FE-03 — Operacional
+Tarefa FE-03: Crie templates e rotas para os módulos operacionais do SmartFood Ops 360.
+1. routers/ui_operations.py:
+   - GET /operations/bom → bom_list.html
+   - GET /operations/bom/{id} → bom_detail.html com ficha técnica do produto (mock de dados)
+   - GET /operations/inventory → inventory.html
+   - GET /operations/receiving → receiving.html
+   - GET /operations/production → production_list.html
+2. routers/api_bom.py:
+   - GET /api/fragments/bom-search?q={query} → filtra fichas por nome, retorna bom_rows.html
+   - POST /api/bom/{id}/calculate → recebe {fc, fcoc, custo_insumo, custo_emb, labor_min, markup} → retorna cost_result.html com cálculo completo
+3. routers/api_inventory.py:
+   - GET /api/fragments/inventory-search?category=&status= → retorna inventory_rows.html com barras de cobertura
+   - POST /api/receiving/process-nfe → recebe arquivo XML (UploadFile) + peso_balanca (float) → retorna nfe_result.html com divergência calculada
+4. routers/api_production.py:
+   - GET /api/fragments/production-ops → retorna linhas da tabela de OPs
+   - POST /api/production/{id}/start → muda status, retorna op_status.html com timer Alpine iniciado
+   - POST /api/production/{id}/usage → recebe consumo real, retorna fragmento com divergência
+5. MOBILE: Todos os templates de operação devem usar classes responsivas:
+   - Tabelas: 'hidden md:table' para desktop, cards 'block md:hidden' para mobile
+   - Botões: classes 'py-3 px-6 text-lg' no mobile, 'py-2 px-4' no desktop
+   - Input de quantidade: 'text-2xl text-center w-full' no mobile
+
+FE-04 — Compras e Automação: Cotações, Inbox Unificado e Aprovação
+Mega API · RFQ · comparação automática · aprovação 1 clique
+
+FE-04.1 Componentes do Módulo de Compras
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+purchasing.html
+Página principal de compras. Duas seções: 'Itens para Cotar' (gerado pelo Motor de Demanda) e 'Cotações em Andamento'. Botão 'Enviar RFQs' com confirmação Alpine antes de disparar.
+hx-post='/api/rfqs/bulk-send'
+hx-confirm='Enviar cotações para todos os fornecedores?'
+E-09
+fragments/rfq_inbox.html
+Inbox unificado. Tabela de respostas de fornecedores: nome, insumo, preço/unid, prazo, score. Badge 'MELHOR OFERTA' no vencedor (maior score). Atualiza a cada 30s.
+hx-get='/api/fragments/rfq-inbox'
+hx-trigger='every 30s'
+hx-target='#rfq-inbox'
+E-09
+fragments/rfq_approved.html
+Confirmação após aprovação: 'OC #004 enviada para NovoCarne via WhatsApp e Email. PDF disponível.' Com link de download.
+Retornado por: POST /api/rfqs/{id}/approve
+E-09
+fragments/rfq_comparison.html
+Tabela comparativa de 3-5 fornecedores para o mesmo insumo. Score colorido (verde=melhor, vermelho=pior).
+hx-get='/api/rfqs/{supply_id}/comparison'
+E-09
+
+FE-04.2 Score Visual de Cotação
+🏆  Lógica de Score e Destaque Visual
+Score = (60% × peso_preco) + (40% × peso_prazo). Visualização: barra de progresso horizontal de 0-100 por fornecedor. Vencedor: fundo bg-green-50, badge text-green-700 'MELHOR OPÇÃO', botão 'Aprovar' azul proeminente. Perdedores: fundo neutro, botão 'Aprovar Mesmo Assim' discreto (text-gray-500).
+
+📋  PROMPT PARA JULES — FE-04 — Compras e Cotações
+Tarefa FE-04: Crie templates e rotas para o módulo de Compras do SmartFood Ops 360.
+1. routers/ui_commercial.py:
+   - GET /commercial/purchasing → purchasing.html
+2. routers/api_purchasing.py:
+   - GET /api/fragments/rfq-inbox → rfq_inbox.html com dados de cotações recebidas e score calculado
+   - GET /api/rfqs/{supply_id}/comparison → rfq_comparison.html com tabela comparativa
+   - POST /api/rfqs/{id}/approve → marca fornecedor como vencedor, gera PDF da OC com reportlab, retorna rfq_approved.html com link de download
+   - POST /api/rfqs/bulk-send → dispara envio de RFQ para todos os insumos pendentes, retorna toast de confirmação
+3. templates/commercial/purchasing.html: Duas seções (CSS grid md:grid-cols-2):
+   - Left: Lista de itens para cotar (gerados pelo motor), com urgência visual (vermelho=hoje, amarelo=3d, verde=7d)
+   - Right: Status das cotações em andamento
+4. templates/fragments/rfq_inbox.html: Tabela com colunas fornecedor, insumo, preço, prazo, score. Score como barra width:{score}% bg-green-400. Vencedor com classe 'ring-2 ring-green-500 bg-green-50'. Botão Aprovar com hx-post='/api/rfqs/{id}/approve' hx-target='#rfq-{id}' hx-swap='outerHTML'.
+5. Após aprovação: o endpoint deve retornar header HX-Trigger: {"showToast": {"message": "OC enviada para fornecedor!", "type": "success"}}
+
+FE-05 — Portal B2B, Catálogo e Inteligência de Reposição Proativa
+catálogo · pedidos · reposição inteligente · portal do bar
+
+FE-05.1 Componentes do Portal B2B
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+orders.html
+Lista de pedidos B2B com status visual (Rascunho → Confirmado → Em Produção → Pronto → Entregue). Pipeline visual tipo Kanban horizontal. Filtros por cliente e data.
+hx-get='/api/fragments/orders-board'
+hx-trigger='load'
+E-12
+b2b_intel.html
+Painel de Reposição Proativa. Cards por cliente em risco de ruptura. Cada card: nome do bar, produtos previstos para acabar, data estimada, botão 'Enviar WhatsApp' (1 clique).
+hx-post='/commercial/b2b/send-replenishment/{id}'
+hx-target='#card-{id}'
+hx-swap='outerHTML'
+E-13
+portal/catalog.html
+Catálogo público do bar (área logada). Grid de produtos com foto, nome, descrição, preço por grade. Botão 'Adicionar ao Pedido' direto. Busca por categoria.
+hx-post='/portal/cart/add'
+hx-target='#cart-count'
+E-12
+portal/catalog.html (recompra)
+Seção 'Seu Último Pedido' no topo do catálogo com botão 'Repetir Tudo' que preenche o carrinho instantaneamente.
+hx-post='/portal/orders/repeat'
+hx-target='#cart-summary'
+E-12
+
+FE-05.2 Card de Reposição Proativa — Anatomy
+<!-- Card de Reposição Proativa — b2b_intel.html -->
+<div id='card-{{ customer.id }}'
+     class='bg-white rounded-xl border border-slate-200 p-5 shadow-sm
+            {% if customer.urgency == "critical" %}border-l-4 border-l-red-500{% endif %}'>
+  <div class='flex items-center justify-between mb-3'>
+    <div>
+      <h3 class='font-semibold text-gray-900'>{{ customer.name }}</h3>
+      <p class='text-sm text-gray-500'>Último pedido: {{ customer.days_since_last }} dias atrás</p>
+    </div>
+    <span class='text-xs font-bold px-2 py-1 rounded-full
+          {% if customer.urgency == "critical" %}bg-red-100 text-red-700
+          {% else %}bg-yellow-100 text-yellow-700{% endif %}'>
+      {{ customer.urgency_label }}
+    </span>
+  </div>
+  <!-- Produtos previstos para acabar -->
+  <ul class='text-sm text-gray-600 space-y-1 mb-4'>
+    {% for prod in customer.running_low %}
+    <li class='flex justify-between'>
+      <span>{{ prod.name }}</span>
+      <span class='text-red-600 font-medium'>acaba em ~{{ prod.days_remaining }}d</span>
+    </li>
+    {% endfor %}
+  </ul>
+  <!-- Ação: Enviar WhatsApp com 1 clique -->
+  <button hx-post='/commercial/b2b/send-replenishment/{{ customer.id }}'
+          hx-target='#card-{{ customer.id }}'
+          hx-swap='outerHTML'
+          class='w-full py-3 bg-green-600 text-white rounded-lg font-medium
+                 hover:bg-green-700 flex items-center justify-center gap-2'>
+    <i class='ph-whatsapp-logo' aria-label='WhatsApp'></i>
+    Enviar Sugestão de Reposição
+  </button>
+</div>
+
+📋  PROMPT PARA JULES — FE-05 — Portal B2B e Reposição Proativa
+Tarefa FE-05: Crie templates e rotas para o Portal B2B e módulo de Inteligência Comercial.
+1. routers/ui_commercial.py (adicionar):
+   - GET /commercial/orders → orders.html
+   - GET /commercial/b2b-intelligence → b2b_intel.html
+   - GET /portal/catalog → catalog.html (requer autenticação de bar)
+2. Rota POST /commercial/b2b/send-replenishment/{customer_id}:
+   - Chama b2b_service.py para enviar mensagem WhatsApp via Evolution API
+   - Retorna fragmento HTML substituindo o card: "✓ Mensagem enviada para {nome} às {hora}"
+   - Retorna header HX-Trigger com toast de sucesso
+3. templates/commercial/b2b_intel.html:
+   - Grid de cards (md:grid-cols-2 xl:grid-cols-3)
+   - Cards ordenados por urgência: crítico primeiro
+   - Cada card com o HTML anatomy especificado acima
+   - Filtro Alpine: 'todos | crítico | atenção' sem reload
+4. templates/commercial/orders.html:
+   - Pipeline Kanban horizontal: 5 colunas (overflow-x-auto no mobile)
+   - Cada coluna = um status. Pedidos como cards draggáveis
+   - Botão 'Novo Pedido' com formulário Alpine inline
+5. templates/portal/catalog.html:
+   - Grid de produtos (md:grid-cols-2 xl:grid-cols-3)
+   - Seção 'Seu Último Pedido' com botão 'Repetir Tudo'
+   - Mini-carrinho flutuante (fixed bottom-0) com total e botão Finalizar
+
+FE-06 — Etiquetas, Editor Visual e QR Redirect
+Editor drag-and-drop · preview ZPL/TSPL · QR dinâmico
+
+FE-06.1 Componentes do Módulo de Etiquetas
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+labels.html
+Editor de etiqueta. Lado esquerdo: formulário de campos (produto, lote, vencimento, peso, impressora, dimensões). Lado direito: preview em tempo real (div HTML simulando a etiqueta física P&B).
+hx-post='/api/labels/preview'
+hx-trigger='input changed delay:300ms'
+hx-target='#label-preview'
+E-14
+fragments/label_preview.html
+Prévia HTML/CSS da etiqueta: div com border, fonte monoespaçada, QR placeholder, barcode placeholder. Atualiza em tempo real conforme o usuário digita.
+Retornado por: POST /api/labels/preview
+E-14
+Envio ZPL/TSPL
+Botão 'Imprimir' faz POST para /api/labels/print/{batch_id}. Backend gera ZPL/TSPL e envia via TCP socket para impressora. Toast de confirmação.
+hx-post='/api/labels/print/{batch_id}'
+hx-indicator='#print-spinner'
+E-14
+QR Redirect (GET /qr/{code})
+Rota pública. Backend consulta regras do lote e faz HTTP redirect 302. Sem template — puro Python.
+Sem HTMX. HTTP 302 nativo.
+E-15
+
+📋  PROMPT PARA JULES — FE-06 — Etiquetas e QR
+Tarefa FE-06: Crie o módulo de etiquetas do SmartFood Ops 360.
+1. routers/ui_operations.py (adicionar):
+   - GET /operations/labels → labels.html com formulário + preview
+2. routers/api_labels.py:
+   - POST /api/labels/preview → recebe {product_name, lot, fab_date, exp_date, weight_g, width_mm, height_mm} → retorna label_preview.html: div simulando a etiqueta com classes Tailwind (bg-white border-2 border-gray-900 p-4 font-mono text-sm)
+   - POST /api/labels/print/{batch_id} → chama label_service.generate_zpl() e envia via socket TCP à impressora → retorna toast 'X etiquetas enviadas para impressora'
+   - GET /qr/{lot_code} → consulta regras de redirecionamento (validade, num_scans) → retorna RedirectResponse(url=destino, status_code=302)
+3. templates/operations/labels.html:
+   - Layout 2 colunas (md:grid-cols-2)
+   - Coluna esquerda: formulário com campos de etiqueta + seletor de impressora (Zebra/Elgin) + seletor de tamanho (presets ou custom)
+   - Coluna direita: div#label-preview que recebe o fragmento via HTMX em tempo real
+   - Botão 'Imprimir Lote Completo' com hx-confirm confirmando quantidade
+4. templates/fragments/label_preview.html:
+   - Simular etiqueta P&B: bg-white border-4 border-gray-900 rounded p-4 font-mono
+   - Mostrar todos os campos preenchidos
+   - QR Code: div com texto '[QR]' centralizado (placeholder visual)
+   - Barcode: div com texto '|||||||' simulando barras
+
+FE-07 e FE-08 — DRE, SPI de Fornecedores, Settings e PWA Mobile
+relatórios · performance · configurações · PWA offline
+
+FE-07.1 DRE e Fornecedores
+Componente / Arquivo
+Descrição e Comportamento
+HTMX / Alpine
+Etapa Backend
+dre.html
+DRE por lote e DRE mensal consolidado. Seletor de período. Tabela: receita bruta, custo insumos, custo labor, custo embalagem, margem bruta, margem líquida. Exportar CSV/PDF.
+hx-get='/api/dre/fragment?period={month}'
+hx-trigger='change from:#period-select'
+E-16
+suppliers.html
+Tabela de fornecedores com SPI score (barra visual 0-100). Histórico de entregas, divergências registradas, badge A/B/C/D automático.
+hx-get='/api/fragments/suppliers-spi'
+hx-trigger='load'
+E-17
+settings/index.html
+Configurações: thresholds de margem por produto, preferências de notificação (canal por tipo de alerta), dados da empresa, integração Mega API (salvar token), config impressoras.
+hx-post='/api/settings/save'
+hx-target='#settings-result'
+—
+
+FE-08.1 PWA — Progressive Web App para Operadores
+A interface deve funcionar como PWA para operadores usarem no tablet/celular no chão de fábrica. Isso exige: manifest.json, service worker para cache offline, e ícones nativos.
+
+📱  PWA = App sem App Store
+O operador acessa pelo browser do tablet, clica 'Adicionar à Tela Inicial' e tem um ícone nativo. O service worker faz cache dos templates e assets estáticos. Quando offline, a UI continua funcionando com SQLite local (E-18). Quando reconecta, sincroniza automaticamente.
+
+Arquivo PWA
+Conteúdo / Função
+static/manifest.json
+name, short_name, icons (192x192, 512x512), start_url, display: standalone, theme_color: #1D4ED8, background_color: #F8FAFC
+static/js/sw.js
+Service Worker: cache-first para assets estáticos (CSS, JS, ícones). Network-first para fragmentos HTMX. Fallback offline para /offline.html
+templates/offline.html
+Página de fallback offline: 'Você está offline. Dados salvos localmente. Reconectando...' com spinner.
+static/js/app.js (sync)
+Função syncOfflineData() chamada no evento online: POSTa dados pendentes em localStorage para /api/sync e limpa a fila.
+
+📋  PROMPT PARA JULES — FE-07+08 — DRE, SPI, Settings e PWA
+Tarefa FE-07+08: Crie os módulos finais do SmartFood Ops 360 frontend.
+1. routers/ui_commercial.py (adicionar):
+   - GET /commercial/dre → dre.html com seletor de período (mês/ano) e DRE mensal
+   - GET /commercial/suppliers → suppliers.html com tabela SPI
+2. routers/ui_settings.py:
+   - GET /settings → settings/index.html
+3. routers/api_fragments.py (adicionar):
+   - GET /api/dre/fragment?period=2024-03 → retorna tabela DRE do período
+   - GET /api/fragments/suppliers-spi → retorna tabela com scores SPI
+4. templates/commercial/dre.html:
+   - Select de mês/ano com hx-get atualizando a tabela
+   - Tabela de DRE: rows (Receita Bruta, -Custo Insumos, -Custo Labor, -Custo Embalagem, =Margem Bruta, -Custo Fixo Estimado, =Margem Líquida)
+   - Botão 'Exportar CSV' com link para /api/dre/export?period={month}
+5. PWA: Crie static/manifest.json, static/js/sw.js (service worker com cache das rotas estáticas) e adicione <link rel='manifest'> e <meta name='theme-color'> ao base.html.
+6. Responsividade final: audite todos os templates, garantindo que:
+   - Tabelas viram cards em mobile (block md:table pattern)
+   - Botões têm mínimo py-3 (48px toque) em mobile
+   - Sidebar vira off-canvas com overlay em mobile
+   - Textos legíveis sem zoom em telas de 375px (iPhone SE)
+
+4. Integração Frontend ↔ Backend — Contrato de Dados
+Os fragmentos HTMX recebem dicionários Python do FastAPI via Jinja2. Abaixo estão os contextos de dados que cada template espera receber.
+
+Template
+Variáveis Jinja2 Esperadas
+Fonte (Service / Engine)
+fragments/kpis.html
+kpis: [{label, value, unit, delta_pct, direction, icon, is_critical}]
+demand_engine.get_weekly_summary() + margin_monitor.get_avg_margin()
+fragments/margin_table.html
+products: [{name, cost_per_unit, price, margin_pct, threshold, status}]
+margin_monitor.get_all_margins()
+fragments/alerts_dropdown.html
+alerts: [{message, severity, category, action_url, created_at}] (max 10)
+alert_orchestrator.get_active_alerts(limit=10)
+fragments/forecast_chart.html
+forecast: [{date, qty, is_peak}], product_name, model_used, confidence_pct
+seasonal_forecaster.forecast_demand(product_id)
+fragments/simulate_result.html
+can_produce, missing: [{ingredient, qty_needed, qty_available}], estimated_hours
+demand_engine.simulate_production(product_id, qty)
+fragments/bom_rows.html
+items: [{name, sku, fc, fcoc, cost_per_unit, margin_pct}], query (highlight)
+BOM CRUD query filtrada
+fragments/inventory_rows.html
+items: [{name, category, qty, unit, coverage_days, lead_time, status}]
+inventory_service.list_with_coverage()
+fragments/nfe_result.html
+nfe_weight, scale_weight, divergence_kg, divergence_pct, status, supplier_notified
+inventory_service.process_nfe_xml()
+fragments/rfq_inbox.html
+rfqs: [{supply_name, supplier, price, deadline_days, score, is_winner}]
+purchase_automation.get_rfq_responses()
+commercial/b2b_intel.html
+customers: [{name, days_since_last, avg_interval, urgency, running_low: [{name, days_remaining}]}]
+b2b_service.get_replenishment_alerts()
+commercial/dre.html
+dre: {receita, custo_insumos, custo_labor, custo_embalagem, margem_bruta, custo_fixo, margem_liquida}, period
+production_service.get_dre(period)
+
+5. Requisitos Não-Funcionais e Critérios de Qualidade
+
+Categoria
+Requisito
+Como Verificar / Critério de Aceite
+Performance
+HTML da página principal < 50kb
+DevTools Network: verificar tamanho do response do /dashboard
+Performance
+Fragmentos HTMX respondem em < 150ms
+DevTools: tempo de resposta de /api/fragments/* com dados mock
+Performance
+Tailwind CSS purgado em produção
+npm run build com PurgeCSS: arquivo output.css < 20kb
+Acessibilidade
+Todos os ícones com aria-label
+Teste axe DevTools: zero erros de ícone sem label
+Acessibilidade
+Contraste WCAG AA em todos os textos
+Ferramenta Colour Contrast Analyser: ratio > 4.5:1
+Mobile
+Touch targets ≥ 48×48px
+DevTools mobile: inspecionar botões em viewport 375px
+Mobile
+Sem scroll horizontal no mobile
+Testar em iPhone SE (375px) sem overflow-x
+Offline
+OP continua sem internet
+Desligar WiFi durante produção: operação deve funcionar
+Segurança
+Autenticação em todas as rotas (exceto /portal e /qr)
+FastAPI Depends() com verificação de sessão em todos os routers
+Graciosidade
+Erro 500 exibe Toast sem quebrar layout
+Simular erro no backend: hx-on::after-request verifica status
+SEO/PWA
+Lighthouse PWA score > 90
+Chrome Lighthouse audit na rota /portal/catalog
+
+6. Sequência de Prompts para o Jules — Ordem de Execução
+Execute os prompts nesta sequência exata. Cada etapa depende da anterior. Não pule etapas.
+
+#
+Etapa
+O Que Criar
+Depende de
+Critério de Aceite
+0
+Contexto Geral
+Cole o PROMPT INICIAL (abaixo) para o Jules entender o projeto
+—
+Jules confirma entendimento da stack e estrutura
+1
+Backend E-01
+Schema PostgreSQL + SQLAlchemy models
+—
+python -c 'from models import *' sem erro
+2
+Backend E-02/03
+BOM CRUD + Motor de Margem (FastAPI)
+E-01
+GET /api/bom/1/calculate retorna JSON correto
+3
+Backend E-04/05
+Motor de Demanda + Previsão Sazonal
+E-01
+GET /api/forecast/1?days=14 retorna previsão
+4
+Backend E-06
+Alert Orchestrator + jobs APScheduler
+E-03/04
+GET /alerts/active retorna lista
+5
+FE-01
+base.html + sidebar + topbar + app.js + main.py
+E-06 (para alertas)
+/ carrega, sidebar colapsa, toast funciona
+6
+FE-02
+Dashboard + fragmentos de KPI + margem + alertas
+FE-01 + E-03/04/06
+Clicar em 'Atualizar' troca dados sem reload
+7
+Backend E-07/08/09
+Estoque + Recebimento + Compras (FastAPI)
+E-01
+API endpoints respondendo
+8
+FE-03
+Fichas, Estoque, Recebimento, Produção (templates)
+FE-01 + E-07/08
+Busca live de fichas funciona
+9
+FE-04
+Compras, RFQ inbox, aprovação
+FE-01 + E-09
+Botão Aprovar toca API e mostra toast
+10
+Backend E-11/12/13
+Produção, B2B, Reposição Proativa
+E-07
+OPs mudam de status via API
+11
+FE-05
+Portal B2B, pedidos, reposição proativa
+FE-01 + E-12/13
+Card de bar mostra produtos e botão WhatsApp
+12
+Backend E-14/15
+Etiquetas ZPL/TSPL + QR redirect
+E-11
+GET /qr/{code} redireciona corretamente
+13
+FE-06
+Editor de etiqueta + preview + QR
+FE-01 + E-14/15
+Preview atualiza ao digitar
+14
+FE-07+08
+DRE, SPI, Settings, PWA manifest
+Todos anteriores
+Lighthouse PWA > 90, mobile sem scroll horizontal
+
+📋  PROMPT PARA JULES — CONTEXTO INICIAL — Cole no Jules ANTES de tudo
+Você vai me ajudar a construir o SmartFood Ops 360 — ERP Industrial para produção de ultracongelados.
+O sistema tem duas partes: Backend (PRD Intelligence v3) e Frontend (este PRD).
+STACK COMPLETA:
+- Backend: Python 3.11 + FastAPI + SQLAlchemy 2.0 + PostgreSQL + Redis + Celery
+- Frontend: Jinja2Templates + HTMX 1.9 + Tailwind CSS + Alpine.js 3 + Phosphor Icons
+- Filosofia: O servidor retorna HTML (não JSON para o frontend). HTMX troca partes do DOM.
+- Deploy: Docker Compose + Nginx + VPS única
+REGRAS PARA TODO CÓDIGO QUE VOCÊ GERAR:
+1. Python: type hints em tudo, docstrings em funções de negócio, HTTPException para erros
+2. HTML/Jinja2: Tailwind classes inline, sem CSS customizado, sem JavaScript inline
+3. HTMX: sempre definir hx-target e hx-swap explicitamente
+4. Alpine.js: apenas para estado LOCAL (sidebar aberta, dropdown visível, toast)
+5. Acessibilidade: todos os botões com aria-label, imagens com alt, contraste WCAG AA
+6. Mobile: classes responsivas md: e lg: em tudo, botões mínimo h-12
+ESTRUTURA DO PROJETO: [cole aqui a estrutura de pastas da seção 3 deste PRD]
+Vou te enviar prompts numerados (FE-01 a FE-08). Confirme que entendeu antes de começarmos.
+
+SmartFood Ops 360  ·  PRD Frontend + Intelligence  ·  Versão Consolidada  ·  Confidencial

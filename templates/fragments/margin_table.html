@@ -1,0 +1,86 @@
+{# Fragmento: Tabela de Margem — retornado por GET /api/fragments/margin-table #}
+{% if products %}
+<div class="overflow-x-auto">
+  <table class="w-full text-sm" role="table" aria-label="Monitor de margem por produto">
+    <thead>
+      <tr class="bg-slate-50 border-b border-slate-200">
+        <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Produto
+        </th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">
+          Custo/un
+        </th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Preço
+        </th>
+        <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          Margem
+        </th>
+        <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+          Status
+        </th>
+        <th class="px-4 py-3 hidden lg:table-cell"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-slate-100">
+      {% for p in products %}
+      <tr class="hover:bg-slate-50 transition-colors
+                 {% if p.status == 'critical' %}bg-red-50{% elif p.status == 'warning' %}bg-yellow-50{% endif %}">
+        <td class="px-5 py-3.5">
+          <span class="font-medium text-gray-900">{{ p.name }}</span>
+          {% if p.sku %}
+          <span class="text-xs text-gray-400 ml-1">{{ p.sku }}</span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3.5 text-right text-gray-600 hidden md:table-cell">
+          R$ {{ "%.2f" | format(p.cost_per_unit or 0) }}
+        </td>
+        <td class="px-4 py-3.5 text-right font-medium text-gray-900">
+          R$ {{ "%.2f" | format(p.price or 0) }}
+        </td>
+        <td class="px-4 py-3.5 text-right">
+          <span class="font-semibold
+                       {% if p.status == 'critical' %}text-red-600
+                       {% elif p.status == 'warning' %}text-yellow-600
+                       {% else %}text-green-600{% endif %}">
+            {{ "%.1f" | format(p.margin_pct or 0) }}%
+          </span>
+        </td>
+        <td class="px-4 py-3.5 text-center hidden lg:table-cell">
+          {% if p.status == 'critical' %}
+            <span class="inline-flex items-center gap-1 bg-red-100 text-red-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <i class="ph-fill ph-x-circle text-sm" aria-hidden="true"></i> Crítico
+            </span>
+          {% elif p.status == 'warning' %}
+            <span class="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <i class="ph-fill ph-warning text-sm" aria-hidden="true"></i> Em Risco
+            </span>
+          {% else %}
+            <span class="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+              <i class="ph-fill ph-check-circle text-sm" aria-hidden="true"></i> OK
+            </span>
+          {% endif %}
+        </td>
+        <td class="px-4 py-3.5 hidden lg:table-cell">
+          {% if p.status == 'critical' %}
+          <button hx-post="/api/pricing/{{ p.product_id }}/recalculate"
+                  hx-target="closest tr"
+                  hx-swap="outerHTML"
+                  class="text-xs text-blue-600 hover:text-blue-700 font-medium
+                         whitespace-nowrap px-2 py-1 hover:bg-blue-50 rounded"
+                  aria-label="Recalcular preço de {{ p.name }}">
+            Recalcular Preço
+          </button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="p-8 text-center text-sm text-gray-400">
+  <i class="ph ph-chart-bar text-3xl block mb-2" aria-hidden="true"></i>
+  Nenhum produto cadastrado ainda.
+</div>
+{% endif %}

@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates  # noqa: F401 — disponível para routers via import direto
 
 import models
 from database import engine, get_db
@@ -20,6 +21,11 @@ from routers.reports import router as reports_router
 from routers.spi import router as spi_router
 from routers.sync import router as sync_router
 from routers.mobile import router as mobile_router
+# ── Frontend UI Routers (FE-01+) ──────────────────────────────────────────────
+from routers.ui_dashboard import router as ui_dashboard_router
+from routers.ui_operations import router as ui_operations_router
+from routers.ui_commercial import router as ui_commercial_router
+from routers.api_fragments import router as api_fragments_router
 from services.margin_monitor import margin_monitor_task
 from services.demand_engine import daily_demand_task
 from services.alert_orchestrator import alert_orchestrator_task
@@ -53,7 +59,7 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(
     title="SmartFood Ops 360 - Intelligence Edition",
     description="ERP industrial com IA preditiva para gestão de ultracongelados B2B",
-    version="0.19.0",
+    version="0.20.0",
     lifespan=lifespan,
 )
 
@@ -77,33 +83,9 @@ app.include_router(reports_router)
 app.include_router(spi_router)
 app.include_router(sync_router)
 app.include_router(mobile_router)
+# ── Frontend UI (FE-01+) — ordem importa: UI antes do mount de static ─────────
+app.include_router(ui_dashboard_router)
+app.include_router(ui_operations_router)
+app.include_router(ui_commercial_router)
+app.include_router(api_fragments_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@app.get("/")
-def read_root():
-    return {
-        "message": "SmartFood Ops 360 API",
-        "etapas_concluidas": [
-            "E-01: Modelos e Banco de Dados",
-            "E-02: Fichas Técnicas com FC, FCoc e BOM",
-            "E-03: Motor de Precificação e Monitor de Margem em Tempo Real",
-            "E-04: Motor de Inteligência de Demanda (MRP Preditivo)",
-            "E-05: Previsão de Demanda por Histórico e Sazonalidade",
-            "E-06: Orquestrador de Alertas Inteligentes",
-            "E-07: Gestão de Estoque com PVPS e Rastreabilidade de Lotes",
-            "E-08: Gestão de Insumos Não-Alimentícios (Embalagens, Limpeza, EPI)",
-            "E-09: Compras Hyper-Automation (Mega API + Gmail)",
-            "E-10: Recebimento NF-e com Validação de Peso e Rastreabilidade",
-            "E-11: Ordens de Produção com Máquina de Estados e Custo Real",
-            "E-12: Portal B2B — Catálogo, Pedidos, Recompra Proativa e NPS",
-            "E-13: Inteligência B2B — Previsão de Esgotamento e Notificação de Novo Produto",
-            "E-14: Etiquetas Parametrizadas ZPL/TSPL e QR Code Dinâmico",
-            "E-15: QR Dinâmico — Destinos Públicos (Rastreabilidade, Promoção, Survey, Substituto)",
-            "E-16: DRE Automatizado e Relatórios de Lote (P&L, SPI, Top Produtos, Evolução de Margem)",
-            "E-17: SPI — Índice de Performance de Fornecedores (Pontualidade + Acuracidade + Cotação)",
-            "E-18: Modo Offline + Sync Idempotente + Briefing Diário 7h via WhatsApp",
-            "E-19: PWA Mobile para Operadores (Dashboard, OPs, Scanner, Sync Offline)",
-        ],
-        "docs": "/docs",
-    }

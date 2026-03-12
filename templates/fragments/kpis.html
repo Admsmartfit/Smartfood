@@ -1,0 +1,39 @@
+{# Fragmento: KPI Cards — retornado por GET /api/fragments/kpis #}
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+  {% for kpi in kpis %}
+  <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm
+              {% if kpi.is_critical %}border-l-4 border-l-red-500 bg-red-50{% endif %}
+              hover:shadow-md transition-shadow">
+    <div class="flex items-start justify-between mb-3">
+      <i class="ph ph-{{ kpi.icon }} text-2xl
+                {% if kpi.is_critical %}text-red-500{% else %}text-blue-600{% endif %}"
+         aria-hidden="true"></i>
+      {% if kpi.delta_pct is not none %}
+      <span class="text-xs font-semibold flex items-center gap-0.5
+                   {% if kpi.delta_direction == 'up' %}text-green-600
+                   {% elif kpi.delta_direction == 'down' %}text-red-600
+                   {% else %}text-gray-400{% endif %}">
+        {% if kpi.delta_direction == 'up' %}
+          <i class="ph ph-arrow-up" aria-hidden="true"></i>
+        {% elif kpi.delta_direction == 'down' %}
+          <i class="ph ph-arrow-down" aria-hidden="true"></i>
+        {% endif %}
+        {{ kpi.delta_pct | round(1) }}%
+      </span>
+      {% endif %}
+    </div>
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+      {{ kpi.label }}
+    </p>
+    <p class="text-3xl font-bold text-gray-900 leading-none">
+      {{ kpi.value }}
+      {% if kpi.unit %}
+      <span class="text-base font-medium text-gray-500">{{ kpi.unit }}</span>
+      {% endif %}
+    </p>
+    {% if kpi.subtitle %}
+    <p class="text-xs text-gray-400 mt-1">{{ kpi.subtitle }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>

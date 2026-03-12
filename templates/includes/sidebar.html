@@ -1,0 +1,119 @@
+{# ── Sidebar — SmartFood Ops 360 ── #}
+<aside id="sidebar"
+       :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
+       class="fixed md:relative z-40 w-64 h-full bg-gray-900 text-white
+              flex flex-col transition-transform duration-300 ease-in-out shrink-0">
+
+  <!-- ── Logo / Brand ── -->
+  <div class="flex items-center gap-3 px-5 py-5 border-b border-gray-700">
+    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+      <i class="ph-fill ph-snowflake text-white text-lg" aria-hidden="true"></i>
+    </div>
+    <div class="min-w-0">
+      <p class="font-bold text-sm leading-tight text-white truncate">SmartFood Ops</p>
+      <p class="text-xs text-gray-400 truncate">v0.19 · Intelligence</p>
+    </div>
+    <!-- Botão fechar no mobile -->
+    <button @click="sidebarOpen = false"
+            class="ml-auto md:hidden text-gray-400 hover:text-white p-1"
+            aria-label="Fechar menu">
+      <i class="ph ph-x text-xl"></i>
+    </button>
+  </div>
+
+  <!-- ── Navegação ── -->
+  <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-6" aria-label="Navegação principal">
+
+    {# ── Macro de item de menu ── #}
+    {% macro nav_item(label, icon, url, badge=None) %}
+    <a href="{{ url }}"
+       hx-get="{{ url }}"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="innerHTML"
+       hx-push-url="true"
+       @click="activeNav = '{{ url }}'; if(window.innerWidth < 768) sidebarOpen = false"
+       :class="activeNav === '{{ url }}' || activeNav.startsWith('{{ url }}/') ?
+                 'bg-blue-600 text-white' :
+                 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+       class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+              transition-colors duration-150 group min-h-[44px]"
+       aria-label="{{ label }}">
+      <i class="ph ph-{{ icon }} text-xl shrink-0" aria-hidden="true"></i>
+      <span class="truncate flex-1">{{ label }}</span>
+      {% if badge %}
+      <span class="bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+        {{ badge }}
+      </span>
+      {% endif %}
+    </a>
+    {% endmacro %}
+
+    {# ── Macro de seção ── #}
+    {% macro nav_section(title) %}
+    <p class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-widest mb-1">
+      {{ title }}
+    </p>
+    {% endmacro %}
+
+    <!-- Inteligência -->
+    <div>
+      {{ nav_section("Inteligência") }}
+      <div class="space-y-0.5">
+        {{ nav_item("Dashboard",             "squares-four",   "/dashboard") }}
+        {{ nav_item("Previsão de Demanda",   "chart-line-up",  "/intelligence/forecast") }}
+        {{ nav_item("Central de Alertas",    "bell-ringing",   "/intelligence/alerts") }}
+        {{ nav_item("Simulador 'E se?'",     "flask",          "/intelligence/simulator") }}
+      </div>
+    </div>
+
+    <!-- Operação -->
+    <div>
+      {{ nav_section("Operação") }}
+      <div class="space-y-0.5">
+        {{ nav_item("Fichas Técnicas",       "notebook",       "/operations/bom") }}
+        {{ nav_item("Estoque / Inventário",  "package",        "/operations/inventory") }}
+        {{ nav_item("Recebimento NF-e",      "truck",          "/operations/receiving") }}
+        {{ nav_item("Ordens de Produção",    "factory",        "/operations/production") }}
+        {{ nav_item("Etiquetas",             "tag",            "/operations/labels") }}
+      </div>
+    </div>
+
+    <!-- Comercial -->
+    <div>
+      {{ nav_section("Comercial") }}
+      <div class="space-y-0.5">
+        {{ nav_item("Cotações / Compras",    "shopping-cart",    "/commercial/purchasing") }}
+        {{ nav_item("Pedidos B2B",           "clipboard-text",   "/commercial/orders") }}
+        {{ nav_item("Reposição Proativa",    "robot",            "/commercial/b2b-intelligence") }}
+        {{ nav_item("Fornecedores / SPI",    "handshake",        "/commercial/suppliers") }}
+        {{ nav_item("DRE e Relatórios",      "chart-bar",        "/commercial/dre") }}
+      </div>
+    </div>
+
+    <!-- Sistema -->
+    <div>
+      {{ nav_section("Sistema") }}
+      <div class="space-y-0.5">
+        {{ nav_item("Configurações",         "gear",             "/settings") }}
+        {{ nav_item("API (Swagger)",         "code",             "/docs") }}
+        {{ nav_item("App Mobile",            "device-mobile",    "/mobile") }}
+      </div>
+    </div>
+
+  </nav>
+
+  <!-- ── Rodapé da Sidebar ── -->
+  <div class="px-4 py-4 border-t border-gray-700">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center shrink-0">
+        <i class="ph-fill ph-user text-white text-sm" aria-hidden="true"></i>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-medium text-white truncate">Gestor</p>
+        <p class="text-xs text-gray-400 truncate">Administrador</p>
+      </div>
+    </div>
+  </div>
+
+</aside>

@@ -1,0 +1,116 @@
+{# ── Topbar — SmartFood Ops 360 ── #}
+<header class="bg-white border-b border-slate-200 px-4 md:px-6 py-3
+               flex items-center gap-3 shrink-0 z-20 sticky top-0">
+
+  <!-- Botão hamburger (mobile) -->
+  <button @click="toggleSidebar()"
+          class="md:hidden p-2 text-gray-500 hover:text-gray-800 hover:bg-slate-100
+                 rounded-lg transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center"
+          aria-label="Abrir menu lateral">
+    <i class="ph ph-list text-2xl" aria-hidden="true"></i>
+  </button>
+
+  <!-- Título da página atual -->
+  <div class="flex-1 min-w-0">
+    <h1 id="page-title"
+        class="text-base md:text-lg font-semibold text-gray-900 truncate">
+      {% block page_title %}SmartFood Ops 360{% endblock %}
+    </h1>
+    <p id="page-subtitle"
+       class="text-xs text-gray-500 hidden md:block truncate">
+      {% block page_subtitle %}{% endblock %}
+    </p>
+  </div>
+
+  <!-- Busca global (desktop) -->
+  <div class="hidden lg:flex items-center"
+       x-data="{ searchOpen: false }">
+    <div :class="searchOpen ? 'w-72' : 'w-48'"
+         class="relative transition-all duration-200">
+      <input type="search"
+             placeholder="Buscar produto, lote, cliente..."
+             class="w-full pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200
+                    rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2
+                    focus:ring-blue-500 focus:border-transparent"
+             @focus="searchOpen = true"
+             @blur="searchOpen = false"
+             aria-label="Busca global" />
+      <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2
+                text-gray-400 text-base pointer-events-none" aria-hidden="true"></i>
+    </div>
+  </div>
+
+  <!-- ── Sino de Alertas ── -->
+  <div class="relative" x-data="{ alertsOpen: false }">
+    <button @click="alertsOpen = !alertsOpen"
+            @keydown.escape="alertsOpen = false"
+            class="relative p-2 text-gray-500 hover:text-gray-800 hover:bg-slate-100
+                   rounded-lg transition-colors min-h-[44px] min-w-[44px]
+                   flex items-center justify-center"
+            aria-label="Alertas ativos"
+            aria-haspopup="true"
+            :aria-expanded="alertsOpen">
+      <i class="ph ph-bell text-2xl" aria-hidden="true"></i>
+      <!-- Badge de alertas (atualizado pelo fragmento) -->
+      <span id="alert-badge"
+            class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+            style="display:none"
+            aria-hidden="true">
+      </span>
+    </button>
+
+    <!-- Dropdown de alertas -->
+    <div x-show="alertsOpen"
+         x-cloak
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         x-transition:leave="transition ease-in duration-100"
+         x-transition:leave-start="opacity-100 scale-100"
+         x-transition:leave-end="opacity-0 scale-95"
+         @click.outside="alertsOpen = false"
+         class="absolute right-0 top-full mt-2 w-80 md:w-96
+                bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden"
+         role="dialog"
+         aria-label="Painel de alertas">
+
+      <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+        <span class="font-semibold text-sm text-gray-900">Alertas Ativos</span>
+        <a href="/intelligence/alerts"
+           hx-get="/intelligence/alerts"
+           hx-target="#main-content"
+           hx-select="#main-content"
+           hx-swap="innerHTML"
+           hx-push-url="true"
+           @click="alertsOpen = false"
+           class="text-xs text-blue-600 hover:text-blue-700 font-medium"
+           aria-label="Ver todos os alertas">
+          Ver todos
+        </a>
+      </div>
+
+      <!-- Fragmento de alertas — polling a cada 60s -->
+      <div id="alerts-dropdown-content"
+           hx-get="/api/fragments/alerts"
+           hx-trigger="load, every 60s"
+           hx-swap="innerHTML"
+           class="max-h-80 overflow-y-auto">
+        <div class="px-4 py-6 text-center text-sm text-gray-400">
+          <i class="ph ph-spinner animate-spin text-2xl block mb-2" aria-hidden="true"></i>
+          Carregando alertas...
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Indicador offline (ícone) -->
+  <div x-show="isOffline"
+       x-cloak
+       class="p-2 text-yellow-600 bg-yellow-50 rounded-lg"
+       title="Modo offline ativo"
+       aria-label="Sem conexão — modo offline">
+    <i class="ph ph-wifi-slash text-xl" aria-hidden="true"></i>
+  </div>
+
+</header>
