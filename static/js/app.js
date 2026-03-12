@@ -14,8 +14,17 @@ function appState() {
     // ── Init ──
     init() {
       // NProgress + HTMX hooks
-      document.addEventListener('htmx:beforeRequest', () => {
+      document.addEventListener('htmx:beforeRequest', (e) => {
         if (typeof NProgress !== 'undefined') NProgress.start();
+        // Suspende apenas polling automático quando offline (every X)
+        // Deixa 'load' passar: service worker pode servir do cache
+        if (this.isOffline) {
+          const trigger = e.detail.triggerSpec?.trigger || '';
+          if (trigger.includes('every')) {
+            e.preventDefault();
+            if (typeof NProgress !== 'undefined') NProgress.done();
+          }
+        }
       });
       document.addEventListener('htmx:afterRequest', (e) => {
         if (typeof NProgress !== 'undefined') NProgress.done();

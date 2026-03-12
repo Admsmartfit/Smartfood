@@ -4,7 +4,6 @@ FE-02 — API de Fragmentos HTMX
 Retornam HTML parcial (partials) consumidos pelo HTMX.
 Todos os endpoints retornam HTMLResponse + header HX-Trigger para toast quando relevante.
 """
-from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -122,48 +121,9 @@ def fragment_kpis(request: Request, db: Session = Depends(get_db)):
 @router.get("/margin-table", response_class=HTMLResponse)
 def fragment_margin_table(request: Request, db: Session = Depends(get_db)):
     """Tabela de produtos com custo, preço, margem% e status semáforo."""
-    from models import Product
+    from services.margin_monitor import get_all_margins
 
-    from cost_calculator import calculate_product_cost
-    from models import BOMItem
-
-    produtos = db.query(Product).filter(Product.ativo == True).order_by(Product.nome).all()
-    result = []
-    for p in produtos:
-        cost = 0.0
-        margin_pct = 0.0
-        preco_sugerido = 0.0
-        try:
-            bom_items = db.query(BOMItem).filter(BOMItem.product_id == p.id).all()
-            for item in bom_items:
-                item.ingredient  # noqa: B018 — força lazy load do relacionamento
-                item.supply      # noqa: B018
-            m = calculate_product_cost(p, bom_items)
-            cost = m.get("custo_total", 0.0)
-            margin_pct = m.get("margem_pct", 0.0)
-            preco_sugerido = m.get("preco_sugerido", 0.0)
-        except Exception:
-            pass
-
-        threshold = p.margem_minima or 20.0
-        if margin_pct <= 0:
-            status = "critical"
-        elif margin_pct < threshold:
-            status = "critical" if margin_pct < threshold * 0.75 else "warning"
-        else:
-            status = "ok"
-
-        result.append({
-            "product_id": str(p.id),
-            "name": p.nome,
-            "sku": p.sku,
-            "cost_per_unit": round(cost, 2),
-            "price": round(preco_sugerido, 2),
-            "margin_pct": round(margin_pct, 1),
-            "threshold": threshold,
-            "status": status,
-        })
-
+    result = get_all_margins(db)
     return _html("fragments/margin_table.html", {"request": request, "products": result})
 
 

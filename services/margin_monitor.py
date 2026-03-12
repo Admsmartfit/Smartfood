@@ -206,6 +206,61 @@ def recalculate_products_for_ingredient(
 
 
 # ---------------------------------------------------------------------------
+# Leitura rápida de margens (sem alterar alertas — para fragments HTMX)
+# ---------------------------------------------------------------------------
+
+def get_all_margins(db: Session) -> list:
+    """
+    Retorna a margem calculada de todos os produtos ativos.
+    Leitura pura: não gera alertas, não faz commit.
+    Usado pelo fragment /api/fragments/margin-table.
+    """
+    from models import BOMItem, Product
+
+    products = db.query(Product).filter(Product.ativo == True).order_by(Product.nome).all()
+    result = []
+    for product in products:
+        bom_items = (
+            db.query(BOMItem)
+            .options(joinedload(BOMItem.ingredient), joinedload(BOMItem.supply))
+            .filter(BOMItem.product_id == product.id)
+            .all()
+        )
+        cost = 0.0
+        margin_pct = 0.0
+        price = 0.0
+        try:
+            data = calculate_product_cost(product, bom_items)
+            cost = data.get("custo_total", 0.0)
+            margin_pct = data.get("margem_pct", 0.0)
+            price = data.get("preco_sugerido", 0.0)
+        except Exception:
+            pass
+
+        threshold = product.margem_minima or 20.0
+        if margin_pct <= 0:
+            status = "critical"
+        elif margin_pct < threshold * 0.75:
+            status = "critical"
+        elif margin_pct < threshold:
+            status = "warning"
+        else:
+            status = "ok"
+
+        result.append({
+            "product_id": str(product.id),
+            "name": product.nome,
+            "sku": product.sku,
+            "cost_per_unit": round(cost, 2),
+            "price": round(price, 2),
+            "margin_pct": round(margin_pct, 1),
+            "threshold": threshold,
+            "status": status,
+        })
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Monitor daemon (execução a cada 15 min)
 # ---------------------------------------------------------------------------
 
