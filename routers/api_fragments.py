@@ -49,7 +49,6 @@ def fragment_kpis(request: Request, db: Session = Depends(get_db)):
     compras_urgentes: int = (
         db.query(func.count(Ingredient.id))
         .filter(
-            Ingredient.ativo == True,
             Ingredient.estoque_atual <= Ingredient.estoque_minimo,
         )
         .scalar() or 0
