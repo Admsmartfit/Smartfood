@@ -1,0 +1,89 @@
+{# Fragmento: Linhas do inventário com barra de cobertura #}
+{% if items %}
+  {% for item in items %}
+  {% set status_classes = {
+    'ok':       'bg-green-100 text-green-800',
+    'warning':  'bg-yellow-100 text-yellow-800',
+    'critical': 'bg-red-100 text-red-800',
+    'zero':     'bg-red-100 text-red-900'
+  } %}
+  {% set bar_classes = {
+    'ok':       'bg-green-400',
+    'warning':  'bg-yellow-400',
+    'critical': 'bg-red-500',
+    'zero':     'bg-red-700'
+  } %}
+  <tr class="odd:bg-white even:bg-slate-50 hover:bg-blue-50 transition-colors">
+    <td class="px-4 py-3">
+      <div class="font-medium text-gray-900">{{ item.nome }}</div>
+      <div class="text-xs text-gray-400">{{ item.unidade }}</div>
+    </td>
+
+    <td class="px-4 py-3 text-right font-medium text-gray-900">
+      {{ item.estoque_atual }}
+    </td>
+
+    <td class="px-4 py-3 text-right text-gray-500 hidden md:table-cell">
+      {{ item.estoque_minimo }}
+    </td>
+
+    <!-- Barra de cobertura -->
+    <td class="px-4 py-3 hidden lg:table-cell">
+      <div class="flex items-center gap-2">
+        <div class="flex-1 bg-gray-100 rounded-full h-2 overflow-hidden" role="progressbar"
+             aria-valuenow="{{ item.bar_pct }}" aria-valuemin="0" aria-valuemax="100">
+          <div class="{{ bar_classes.get(item.status, 'bg-gray-400') }} h-2 rounded-full transition-all"
+               style="width: {{ item.bar_pct }}%"></div>
+        </div>
+        <span class="text-xs text-gray-500 w-10 text-right">{{ item.bar_pct }}%</span>
+      </div>
+    </td>
+
+    <!-- Cobertura em dias -->
+    <td class="px-4 py-3 text-center text-sm hidden md:table-cell">
+      {% if item.coverage_days is not none %}
+        <span class="font-medium text-gray-700">{{ item.coverage_days }}d</span>
+      {% else %}
+        <span class="text-gray-400">—</span>
+      {% endif %}
+    </td>
+
+    <!-- Lead time -->
+    <td class="px-4 py-3 text-center text-sm hidden lg:table-cell text-gray-500">
+      {{ item.lead_time_dias }}d
+    </td>
+
+    <!-- Status badge -->
+    <td class="px-4 py-3 text-center">
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+                   {{ status_classes.get(item.status, 'bg-gray-100 text-gray-600') }}">
+        {% if item.status == 'ok' %}
+          <i class="ph-fill ph-check-circle text-xs" aria-hidden="true"></i> OK
+        {% elif item.status == 'zero' %}
+          <i class="ph-fill ph-x-circle text-xs" aria-hidden="true"></i> Zerado
+        {% elif item.status == 'critical' %}
+          <i class="ph-fill ph-warning-diamond text-xs" aria-hidden="true"></i> Crítico
+        {% else %}
+          <i class="ph-fill ph-warning text-xs" aria-hidden="true"></i> Atenção
+        {% endif %}
+      </span>
+    </td>
+
+    <!-- Custo unitário -->
+    <td class="px-4 py-3 text-right text-sm text-gray-600 hidden xl:table-cell">
+      R$ {{ item.custo_atual | round(2) }}
+    </td>
+  </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="8" class="px-4 py-10 text-center text-gray-400">
+      <i class="ph ph-warehouse text-3xl mb-2 block" aria-hidden="true"></i>
+      {% if query %}
+        Nenhum ingrediente encontrado para "<strong>{{ query }}</strong>".
+      {% else %}
+        Nenhum ingrediente no inventário.
+      {% endif %}
+    </td>
+  </tr>
+{% endif %}

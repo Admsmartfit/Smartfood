@@ -1,13 +1,87 @@
 {% extends "base.html" %}
-{% block title %}Estoque / Inventário{% endblock %}
 {% block page_title %}Estoque / Inventário{% endblock %}
-{% block page_subtitle %}FE-03 — Em implementação{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-package text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Estoque / Inventário</p>
-    <p class="text-sm mt-1">Módulo FE-03 — será implementado em breve.</p>
+<div class="p-6 space-y-5 max-w-7xl mx-auto">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Estoque / Inventário</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Cobertura e status de todos os ingredientes</p>
+    </div>
   </div>
+
+  <!-- Filtros -->
+  <div class="flex flex-wrap gap-3">
+    <!-- Busca -->
+    <div class="relative flex-1 min-w-48">
+      <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+         aria-hidden="true"></i>
+      <input type="search"
+             id="inv-search"
+             name="q"
+             placeholder="Buscar ingrediente..."
+             class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm
+                    focus:outline-none focus:ring-2 focus:ring-blue-500"
+             hx-get="/api/inventory/search"
+             hx-target="#inventory-table-body"
+             hx-trigger="keyup changed delay:300ms, search"
+             hx-include="#inv-search, #status-filter"
+             aria-label="Buscar ingrediente">
+    </div>
+
+    <!-- Filtro de status -->
+    <select id="status-filter"
+            name="status"
+            class="border border-slate-300 rounded-lg px-3 py-2 text-sm text-gray-700
+                   focus:outline-none focus:ring-2 focus:ring-blue-500"
+            hx-get="/api/inventory/search"
+            hx-target="#inventory-table-body"
+            hx-trigger="change"
+            hx-include="#inv-search, #status-filter">
+      <option value="">Todos os status</option>
+      <option value="ok">OK</option>
+      <option value="warning">Atenção</option>
+      <option value="critical">Crítico</option>
+      <option value="zero">Zerado</option>
+    </select>
+  </div>
+
+  <!-- Tabela -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="w-full text-sm" role="table" aria-label="Inventário de ingredientes">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ingrediente</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estoque</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Mínimo</th>
+          <th class="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Cobertura</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Dias</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Lead</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden xl:table-cell">Custo</th>
+        </tr>
+      </thead>
+      <tbody id="inventory-table-body" class="divide-y divide-slate-100"
+             hx-get="/api/inventory/search"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+        {% for _ in range(6) %}
+        <tr class="animate-pulse">
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-36"></div></td>
+          <td class="px-4 py-3 text-right"><div class="h-4 bg-slate-200 rounded w-16 ml-auto"></div></td>
+          <td class="px-4 py-3 text-right hidden md:table-cell"><div class="h-4 bg-slate-200 rounded w-12 ml-auto"></div></td>
+          <td class="px-4 py-3 hidden lg:table-cell"><div class="h-2 bg-slate-200 rounded w-full"></div></td>
+          <td class="px-4 py-3 text-center hidden md:table-cell"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+          <td class="px-4 py-3 text-center hidden lg:table-cell"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+          <td class="px-4 py-3 text-center"><div class="h-5 bg-slate-200 rounded-full w-14 mx-auto"></div></td>
+          <td class="px-4 py-3 text-right hidden xl:table-cell"><div class="h-4 bg-slate-200 rounded w-16 ml-auto"></div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
 </div>
 {% endblock %}

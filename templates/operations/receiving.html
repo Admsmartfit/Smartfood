@@ -1,13 +1,81 @@
 {% extends "base.html" %}
-{% block title %}Recebimento NF-e{% endblock %}
 {% block page_title %}Recebimento NF-e{% endblock %}
-{% block page_subtitle %}FE-03 — Em implementação{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-truck text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Recebimento NF-e</p>
-    <p class="text-sm mt-1">Módulo FE-03 — será implementado em breve.</p>
+<div class="p-6 space-y-6 max-w-3xl mx-auto">
+
+  <!-- Cabeçalho -->
+  <div>
+    <h1 class="text-xl font-bold text-gray-900">Recebimento de Mercadoria</h1>
+    <p class="text-sm text-gray-500 mt-0.5">Faça upload da NF-e XML e informe o peso da balança</p>
   </div>
+
+  <!-- Formulário de upload -->
+  <form hx-post="/api/inventory/receive-nfe"
+        hx-target="#nfe-result"
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        class="space-y-5 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+
+    <!-- Upload XML -->
+    <div>
+      <label for="nfe_xml" class="block text-sm font-medium text-gray-700 mb-1.5">
+        Arquivo XML da NF-e
+        <span class="text-red-500 ml-0.5">*</span>
+      </label>
+      <div class="flex items-center justify-center w-full">
+        <label for="nfe_xml"
+               class="flex flex-col items-center justify-center w-full h-32
+                      border-2 border-dashed border-slate-300 rounded-lg cursor-pointer
+                      hover:border-blue-400 hover:bg-blue-50 transition-colors">
+          <div class="flex flex-col items-center justify-center pt-5 pb-6">
+            <i class="ph ph-file-xml text-3xl text-gray-400 mb-2" aria-hidden="true"></i>
+            <p class="text-sm text-gray-500">
+              <span class="font-medium text-blue-600">Clique para selecionar</span>
+              ou arraste aqui
+            </p>
+            <p class="text-xs text-gray-400 mt-1">Apenas .xml da NF-e</p>
+          </div>
+          <input id="nfe_xml" name="nfe_xml" type="file" accept=".xml" class="hidden" required>
+        </label>
+      </div>
+    </div>
+
+    <!-- Peso balança -->
+    <div>
+      <label for="peso_balanca" class="block text-sm font-medium text-gray-700 mb-1.5">
+        Peso na Balança (kg)
+        <span class="text-red-500 ml-0.5">*</span>
+      </label>
+      <input type="number"
+             id="peso_balanca"
+             name="peso_balanca"
+             step="0.001"
+             min="0"
+             placeholder="Ex: 125.500"
+             class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+             required>
+    </div>
+
+    <!-- Botão -->
+    <button type="submit"
+            class="w-full flex items-center justify-center gap-2
+                   px-4 py-2.5 bg-blue-600 hover:bg-blue-700
+                   text-white text-sm font-semibold rounded-lg transition-colors
+                   disabled:opacity-50"
+            hx-indicator="#nfe-spinner">
+      <span id="nfe-spinner" class="htmx-indicator">
+        <i class="ph ph-spinner animate-spin" aria-hidden="true"></i>
+      </span>
+      <i class="ph ph-truck" aria-hidden="true"></i>
+      Processar NF-e
+    </button>
+
+  </form>
+
+  <!-- Resultado -->
+  <div id="nfe-result"></div>
+
 </div>
 {% endblock %}

@@ -1,0 +1,56 @@
+{# Fragmento: Resultado do registro de consumo de ingredientes #}
+<div class="space-y-4">
+
+  {% if error %}
+  <div class="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+    <i class="ph-fill ph-x-circle text-xl text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+    <div>
+      <p class="font-semibold text-red-800">Erro ao registrar consumo</p>
+      <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="flex items-center gap-3 p-3 rounded-lg bg-green-50 border border-green-200">
+    <i class="ph-fill ph-check-circle text-xl text-green-600" aria-hidden="true"></i>
+    <span class="font-semibold text-green-800 text-sm">Consumo registrado com sucesso</span>
+  </div>
+
+  {% if usages %}
+  <div class="overflow-x-auto rounded-lg border border-slate-200">
+    <table class="w-full text-sm" role="table">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Ingrediente</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Planejado</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Real</th>
+          <th class="text-right px-4 py-2 text-xs font-semibold text-gray-500 uppercase">Divergência</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for u in usages %}
+        {% set div_pct = u.get('divergencia_pct', 0) | float %}
+        <tr class="odd:bg-white even:bg-slate-50
+                   {% if div_pct | abs > 10 %}bg-amber-50{% endif %}">
+          <td class="px-4 py-2 font-medium text-gray-900">{{ u.get('ingrediente', '—') }}</td>
+          <td class="px-4 py-2 text-right text-gray-600">
+            {{ u.get('qty_planejada', 0) | round(3) }} {{ u.get('unidade', '') }}
+          </td>
+          <td class="px-4 py-2 text-right text-gray-900 font-medium">
+            {{ u.get('qty_real', 0) | round(3) }} {{ u.get('unidade', '') }}
+          </td>
+          <td class="px-4 py-2 text-right font-semibold
+            {% if div_pct | abs <= 5 %}text-green-600
+            {% elif div_pct | abs <= 10 %}text-yellow-600
+            {% else %}text-red-600{% endif %}">
+            {% if div_pct > 0 %}+{% endif %}{{ div_pct | round(1) }}%
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</div>

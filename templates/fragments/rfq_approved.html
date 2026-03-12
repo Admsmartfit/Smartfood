@@ -1,0 +1,63 @@
+{# Fragmento: Confirmação após aprovação de RFQ / geração de OC #}
+{% if error %}
+<div class="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+  <i class="ph-fill ph-x-circle text-xl text-red-600 flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+  <div>
+    <p class="font-semibold text-red-800">Erro ao aprovar cotação</p>
+    <p class="text-sm text-red-700 mt-1">{{ error }}</p>
+  </div>
+</div>
+
+{% elif oc %}
+<div class="rounded-xl border border-green-300 bg-green-50 p-5 space-y-4">
+
+  <!-- Header de sucesso -->
+  <div class="flex items-center gap-3">
+    <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+      <i class="ph-fill ph-check-circle text-2xl text-green-600" aria-hidden="true"></i>
+    </div>
+    <div>
+      <h4 class="font-bold text-green-900">OC #{{ oc.oc_numero }} aprovada!</h4>
+      <p class="text-sm text-green-700">Enviada para <strong>{{ oc.supplier_nome }}</strong></p>
+    </div>
+  </div>
+
+  <!-- Detalhes da OC -->
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm bg-white rounded-lg p-3 border border-green-200">
+    <dt class="text-gray-500">Insumo</dt>
+    <dd class="font-medium text-gray-900">{{ oc.supply_nome }}</dd>
+
+    <dt class="text-gray-500">Quantidade</dt>
+    <dd class="font-medium text-gray-900">{{ oc.qty | round(2) }} {{ oc.unidade }}</dd>
+
+    <dt class="text-gray-500">Total</dt>
+    <dd class="font-bold text-blue-700">R$ {{ oc.total | round(2) }}</dd>
+  </dl>
+
+  <!-- Canais de envio -->
+  <div class="flex gap-3 text-xs">
+    {% if oc.whatsapp_enviado %}
+    <span class="inline-flex items-center gap-1.5 text-green-700 bg-green-100 px-2.5 py-1 rounded-full font-medium">
+      <i class="ph-fill ph-whatsapp-logo" aria-hidden="true"></i> WhatsApp enviado
+    </span>
+    {% endif %}
+    {% if oc.email_enviado %}
+    <span class="inline-flex items-center gap-1.5 text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full font-medium">
+      <i class="ph-fill ph-envelope" aria-hidden="true"></i> E-mail enviado
+    </span>
+    {% endif %}
+  </div>
+
+  <!-- Download PDF -->
+  {% if oc.pdf_url %}
+  <a href="{{ oc.pdf_url }}"
+     target="_blank"
+     rel="noopener noreferrer"
+     class="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-900 font-medium">
+    <i class="ph ph-file-pdf" aria-hidden="true"></i>
+    Baixar PDF da OC #{{ oc.oc_numero }}
+  </a>
+  {% endif %}
+
+</div>
+{% endif %}

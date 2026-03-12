@@ -1,13 +1,112 @@
 {% extends "base.html" %}
-{% block title %}Cotações / Compras{% endblock %}
-{% block page_title %}Cotações / Compras{% endblock %}
-{% block page_subtitle %}FE-04 — Em implementação{% endblock %}
+{% block page_title %}Compras e Cotações{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-shopping-cart text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Cotações / Compras</p>
-    <p class="text-sm mt-1">Módulo FE-04 — será implementado em breve.</p>
+<div class="p-6 space-y-6 max-w-7xl mx-auto">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Compras e Cotações</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Gerencie RFQs, compare fornecedores e aprove ordens de compra</p>
+    </div>
+
+    <button class="inline-flex items-center gap-2 px-4 py-2.5
+                   bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
+                   rounded-lg transition-colors"
+            hx-post="/api/purchasing/rfqs/bulk-send"
+            hx-target="#bulk-result"
+            hx-swap="innerHTML"
+            hx-confirm="Enviar cotações para todos os fornecedores com estoque baixo?">
+      <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
+      Enviar RFQs
+    </button>
   </div>
+
+  <div id="bulk-result"></div>
+
+  <!-- Grid: Itens para cotar | Status cotações -->
+  <div class="grid md:grid-cols-2 gap-6">
+
+    <!-- Itens com estoque abaixo do mínimo -->
+    <section>
+      <div class="flex items-center gap-2 mb-3">
+        <i class="ph ph-warning-diamond text-amber-500 text-lg" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-900">Itens para Cotar</h2>
+      </div>
+      <div id="items-to-quote"
+           hx-get="/api/purchasing/items-to-quote"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <div class="space-y-2 animate-pulse">
+          {% for _ in range(4) %}
+          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200">
+            <div class="h-4 bg-slate-200 rounded w-36"></div>
+            <div class="h-5 bg-slate-200 rounded-full w-16"></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- Cotações em andamento -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <i class="ph ph-clock-countdown text-blue-500 text-lg" aria-hidden="true"></i>
+          <h2 class="font-semibold text-gray-900">Cotações em Andamento</h2>
+        </div>
+        <span class="text-xs text-gray-400">Atualiza a cada 30s</span>
+      </div>
+      <div id="rfq-status-list"
+           hx-get="/api/purchasing/rfq-status-summary"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <div class="space-y-2 animate-pulse">
+          {% for _ in range(3) %}
+          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200">
+            <div class="h-4 bg-slate-200 rounded w-32"></div>
+            <div class="h-5 bg-slate-200 rounded-full w-20"></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Inbox Unificado -->
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-inbox text-gray-500 text-lg" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-900">Inbox de Respostas</h2>
+      </div>
+      <button class="text-xs text-blue-600 hover:text-blue-800 font-medium"
+              hx-get="/api/purchasing/rfq-inbox"
+              hx-target="#rfq-inbox-area"
+              hx-swap="innerHTML">
+        <i class="ph ph-arrows-clockwise" aria-hidden="true"></i> Atualizar
+      </button>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div id="rfq-inbox-area"
+           hx-get="/api/purchasing/rfq-inbox"
+           hx-trigger="load, every 30s"
+           hx-swap="innerHTML">
+        <div class="p-4 animate-pulse space-y-3">
+          {% for _ in range(3) %}
+          <div class="flex gap-4">
+            <div class="h-4 bg-slate-200 rounded w-32"></div>
+            <div class="h-4 bg-slate-200 rounded w-24 hidden md:block"></div>
+            <div class="h-4 bg-slate-200 rounded w-16 ml-auto"></div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+
 </div>
 {% endblock %}

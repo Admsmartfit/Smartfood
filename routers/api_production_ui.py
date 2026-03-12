@@ -53,6 +53,36 @@ def start_op(
     return response
 
 
+@router.post("/{batch_id}/usage", response_class=HTMLResponse)
+def record_usage(
+    batch_id: uuid.UUID,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Registra consumo real de ingredientes e retorna fragmento com divergências."""
+    from services.production_service import record_ingredient_usage
+    import json
+
+    error_msg = None
+    usages = []
+
+    try:
+        form_data = {}
+        result = record_ingredient_usage(db, batch_id, form_data)
+        usages = result.get("usages", [])
+        msg = {"showToast": {"message": "Consumo registrado!", "type": "success"}}
+    except Exception as e:
+        error_msg = str(e)
+        msg = {"showToast": {"message": f"Erro: {error_msg}", "type": "error"}}
+
+    response = templates.TemplateResponse(
+        "fragments/usage_result.html",
+        {"request": request, "usages": usages, "error": error_msg},
+    )
+    response.headers["HX-Trigger"] = json.dumps(msg)
+    return response
+
+
 @router.post("/{batch_id}/complete", response_class=HTMLResponse)
 def complete_op(
     batch_id: uuid.UUID,

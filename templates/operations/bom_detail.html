@@ -1,13 +1,55 @@
 {% extends "base.html" %}
-{% block title %}Detalhe da Ficha Técnica{% endblock %}
-{% block page_title %}Detalhe da Ficha Técnica{% endblock %}
-{% block page_subtitle %}FE-03 — Em implementação{% endblock %}
+{% block page_title %}Detalhe da Ficha{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-notebook text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Detalhe da Ficha Técnica</p>
-    <p class="text-sm mt-1">Módulo FE-03 — será implementado em breve.</p>
+<div class="p-6 space-y-6 max-w-5xl mx-auto">
+
+  <!-- Breadcrumb -->
+  <nav class="flex items-center gap-2 text-sm text-gray-500">
+    <a href="/operations/bom"
+       class="hover:text-blue-600 transition-colors"
+       hx-get="/operations/bom"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-push-url="true">Fichas Técnicas</a>
+    <i class="ph ph-caret-right text-gray-300" aria-hidden="true"></i>
+    <span class="text-gray-900">Detalhe</span>
+  </nav>
+
+  <!-- Área de custo calculado via HTMX -->
+  <div id="cost-detail-area"
+       hx-post="/api/bom/{{ product_id }}/calculate"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="animate-pulse space-y-4">
+      <div class="h-6 bg-slate-200 rounded w-56"></div>
+      <div class="grid grid-cols-2 gap-4">
+        {% for _ in range(6) %}
+        <div class="h-4 bg-slate-200 rounded"></div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
+
+  <!-- Ações -->
+  <div class="flex gap-3">
+    <button class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700
+                   text-white text-sm font-medium rounded-lg transition-colors"
+            hx-post="/api/bom/{{ product_id }}/calculate"
+            hx-target="#cost-detail-area"
+            hx-swap="innerHTML">
+      <i class="ph ph-calculator" aria-hidden="true"></i> Recalcular
+    </button>
+    <a href="/operations/bom"
+       class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:bg-slate-50
+              text-gray-700 text-sm font-medium rounded-lg transition-colors"
+       hx-get="/operations/bom"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-push-url="true">
+      <i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar
+    </a>
+  </div>
+
 </div>
 {% endblock %}

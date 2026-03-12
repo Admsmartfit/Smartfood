@@ -1,0 +1,62 @@
+{# Fragmento: Linhas da tabela de Fichas Técnicas (BOM) #}
+{% if items %}
+  {% for item in items %}
+  <tr class="odd:bg-white even:bg-slate-50 hover:bg-blue-50 transition-colors"
+      id="bom-row-{{ item.id }}">
+    <td class="px-4 py-3">
+      <div class="font-medium text-gray-900">{{ item.nome }}</div>
+      <div class="text-xs text-gray-400">{{ item.sku }}</div>
+    </td>
+    <td class="px-4 py-3 text-center text-sm text-gray-600">{{ item.num_ingredientes }}</td>
+    <td class="px-4 py-3 text-right">
+      <span class="text-sm">{{ item.fc | round(3) if item.fc else '—' }}</span>
+    </td>
+    <td class="px-4 py-3 text-right font-medium text-gray-900">
+      R$ {{ item.custo_total | round(2) }}
+    </td>
+    <td class="px-4 py-3 text-right text-blue-700 font-medium">
+      R$ {{ item.preco_sugerido | round(2) }}
+    </td>
+    <td class="px-4 py-3 text-right">
+      <span class="text-sm font-semibold
+        {% if item.margem_pct >= 30 %}text-green-600
+        {% elif item.margem_pct >= 15 %}text-yellow-600
+        {% else %}text-red-600{% endif %}">
+        {{ item.margem_pct | round(1) }}%
+      </span>
+    </td>
+    <td class="px-4 py-3 text-center">
+      <div class="flex items-center justify-center gap-2">
+        <a href="/operations/bom/{{ item.id }}"
+           class="text-blue-600 hover:text-blue-800"
+           title="Detalhar ficha"
+           hx-get="/operations/bom/{{ item.id }}"
+           hx-target="#main-content"
+           hx-select="#main-content"
+           hx-push-url="true">
+          <i class="ph ph-eye" aria-hidden="true"></i>
+        </a>
+        <button class="text-gray-500 hover:text-blue-700"
+                title="Recalcular custo"
+                hx-post="/api/bom/{{ item.id }}/calculate"
+                hx-target="#cost-result-{{ item.id }}"
+                hx-swap="innerHTML">
+          <i class="ph ph-calculator" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div id="cost-result-{{ item.id }}"></div>
+    </td>
+  </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="7" class="px-4 py-10 text-center text-gray-400">
+      <i class="ph ph-files text-3xl mb-2 block" aria-hidden="true"></i>
+      {% if query %}
+        Nenhuma ficha encontrada para "<strong>{{ query }}</strong>".
+      {% else %}
+        Nenhuma ficha técnica cadastrada.
+      {% endif %}
+    </td>
+  </tr>
+{% endif %}

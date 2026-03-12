@@ -26,6 +26,11 @@ from routers.ui_dashboard import router as ui_dashboard_router
 from routers.ui_operations import router as ui_operations_router
 from routers.ui_commercial import router as ui_commercial_router
 from routers.api_fragments import router as api_fragments_router
+from routers.api_intelligence import router as api_intelligence_router
+from routers.api_bom import router as api_bom_router
+from routers.api_production_ui import router as api_production_ui_router
+from routers.api_inventory_ui import router as api_inventory_ui_router
+from routers.api_purchasing_ui import router as api_purchasing_ui_router
 from services.margin_monitor import margin_monitor_task
 from services.demand_engine import daily_demand_task
 from services.alert_orchestrator import alert_orchestrator_task
@@ -88,4 +93,9 @@ app.include_router(ui_dashboard_router)
 app.include_router(ui_operations_router)
 app.include_router(ui_commercial_router)
 app.include_router(api_fragments_router)
+app.include_router(api_intelligence_router)
+app.include_router(api_bom_router)
+app.include_router(api_production_ui_router)
+app.include_router(api_inventory_ui_router)
+app.include_router(api_purchasing_ui_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")

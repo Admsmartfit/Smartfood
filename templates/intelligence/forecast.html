@@ -1,13 +1,141 @@
 {% extends "base.html" %}
 {% block title %}Previsão de Demanda{% endblock %}
 {% block page_title %}Previsão de Demanda{% endblock %}
-{% block page_subtitle %}Motor preditivo sazonal — FE-02 (em implementação){% endblock %}
+{% block page_subtitle %}Motor preditivo por médias móveis ponderadas + sazonalidade{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-chart-line-up text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Módulo FE-02 — Previsão de Demanda</p>
-    <p class="text-sm mt-1">Implementado na próxima etapa.</p>
+<div class="space-y-6" x-data="{ simulatorOpen: {{ 'true' if open_simulator else 'false' }} }">
+
+  <!-- ── Seletor de Produto + Forecast ── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div class="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center gap-3">
+      <div class="flex items-center gap-2 flex-1">
+        <i class="ph ph-chart-line-up text-blue-600 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-900">Previsão 14 dias</h2>
+      </div>
+      <!-- Seletor de produto -->
+      <div class="flex items-center gap-2">
+        <label for="product-select" class="text-sm text-gray-500 whitespace-nowrap">Produto:</label>
+        <select id="product-select"
+                name="product_id"
+                hx-get="/api/intelligence/fragments/forecast/{{ '' }}"
+                hx-trigger="change"
+                hx-target="#forecast-area"
+                hx-swap="innerHTML"
+                hx-include="this"
+                class="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-slate-50
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px]"
+                aria-label="Selecionar produto para previsão"
+                onchange="this.form ? null : htmx.trigger(this,'change'); updateForecastUrl(this.value)">
+          <option value="">-- Selecione um produto --</option>
+          {% for p in produtos %}
+          <option value="{{ p.id }}" {% if selected_id == p.id | string %}selected{% endif %}>
+            {{ p.nome }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Área do gráfico -->
+    <div id="forecast-area" class="p-6">
+      {% if selected_forecast %}
+        {% include "fragments/forecast_chart.html" %}
+      {% else %}
+      <div class="flex flex-col items-center justify-center py-12 text-gray-400">
+        <i class="ph ph-chart-bar text-5xl mb-3" aria-hidden="true"></i>
+        <p class="text-sm">Selecione um produto para ver a previsão de 14 dias.</p>
+      </div>
+      {% endif %}
+    </div>
   </div>
+
+  <!-- ── Simulador "E se?" ── -->
+  <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <button @click="simulatorOpen = !simulatorOpen"
+            class="w-full flex items-center justify-between px-6 py-4
+                   hover:bg-slate-50 transition-colors text-left"
+            :aria-expanded="simulatorOpen"
+            aria-controls="simulator-body">
+      <div class="flex items-center gap-2">
+        <i class="ph ph-flask text-blue-600 text-xl" aria-hidden="true"></i>
+        <span class="font-semibold text-gray-900">Simulador "E se?"</span>
+        <span class="text-xs text-gray-400 ml-1">— Verifique se tem insumos para produzir</span>
+      </div>
+      <i class="ph ph-caret-down text-gray-400 transition-transform"
+         :class="{ 'rotate-180': simulatorOpen }" aria-hidden="true"></i>
+    </button>
+
+    <div id="simulator-body"
+         x-show="simulatorOpen"
+         x-transition
+         class="border-t border-slate-100">
+      <form hx-post="/api/intelligence/simulate"
+            hx-target="#sim-result"
+            hx-swap="innerHTML"
+            hx-indicator="#sim-spinner"
+            class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+
+        <div>
+          <label for="sim-product" class="block text-sm font-medium text-gray-700 mb-1.5">
+            Produto
+          </label>
+          <select id="sim-product" name="product_id" required
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm
+                         bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Produto para simulação">
+            <option value="">Selecione...</option>
+            {% for p in produtos %}
+            <option value="{{ p.id }}">{{ p.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="sim-qty" class="block text-sm font-medium text-gray-700 mb-1.5">
+            Quantidade a Produzir
+          </label>
+          <input type="number" id="sim-qty" name="qty_requested"
+                 min="1" step="1" required placeholder="ex: 500"
+                 class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 aria-label="Quantidade para simulação" />
+        </div>
+
+        <button type="submit"
+                class="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-600
+                       text-white text-sm font-medium rounded-lg hover:bg-blue-700
+                       transition-colors min-h-[44px]"
+                aria-label="Executar simulação">
+          <i class="ph ph-play" aria-hidden="true"></i>
+          Simular
+          <span id="sim-spinner" class="htmx-indicator">
+            <i class="ph ph-spinner animate-spin" aria-hidden="true"></i>
+          </span>
+        </button>
+      </form>
+
+      <div id="sim-result" class="px-6 pb-6"></div>
+    </div>
+  </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function updateForecastUrl(productId) {
+  if (!productId) return;
+  const area = document.getElementById('forecast-area');
+  htmx.ajax('GET', `/api/intelligence/fragments/forecast/${productId}`, {
+    target: '#forecast-area',
+    swap: 'innerHTML'
+  });
+}
+// Trigger automático ao carregar se houver produto selecionado
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('product-select');
+  if (sel && sel.value) updateForecastUrl(sel.value);
+});
+</script>
 {% endblock %}
