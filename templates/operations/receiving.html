@@ -2,80 +2,156 @@
 {% block page_title %}Recebimento NF-e{% endblock %}
 
 {% block content %}
-<div class="p-6 space-y-6 max-w-3xl mx-auto">
+<div class="p-6 space-y-6 max-w-7xl mx-auto"
+     x-data="{
+       uploadOpen: false,
+       manualOpen: false,
+       syncing: false,
+     }">
 
-  <!-- Cabeçalho -->
-  <div>
-    <h1 class="text-xl font-bold text-gray-900">Recebimento de Mercadoria</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Faça upload da NF-e XML e informe o peso da balança</p>
+  <!-- ── Cabeçalho ──────────────────────────────────────────────────────── -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Recebimento de Mercadoria</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Captura de NF-e, conferência física e entrada no estoque</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button @click="syncing = true"
+              hx-post="/api/receiving/sync-gateway"
+              hx-target="#sync-result"
+              hx-swap="innerHTML"
+              hx-on::after-request="syncing = false; htmx.trigger(document.body, 'refresh')"
+              :disabled="syncing"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+                     bg-indigo-600 text-white text-sm font-semibold
+                     hover:bg-indigo-700 disabled:opacity-60 transition-colors min-h-[48px]">
+        <i class="ph ph-cloud-arrow-down text-lg" :class="syncing ? 'animate-bounce' : ''"></i>
+        <span x-text="syncing ? 'Sincronizando…' : 'Sincronizar Gateway'"></span>
+      </button>
+      <button @click="uploadOpen = !uploadOpen"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+                     bg-blue-600 text-white text-sm font-semibold
+                     hover:bg-blue-700 transition-colors min-h-[48px]">
+        <i class="ph ph-file-xml text-lg"></i>
+        Upload XML
+      </button>
+      <button @click="manualOpen = !manualOpen"
+              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+                     bg-amber-500 text-white text-sm font-semibold
+                     hover:bg-amber-600 transition-colors min-h-[48px]">
+        <i class="ph ph-pencil-simple text-lg"></i>
+        Entrada Manual
+      </button>
+    </div>
   </div>
 
-  <!-- Formulário de upload -->
-  <form hx-post="/api/inventory/receive-nfe"
-        hx-target="#nfe-result"
-        hx-swap="innerHTML"
-        hx-encoding="multipart/form-data"
-        class="space-y-5 bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+  <div id="sync-result"></div>
 
-    <!-- Upload XML -->
-    <div>
-      <label for="nfe_xml" class="block text-sm font-medium text-gray-700 mb-1.5">
-        Arquivo XML da NF-e
-        <span class="text-red-500 ml-0.5">*</span>
+  <!-- ── Upload XML ─────────────────────────────────────────────────────── -->
+  <div x-show="uploadOpen" x-collapse
+       class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <i class="ph ph-file-xml text-blue-500"></i> Importar XML de NF-e
+    </h2>
+    <form hx-post="/api/receiving/upload-xml"
+          hx-target="#upload-result"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          hx-on::after-request="if(event.detail.successful){ $data.uploadOpen=false; htmx.trigger(document.body,'refresh') }"
+          class="flex flex-col sm:flex-row items-end gap-4">
+      <label class="flex flex-col items-center justify-center flex-1 h-28 w-full
+                     border-2 border-dashed border-slate-300 rounded-xl cursor-pointer
+                     hover:border-blue-400 hover:bg-blue-50 transition-colors">
+        <i class="ph ph-file-xml text-3xl text-gray-400 mb-1"></i>
+        <span class="text-sm text-blue-600 font-medium">Clique ou arraste o .xml</span>
+        <span class="text-xs text-gray-400 mt-0.5">NF-e padrão SEFAZ v4.0</span>
+        <input type="file" name="nfe_xml" accept=".xml" class="hidden" required>
       </label>
-      <div class="flex items-center justify-center w-full">
-        <label for="nfe_xml"
-               class="flex flex-col items-center justify-center w-full h-32
-                      border-2 border-dashed border-slate-300 rounded-lg cursor-pointer
-                      hover:border-blue-400 hover:bg-blue-50 transition-colors">
-          <div class="flex flex-col items-center justify-center pt-5 pb-6">
-            <i class="ph ph-file-xml text-3xl text-gray-400 mb-2" aria-hidden="true"></i>
-            <p class="text-sm text-gray-500">
-              <span class="font-medium text-blue-600">Clique para selecionar</span>
-              ou arraste aqui
-            </p>
-            <p class="text-xs text-gray-400 mt-1">Apenas .xml da NF-e</p>
-          </div>
-          <input id="nfe_xml" name="nfe_xml" type="file" accept=".xml" class="hidden" required>
-        </label>
-      </div>
+      <button type="submit"
+              class="h-12 px-6 rounded-xl bg-blue-600 text-white text-sm font-semibold
+                     hover:bg-blue-700 transition-colors whitespace-nowrap">
+        <i class="ph ph-upload-simple mr-1"></i> Importar
+      </button>
+    </form>
+    <div id="upload-result" class="mt-3"></div>
+  </div>
+
+  <!-- ── Entrada Manual ────────────────────────────────────────────────── -->
+  <div x-show="manualOpen" x-collapse
+       class="bg-white rounded-xl border border-amber-200 shadow-sm p-5">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <i class="ph ph-pencil-simple text-amber-500"></i>
+      Lançamento Manual "Sem Nota"
+      <span class="text-xs text-gray-400 font-normal ml-1">para regularização posterior</span>
+    </h2>
+    <div hx-get="/api/receiving/manual-form"
+         hx-trigger="intersect once"
+         hx-swap="innerHTML">
+      <div class="animate-pulse h-40 bg-slate-100 rounded-lg"></div>
     </div>
+  </div>
 
-    <!-- Peso balança -->
-    <div>
-      <label for="peso_balanca" class="block text-sm font-medium text-gray-700 mb-1.5">
-        Peso na Balança (kg)
-        <span class="text-red-500 ml-0.5">*</span>
-      </label>
-      <input type="number"
-             id="peso_balanca"
-             name="peso_balanca"
-             step="0.001"
-             min="0"
-             placeholder="Ex: 125.500"
-             class="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm
-                    focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-             required>
+  <!-- ── Filtros ────────────────────────────────────────────────────────── -->
+  <div class="flex flex-wrap gap-3">
+    <div class="relative flex-1 min-w-[200px]">
+      <i class="ph ph-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+      <input type="search" name="q" placeholder="Buscar por número, fornecedor ou CNPJ…"
+             class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-lg text-sm
+                    focus:outline-none focus:ring-2 focus:ring-blue-500"
+             hx-get="/api/receiving/pending"
+             hx-target="#nfe-table-body"
+             hx-trigger="keyup changed delay:350ms, search"
+             hx-include="[name='q'],[name='status_filter']"
+             hx-swap="innerHTML">
     </div>
+    <select name="status_filter"
+            class="border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white
+                   focus:outline-none focus:ring-2 focus:ring-blue-500"
+            hx-get="/api/receiving/pending"
+            hx-target="#nfe-table-body"
+            hx-trigger="change"
+            hx-include="[name='q'],[name='status_filter']"
+            hx-swap="innerHTML">
+      <option value="">Todos os status</option>
+      <option value="pendente">Pendente</option>
+      <option value="em_conferencia">Em Conferência</option>
+      <option value="lancada">Lançada</option>
+      <option value="cancelada">Cancelada</option>
+    </select>
+  </div>
 
-    <!-- Botão -->
-    <button type="submit"
-            class="w-full flex items-center justify-center gap-2
-                   px-4 py-2.5 bg-blue-600 hover:bg-blue-700
-                   text-white text-sm font-semibold rounded-lg transition-colors
-                   disabled:opacity-50"
-            hx-indicator="#nfe-spinner">
-      <span id="nfe-spinner" class="htmx-indicator">
-        <i class="ph ph-spinner animate-spin" aria-hidden="true"></i>
-      </span>
-      <i class="ph ph-truck" aria-hidden="true"></i>
-      Processar NF-e
-    </button>
-
-  </form>
-
-  <!-- Resultado -->
-  <div id="nfe-result"></div>
+  <!-- ── Tabela NF-e ────────────────────────────────────────────────────── -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="w-full text-sm" role="table">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nº / Série</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Emitente</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Emissão</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Peso Decl.</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ação</th>
+        </tr>
+      </thead>
+      <tbody id="nfe-table-body" class="divide-y divide-slate-100"
+             hx-get="/api/receiving/pending"
+             hx-trigger="load, refresh from:body"
+             hx-swap="innerHTML">
+        {% for _ in range(4) %}
+        <tr class="animate-pulse">
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-20"></div></td>
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-48"></div></td>
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-20"></div></td>
+          <td class="px-4 py-3 text-right"><div class="h-4 bg-slate-200 rounded w-16 ml-auto"></div></td>
+          <td class="px-4 py-3 text-right"><div class="h-4 bg-slate-200 rounded w-12 ml-auto"></div></td>
+          <td class="px-4 py-3 text-center"><div class="h-5 bg-slate-200 rounded-full w-20 mx-auto"></div></td>
+          <td class="px-4 py-3 text-center"><div class="h-8 bg-slate-200 rounded-lg w-28 mx-auto"></div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
 </div>
 {% endblock %}

@@ -1,0 +1,79 @@
+{# FE-12 — Fragment do formulário de entrada manual #}
+<form hx-post="/api/receiving/manual"
+      hx-target="#manual-result"
+      hx-swap="innerHTML"
+      hx-on::after-request="if(event.detail.successful){ this.reset() }"
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+  <div class="sm:col-span-1">
+    <label class="block text-sm font-medium text-gray-700 mb-1">
+      Ingrediente <span class="text-red-500">*</span>
+    </label>
+    <select name="ingredient_id" required
+            class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      <option value="">— Selecionar ingrediente —</option>
+      {% for ing in ingredients %}
+      <option value="{{ ing.id }}">{{ ing.nome }} ({{ ing.unidade }})</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">
+      Quantidade <span class="text-red-500">*</span>
+    </label>
+    <input type="number" name="quantidade" required min="0.001" step="0.001"
+           placeholder="Ex: 50.000"
+           class="w-full h-12 border border-slate-300 rounded-lg px-3 text-sm text-right
+                  focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
+    <p class="text-xs text-gray-400 mt-1">Conforme marcação na balança</p>
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Preço Unitário (R$)</label>
+    <input type="number" name="preco_unitario" min="0" step="0.01"
+           placeholder="0.00"
+           class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-right
+                  focus:outline-none focus:ring-2 focus:ring-blue-500">
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Fornecedor (nome)</label>
+    <input type="text" name="fornecedor_nome"
+           placeholder="Nome do fornecedor"
+           class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500">
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Data de Validade</label>
+    <input type="date" name="data_validade"
+           class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500">
+  </div>
+
+  <div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Conferido por</label>
+    <input type="text" name="conferido_por"
+           placeholder="Nome ou PIN"
+           class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                  focus:outline-none focus:ring-2 focus:ring-blue-500">
+  </div>
+
+  <div class="sm:col-span-2 lg:col-span-3 flex items-center gap-3">
+    <button type="submit"
+            class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
+                   bg-amber-500 text-white text-sm font-semibold
+                   hover:bg-amber-600 transition-colors min-h-[44px]">
+      <i class="ph ph-plus-circle text-lg"></i>
+      Lançar no Estoque
+    </button>
+    <p class="text-xs text-gray-400">
+      <i class="ph ph-warning text-amber-400"></i>
+      Lotes "Sem Nota" são sinalizados para regularização fiscal posterior.
+    </p>
+  </div>
+
+  <div id="manual-result" class="sm:col-span-2 lg:col-span-3"></div>
+</form>

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block page_title %}Conferência NF-e {% if nfe %}{{ nfe.numero }}{% endif %}{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6 max-w-7xl mx-auto">
+
+  <!-- Breadcrumb -->
+  <div class="flex items-center gap-2 text-sm text-gray-500">
+    <a href="/operations/receiving" class="hover:text-gray-900 flex items-center gap-1">
+      <i class="ph ph-truck"></i> Recebimento
+    </a>
+    <i class="ph ph-caret-right text-xs"></i>
+    <span class="text-gray-900 font-medium">Conferência NF-e {{ nfe.numero if nfe else "" }}</span>
+  </div>
+
+  <!-- Título -->
+  <div class="flex items-center gap-3">
+    <a href="/operations/receiving"
+       class="p-2 rounded-lg text-gray-500 hover:bg-slate-100 hover:text-gray-900 transition-colors">
+      <i class="ph ph-arrow-left text-xl"></i>
+    </a>
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Conferência Física — Conferência Cega</h1>
+      <p class="text-sm text-gray-500 mt-0.5">
+        Insira o peso real medido na balança para cada item. O sistema detecta divergências automaticamente.
+      </p>
+    </div>
+  </div>
+
+  <!-- Conteúdo da conferência carregado via HTMX -->
+  <div id="conferencia-container"
+       hx-get="/api/receiving/{{ nfe_id }}/conferencia-fragment"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <!-- Skeleton -->
+    <div class="space-y-4 animate-pulse">
+      <div class="h-20 bg-blue-100 rounded-xl"></div>
+      <div class="h-64 bg-slate-100 rounded-xl"></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

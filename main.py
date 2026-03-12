@@ -37,6 +37,7 @@ from routers.api_dre_ui import router as api_dre_ui_router
 from routers.api_settings_ui import router as api_settings_ui_router
 from routers.api_cadastro_ui import router as api_cadastro_ui_router
 from routers.api_users_ui import router as api_users_ui_router
+from routers.api_receiving_ui import router as api_receiving_ui_router
 from services.margin_monitor import margin_monitor_task
 from services.demand_engine import daily_demand_task
 from services.alert_orchestrator import alert_orchestrator_task
@@ -110,4 +111,5 @@ app.include_router(api_dre_ui_router)
 app.include_router(api_settings_ui_router)
 app.include_router(api_cadastro_ui_router)
 app.include_router(api_users_ui_router)
+app.include_router(api_receiving_ui_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")

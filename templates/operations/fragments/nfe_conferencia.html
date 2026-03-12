@@ -1,0 +1,222 @@
+{#
+  Fragment — Tela de Conferência Inline (FE-11)
+  Renderizado dentro de receiving_conferencia.html
+#}
+<div x-data="conferencia()" x-init="init()" class="space-y-6">
+
+  <!-- Cabeçalho da NF-e -->
+  <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-wrap gap-4 text-sm">
+    <div>
+      <p class="text-xs text-blue-500 uppercase font-semibold">NF-e nº</p>
+      <p class="font-bold text-blue-900">{{ nfe.numero }}/{{ nfe.serie }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-blue-500 uppercase font-semibold">Emitente</p>
+      <p class="font-medium text-blue-900">{{ nfe.emitente_nome }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-blue-500 uppercase font-semibold">Valor Total</p>
+      <p class="font-bold text-blue-900">R$ {{ "%.2f"|format(nfe.valor_total or 0) }}</p>
+    </div>
+    <div>
+      <p class="text-xs text-blue-500 uppercase font-semibold">Peso Declarado</p>
+      <p class="font-bold text-blue-900">{{ "%.3f"|format(nfe.peso_bruto_declarado or 0) }} kg</p>
+    </div>
+    <div class="ml-auto flex items-center gap-2">
+      <span class="text-xs text-blue-600">Tolerância: ±{{ tolerancia }}%</span>
+    </div>
+  </div>
+
+  <!-- Grid de Conferência por Item -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item da Nota</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vincular Ingrediente</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Qtd. Declarada</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider min-w-[140px]">Peso Balança ({{ nfe.itens_json[0].unidade if nfe.itens_json else 'kg' }})</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Divergência</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Vl. Unit.</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Validade</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for item in itens %}
+        <tr :class="linhaClass({{ loop.index0 }})"
+            class="transition-colors duration-200">
+          <!-- Descrição -->
+          <td class="px-4 py-3">
+            <p class="font-medium text-gray-900">{{ item.descricao }}</p>
+            <p class="text-xs text-gray-400 font-mono">{{ item.codigo }}</p>
+          </td>
+          <!-- Vincular ingrediente -->
+          <td class="px-4 py-3">
+            <select x-model="items[{{ loop.index0 }}].ingredient_id"
+                    class="w-full border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Selecionar —</option>
+              {% for ing in ingredients %}
+              <option value="{{ ing.id }}">{{ ing.nome }} ({{ ing.unidade }})</option>
+              {% endfor %}
+            </select>
+          </td>
+          <!-- Qty declarada -->
+          <td class="px-4 py-3 text-right font-mono text-gray-700">
+            {{ "%.3f"|format(item.qty|float) }} {{ item.unidade }}
+          </td>
+          <!-- Peso balança — INPUT GRANDE (FE: mobile-first h-12) -->
+          <td class="px-4 py-3">
+            <input type="number"
+                   x-model.number="items[{{ loop.index0 }}].qty_real"
+                   @input="calcDiv({{ loop.index0 }})"
+                   min="0" step="0.001"
+                   placeholder="0.000"
+                   class="w-full h-12 border-2 rounded-xl px-3 text-right text-base font-mono
+                          focus:outline-none focus:ring-2 focus:ring-blue-500
+                          transition-colors"
+                   :class="inputClass({{ loop.index0 }})"
+                   aria-label="Peso real item {{ loop.index }}">
+          </td>
+          <!-- Divergência -->
+          <td class="px-4 py-3 text-center">
+            <span x-show="items[{{ loop.index0 }}].qty_real > 0"
+                  class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold"
+                  :class="divClass({{ loop.index0 }})">
+              <template x-if="items[{{ loop.index0 }}].div_pct !== null">
+                <span x-text="items[{{ loop.index0 }}].div_pct.toFixed(1) + '%'"></span>
+              </template>
+            </span>
+            <span x-show="items[{{ loop.index0 }}].qty_real <= 0 || items[{{ loop.index0 }}].qty_real === ''"
+                  class="text-gray-300 text-xs">—</span>
+          </td>
+          <!-- Valor unitário -->
+          <td class="px-4 py-3">
+            <input type="number"
+                   x-model.number="items[{{ loop.index0 }}].preco_unitario"
+                   min="0" step="0.01"
+                   placeholder="{{ "%.2f"|format(item.preco_unit|float) }}"
+                   class="w-24 border border-slate-300 rounded-lg px-2 py-2 text-sm text-right
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 ml-auto">
+          </td>
+          <!-- Validade -->
+          <td class="px-4 py-3">
+            <input type="date"
+                   x-model="items[{{ loop.index0 }}].data_validade"
+                   class="border border-slate-300 rounded-lg px-2 py-2 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Resumo de divergências -->
+  <div x-show="temDivergencia()"
+       class="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
+    <i class="ph-fill ph-warning text-2xl text-red-500 shrink-0 mt-0.5"></i>
+    <div>
+      <p class="font-semibold text-red-800">Divergências detectadas!</p>
+      <p class="text-sm text-red-700 mt-0.5">
+        Um ou mais itens têm diferença superior a {{ tolerancia }}% entre o peso declarado e o da balança.
+        Um Alerta Crítico será registrado automaticamente ao dar entrada.
+      </p>
+    </div>
+  </div>
+
+  <!-- Conferido por + Botão dar entrada -->
+  <form hx-post="/api/receiving/{{ nfe.id }}/dar-entrada"
+        hx-target="#conferencia-result"
+        hx-swap="innerHTML"
+        hx-include="this"
+        @submit.prevent="submitConferencia($el)"
+        class="flex flex-wrap items-end gap-4">
+
+    <input type="hidden" name="conferencias_json" :value="JSON.stringify(items)">
+
+    <div class="flex-1 min-w-[200px]">
+      <label class="block text-sm font-medium text-gray-700 mb-1">Conferido por</label>
+      <input type="text" name="conferido_por"
+             placeholder="Nome do funcionário ou PIN"
+             class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                    focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+
+    <button type="submit"
+            class="inline-flex items-center gap-2 px-6 py-3 rounded-xl
+                   bg-green-600 text-white font-semibold text-sm
+                   hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2
+                   transition-colors min-h-[48px] shadow-sm">
+      <i class="ph ph-check-circle text-lg"></i>
+      Dar Entrada no Estoque
+    </button>
+  </form>
+
+  <div id="conferencia-result"></div>
+
+</div>
+
+<script>
+function conferencia() {
+  return {
+    items: [
+      {% for item in itens %}
+      {
+        ingredient_id: '',
+        qty_declarada: {{ item.qty|float }},
+        qty_real: '',
+        preco_unitario: {{ item.preco_unit|float }},
+        data_validade: '',
+        div_pct: null,
+      },
+      {% endfor %}
+    ],
+    tolerancia: {{ tolerancia }},
+
+    init() {},
+
+    calcDiv(idx) {
+      const it = this.items[idx];
+      const dec = it.qty_declarada;
+      const real = parseFloat(it.qty_real);
+      if (!real || !dec) { it.div_pct = null; return; }
+      it.div_pct = Math.abs((real - dec) / dec) * 100;
+    },
+
+    linhaClass(idx) {
+      const it = this.items[idx];
+      if (!it.qty_real && it.qty_real !== 0) return '';
+      if (it.div_pct === null) return '';
+      if (it.div_pct > this.tolerancia) return 'bg-red-50';
+      return 'bg-green-50';
+    },
+
+    inputClass(idx) {
+      const it = this.items[idx];
+      if (!it.qty_real && it.qty_real !== 0) return 'border-slate-300';
+      if (it.div_pct === null) return 'border-slate-300';
+      if (it.div_pct > this.tolerancia) return 'border-red-400 bg-red-50';
+      return 'border-green-400 bg-green-50';
+    },
+
+    divClass(idx) {
+      const it = this.items[idx];
+      if (it.div_pct === null || it.div_pct <= this.tolerancia)
+        return 'bg-green-100 text-green-700';
+      if (it.div_pct <= 5) return 'bg-yellow-100 text-yellow-800';
+      return 'bg-red-100 text-red-700';
+    },
+
+    temDivergencia() {
+      return this.items.some(it => it.div_pct !== null && it.div_pct > this.tolerancia);
+    },
+
+    submitConferencia(form) {
+      // atualiza hidden input antes do submit HTMX
+      form.querySelector('[name=conferencias_json]').value = JSON.stringify(this.items);
+      htmx.trigger(form, 'submit');
+    },
+  };
+}
+</script>

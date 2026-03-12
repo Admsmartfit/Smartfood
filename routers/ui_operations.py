@@ -50,6 +50,13 @@ def inventory(request: Request):
 def receiving(request: Request):
     return templates.TemplateResponse("operations/receiving.html", _ctx(request))
 
+@router.get("/operations/receiving/{nfe_id}/conferencia", response_class=HTMLResponse)
+def receiving_conferencia(nfe_id: str, request: Request):
+    return templates.TemplateResponse(
+        "operations/receiving_conferencia.html",
+        _ctx(request, nfe_id=nfe_id, nfe=None),
+    )
+
 @router.get("/operations/production", response_class=HTMLResponse)
 def production_list(request: Request):
     return templates.TemplateResponse("operations/production_list.html", _ctx(request))

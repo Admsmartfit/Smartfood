@@ -1,0 +1,72 @@
+{% set status_cfg = {
+  "pendente":        ("bg-yellow-100 text-yellow-800", "ph-clock",        "Pendente"),
+  "em_conferencia":  ("bg-blue-100 text-blue-800",     "ph-scales",       "Em Conferência"),
+  "conferida":       ("bg-purple-100 text-purple-800", "ph-check",        "Conferida"),
+  "lancada":         ("bg-green-100 text-green-800",   "ph-check-circle", "Lançada"),
+  "cancelada":       ("bg-red-100 text-red-700",       "ph-x-circle",     "Cancelada"),
+} %}
+
+{% if notas %}
+  {% for nfe in notas %}
+  {% set sc = status_cfg.get(nfe.status, ("bg-gray-100 text-gray-700", "ph-question", nfe.status)) %}
+  <tr class="odd:bg-white even:bg-slate-50 text-sm hover:bg-blue-50/40 transition-colors">
+    <td class="px-4 py-3">
+      <p class="font-mono font-medium text-gray-900">{{ nfe.numero or "—" }}
+        {% if nfe.serie %}<span class="text-gray-400">/{{ nfe.serie }}</span>{% endif %}
+      </p>
+      <p class="text-xs text-gray-400 truncate max-w-[160px]" title="{{ nfe.chave }}">
+        {{ nfe.chave[:12] }}…
+      </p>
+    </td>
+    <td class="px-4 py-3">
+      <p class="font-medium text-gray-900 truncate max-w-[220px]">
+        {{ nfe.emitente_nome or "—" }}
+      </p>
+      <p class="text-xs text-gray-400 font-mono">{{ nfe.emitente_cnpj or "" }}</p>
+    </td>
+    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+      {% if nfe.data_emissao %}
+        {{ nfe.data_emissao.strftime("%d/%m/%Y") }}
+      {% else %}—{% endif %}
+    </td>
+    <td class="px-4 py-3 text-right font-medium text-gray-900">
+      R$ {{ "%.2f"|format(nfe.valor_total or 0) }}
+    </td>
+    <td class="px-4 py-3 text-right text-gray-600">
+      {{ "%.3f"|format(nfe.peso_bruto_declarado or 0) }} kg
+    </td>
+    <td class="px-4 py-3 text-center">
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold {{ sc[0] }}">
+        <i class="ph {{ sc[1] }}"></i>
+        {{ sc[2] }}
+      </span>
+    </td>
+    <td class="px-4 py-3 text-center">
+      {% if nfe.status in ("pendente", "em_conferencia") %}
+      <a href="/operations/receiving/{{ nfe.id }}/conferencia"
+         class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg
+                bg-blue-600 text-white text-xs font-semibold
+                hover:bg-blue-700 transition-colors min-h-[40px]">
+        <i class="ph ph-scales text-base"></i>
+        Conferir
+      </a>
+      {% elif nfe.status == "lancada" %}
+      <span class="text-xs text-gray-400 flex items-center gap-1 justify-center">
+        <i class="ph-fill ph-check-circle text-green-500"></i>
+        {% if nfe.lancado_em %}{{ nfe.lancado_em.strftime("%d/%m") }}{% else %}Lançada{% endif %}
+      </span>
+      {% else %}
+      <span class="text-xs text-gray-300">—</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="7" class="px-4 py-14 text-center text-gray-400">
+      <i class="ph ph-truck text-4xl mb-2 block"></i>
+      <p class="font-medium">Nenhuma NF-e encontrada</p>
+      <p class="text-xs mt-1">Use "Sincronizar Gateway" ou faça upload de um XML</p>
+    </td>
+  </tr>
+{% endif %}

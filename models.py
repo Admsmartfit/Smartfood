@@ -435,6 +435,38 @@ class SurveyResponse(Base, TimestampMixin):
     ip = Column(String, nullable=True)
 
 
+class NFePending(Base, TimestampMixin):
+    """
+    E-20 — Cabeçalho de NF-e capturada (gateway ou upload manual)
+    aguardando conferência física e lançamento no estoque.
+    """
+    __tablename__ = "nfe_pending"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    chave = Column(String(44), unique=True, index=True, nullable=False,
+                   comment="Chave de acesso NF-e (44 dígitos)")
+    numero = Column(String, nullable=True)
+    serie = Column(String, nullable=True)
+    data_emissao = Column(DateTime, nullable=True)
+    emitente_nome = Column(String, nullable=True)
+    emitente_cnpj = Column(String(18), index=True, nullable=True)
+    supplier_id = Column(GUID(), ForeignKey("suppliers.id"), nullable=True)
+    valor_total = Column(Float, default=0.0)
+    peso_bruto_declarado = Column(Float, default=0.0,
+                                  comment="Peso bruto total declarado na NF-e (kg)")
+    xml_content = Column(Text, nullable=False,
+                          comment="XML bruto armazenado para reprocessamento")
+    itens_json = Column(JSON, nullable=False,
+                         comment="Lista de itens parseados do XML")
+    status = Column(String, default="pendente",
+                    comment="pendente | em_conferencia | conferida | lancada | cancelada")
+    conferido_por = Column(String, nullable=True,
+                            comment="Nome/PIN do funcionário que conferiu")
+    lancado_em = Column(DateTime, nullable=True)
+
+    supplier = relationship("Supplier", backref="nfes_recebidas")
+
+
 class User(Base, TimestampMixin):
     __tablename__ = "users"
 
