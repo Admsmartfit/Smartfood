@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block page_title %}Gestão de Equipa{% endblock %}
+
+{% block content %}
+<div class="p-6 space-y-6 max-w-7xl mx-auto"
+     x-data="{ showForm: false }">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Gestão de Equipa</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Gerencie utilizadores, perfis e PINs de acesso ao tablet</p>
+    </div>
+    <button @click="showForm = !showForm"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
+                   bg-blue-600 text-white text-sm font-semibold
+                   hover:bg-blue-700 transition-colors min-h-[48px]">
+      <i class="ph ph-plus text-lg" :class="showForm ? 'rotate-45' : ''" style="transition:transform .2s"></i>
+      <span x-text="showForm ? 'Cancelar' : 'Novo Utilizador'"></span>
+    </button>
+  </div>
+
+  <!-- Formulário de criação (colapsável) -->
+  <div x-show="showForm" x-collapse
+       class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-2">
+      <i class="ph ph-user-plus text-blue-500"></i> Novo Utilizador
+    </h2>
+    <form hx-post="/api/users"
+          hx-target="#users-table-body"
+          hx-swap="afterbegin"
+          hx-on::after-request="if(event.detail.successful){ this.reset(); $data.showForm = false }"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <div class="lg:col-span-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          Nome <span class="text-red-500">*</span>
+        </label>
+        <input type="text" name="nome" required placeholder="Ana Souza"
+               class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div class="lg:col-span-1">
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          E-mail <span class="text-red-500">*</span>
+        </label>
+        <input type="email" name="email" required placeholder="ana@empresa.com"
+               class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Perfil</label>
+        <select name="perfil"
+                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white">
+          <option value="operador">Operador</option>
+          <option value="chef">Chef</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">
+          PIN (4 dígitos)
+          <span class="text-gray-400 font-normal text-xs">para tablet</span>
+        </label>
+        <input type="text" name="pin_code" maxlength="4" pattern="[0-9]{4}"
+               placeholder="1234"
+               class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm font-mono
+                      tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+      </div>
+
+      <div class="sm:col-span-2 lg:col-span-4 flex items-center gap-3">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg
+                       bg-blue-600 text-white text-sm font-semibold
+                       hover:bg-blue-700 transition-colors min-h-[44px]">
+          <i class="ph ph-user-plus text-lg"></i>
+          Criar Utilizador
+        </button>
+        <div id="user-form-feedback" class="text-sm"></div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Legenda de perfis -->
+  <div class="flex flex-wrap gap-2 text-xs">
+    {% for cls, label, desc in [
+      ("bg-red-100 text-red-700",     "Admin",    "Acesso total ao sistema"),
+      ("bg-orange-100 text-orange-700","Chef",    "Fichas técnicas e produção"),
+      ("bg-blue-100 text-blue-700",   "Operador", "Ordens de produção e estoque"),
+    ] %}
+    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full {{ cls }} font-medium">
+      {{ label }} <span class="opacity-60">— {{ desc }}</span>
+    </span>
+    {% endfor %}
+  </div>
+
+  <!-- Tabela de utilizadores -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="w-full text-sm" role="table" aria-label="Equipa">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">E-mail</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Perfil</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">PIN</th>
+          <th class="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+        </tr>
+      </thead>
+      <tbody id="users-table-body" class="divide-y divide-slate-100"
+             hx-get="/api/users"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+        {% for _ in range(3) %}
+        <tr class="animate-pulse">
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-32"></div></td>
+          <td class="px-4 py-3"><div class="h-4 bg-slate-200 rounded w-44"></div></td>
+          <td class="px-4 py-3"><div class="h-5 bg-slate-200 rounded-full w-20"></div></td>
+          <td class="px-4 py-3 text-center"><div class="h-4 bg-slate-200 rounded w-8 mx-auto"></div></td>
+          <td class="px-4 py-3 text-center"><div class="h-5 bg-slate-200 rounded-full w-16 mx-auto"></div></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+</div>
+{% endblock %}

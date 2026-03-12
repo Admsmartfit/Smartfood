@@ -186,6 +186,35 @@ class SupplyResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- User Schemas ---
+
+class UserCreate(BaseModel):
+    nome: str
+    email: str
+    perfil: str = "operador"
+    pin_code: Optional[str] = None
+    ativo: bool = True
+
+
+class UserUpdate(BaseModel):
+    nome: Optional[str] = None
+    email: Optional[str] = None
+    perfil: Optional[str] = None
+    pin_code: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class UserResponse(BaseModel):
+    id: uuid.UUID
+    nome: str
+    email: str
+    perfil: str
+    pin_code: Optional[str] = None
+    ativo: bool
+
+    model_config = {"from_attributes": True}
+
+
 # --- BatchIngredientUsage Schemas ---
 
 class BatchIngredientUsageCreate(BaseModel):

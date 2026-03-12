@@ -11,15 +11,39 @@ templates = Jinja2Templates(directory="templates")
 def _ctx(request: Request, **kw): return {"request": request, **kw}
 
 @router.get("/operations/bom", response_class=HTMLResponse)
-def bom_list(request: Request, db: Session = Depends(get_db)):
+def bom_list(request: Request):
     return templates.TemplateResponse("operations/bom_list.html", _ctx(request))
 
+@router.get("/operations/bom/new", response_class=HTMLResponse)
+def bom_new(request: Request, db: Session = Depends(get_db)):
+    from models import Ingredient, Supply
+    ingredients = db.query(Ingredient).filter(Ingredient.ativo == True).order_by(Ingredient.nome).all()
+    supplies = db.query(Supply).filter(Supply.ativo == True).order_by(Supply.nome).all()
+    return templates.TemplateResponse(
+        "operations/bom_form.html",
+        _ctx(request, produto=None, bom_items=[], ingredients=ingredients, supplies=supplies),
+    )
+
+@router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
+def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
+    from models import Product, BOMItem, Ingredient, Supply
+    produto = db.query(Product).filter(Product.id == product_id).first()
+    if not produto:
+        return templates.TemplateResponse("operations/bom_list.html", _ctx(request))
+    bom_items = db.query(BOMItem).filter(BOMItem.product_id == product_id).all()
+    ingredients = db.query(Ingredient).filter(Ingredient.ativo == True).order_by(Ingredient.nome).all()
+    supplies = db.query(Supply).filter(Supply.ativo == True).order_by(Supply.nome).all()
+    return templates.TemplateResponse(
+        "operations/bom_form.html",
+        _ctx(request, produto=produto, bom_items=bom_items, ingredients=ingredients, supplies=supplies),
+    )
+
 @router.get("/operations/bom/{product_id}", response_class=HTMLResponse)
-def bom_detail(product_id: str, request: Request, db: Session = Depends(get_db)):
+def bom_detail(product_id: str, request: Request):
     return templates.TemplateResponse("operations/bom_detail.html", _ctx(request, product_id=product_id))
 
 @router.get("/operations/inventory", response_class=HTMLResponse)
-def inventory(request: Request, db: Session = Depends(get_db)):
+def inventory(request: Request):
     return templates.TemplateResponse("operations/inventory.html", _ctx(request))
 
 @router.get("/operations/receiving", response_class=HTMLResponse)
@@ -27,7 +51,7 @@ def receiving(request: Request):
     return templates.TemplateResponse("operations/receiving.html", _ctx(request))
 
 @router.get("/operations/production", response_class=HTMLResponse)
-def production_list(request: Request, db: Session = Depends(get_db)):
+def production_list(request: Request):
     return templates.TemplateResponse("operations/production_list.html", _ctx(request))
 
 @router.get("/operations/labels", response_class=HTMLResponse)

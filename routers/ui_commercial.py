@@ -34,6 +34,10 @@ def dre(request: Request, db: Session = Depends(get_db)):
 def portal_catalog(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("portal/catalog.html", _ctx(request))
 
+@router.get("/settings/users", response_class=HTMLResponse)
+def settings_users(request: Request):
+    return templates.TemplateResponse("settings/users.html", _ctx(request))
+
 @router.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     import os

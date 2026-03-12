@@ -435,6 +435,19 @@ class SurveyResponse(Base, TimestampMixin):
     ip = Column(String, nullable=True)
 
 
+class User(Base, TimestampMixin):
+    __tablename__ = "users"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    nome = Column(String, nullable=False)
+    email = Column(String, unique=True, index=True, nullable=False)
+    perfil = Column(String, nullable=False, default="operador",
+                    comment="chef | operador | admin")
+    pin_code = Column(String(4), nullable=True,
+                      comment="PIN de 4 dígitos para login rápido no tablet")
+    ativo = Column(Boolean, default=True)
+
+
 class SyncEvent(Base, TimestampMixin):
     """
     E-18 — Evento de sincronização offline.

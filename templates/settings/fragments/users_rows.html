@@ -1,0 +1,37 @@
+{% if users %}
+  {% for u in users %}
+  {% set perfil_badge = {
+    "admin":    "bg-red-100 text-red-700",
+    "chef":     "bg-orange-100 text-orange-700",
+    "operador": "bg-blue-100 text-blue-700",
+  }.get(u.perfil, "bg-gray-100 text-gray-700") %}
+  <tr id="usr-{{ u.id }}" class="odd:bg-white even:bg-slate-50 text-sm">
+    <td class="px-4 py-2 font-medium text-gray-900">{{ u.nome }}</td>
+    <td class="px-4 py-2 text-gray-500">{{ u.email }}</td>
+    <td class="px-4 py-2">
+      <span class="px-2 py-0.5 rounded-full text-xs font-semibold {{ perfil_badge }}">{{ u.perfil }}</span>
+    </td>
+    <td class="px-4 py-2 text-center text-gray-400 font-mono">
+      {{ "••••" if u.pin_code else "—" }}
+    </td>
+    <td class="px-4 py-2 text-center">
+      <button hx-patch="/api/users/{{ u.id }}/toggle"
+              hx-target="closest td"
+              hx-swap="innerHTML"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer
+                     {% if u.ativo %}bg-green-100 text-green-700 hover:bg-green-200{% else %}bg-gray-100 text-gray-500 hover:bg-gray-200{% endif %}
+                     transition-colors">
+        <i class="ph-fill {% if u.ativo %}ph-check-circle{% else %}ph-x-circle{% endif %}"></i>
+        {{ "Ativo" if u.ativo else "Inativo" }}
+      </button>
+    </td>
+  </tr>
+  {% endfor %}
+{% else %}
+  <tr>
+    <td colspan="5" class="px-4 py-10 text-center text-gray-400 text-sm">
+      <i class="ph ph-users text-3xl mb-2 block"></i>
+      Nenhum utilizador cadastrado ainda.
+    </td>
+  </tr>
+{% endif %}
