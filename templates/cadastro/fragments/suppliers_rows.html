@@ -1,0 +1,10 @@
+{% for s in items %}
+<tr class="odd:bg-white even:bg-slate-50 text-sm" id="sup-{{ s.id }}">
+  <td class="px-4 py-2 font-medium text-gray-900">{{ s.nome }}</td>
+  <td class="px-4 py-2 text-gray-500">{{ s.tipo or '—' }}</td>
+  <td class="px-4 py-2 text-gray-500">{{ s.whatsapp or '—' }}</td>
+  <td class="px-4 py-2 text-gray-500 hidden md:table-cell">{{ s.email or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="4" class="px-4 py-8 text-center text-sm text-gray-400">Nenhum fornecedor cadastrado.</td></tr>
+{% endfor %}

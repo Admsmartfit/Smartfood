@@ -36,4 +36,11 @@ def portal_catalog(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
-    return templates.TemplateResponse("settings/index.html", _ctx(request))
+    import os
+    _KEYS = [
+        "margem_minima_pct", "alerta_estoque_dias", "mega_api_token", "mega_api_instance",
+        "gmail_user", "empresa_nome", "empresa_cnpj", "empresa_endereco",
+        "impressora_host", "impressora_porta", "notif_whatsapp", "notif_email", "notif_alertas_criticos",
+    ]
+    current = {k: os.environ.get(k.upper(), "") for k in _KEYS}
+    return templates.TemplateResponse("settings/index.html", _ctx(request, settings=current))

@@ -1,0 +1,14 @@
+{% for i in items %}
+<tr class="odd:bg-white even:bg-slate-50 text-sm" id="ing-{{ i.id }}">
+  <td class="px-4 py-2 font-medium text-gray-900">{{ i.nome }}</td>
+  <td class="px-4 py-2 text-gray-500">{{ i.unidade }}</td>
+  <td class="px-4 py-2 text-right text-gray-700">R$ {{ "%.2f" | format(i.custo_atual or 0) }}</td>
+  <td class="px-4 py-2 text-right {% if (i.estoque_atual or 0) <= (i.estoque_minimo or 0) %}text-red-600 font-semibold{% else %}text-gray-700{% endif %}">
+    {{ "%.1f" | format(i.estoque_atual or 0) }}
+  </td>
+  <td class="px-4 py-2 text-right text-gray-500">{{ "%.1f" | format(i.estoque_minimo or 0) }}</td>
+  <td class="px-4 py-2 text-center text-gray-500">{{ i.lead_time_dias or 3 }}d</td>
+</tr>
+{% else %}
+<tr><td colspan="6" class="px-4 py-8 text-center text-sm text-gray-400">Nenhum ingrediente cadastrado.</td></tr>
+{% endfor %}

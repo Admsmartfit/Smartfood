@@ -13,7 +13,9 @@
   </div>
 
   <!-- Filtros de status -->
-  <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por status">
+  <div class="flex flex-wrap gap-2"
+       x-data="{ activeStatus: '' }"
+       role="group" aria-label="Filtrar por status">
     {% set statuses = [
       ('', 'Todas'),
       ('pendente', 'Pendentes'),
@@ -21,17 +23,14 @@
       ('concluido', 'Concluídas'),
     ] %}
     {% for val, label in statuses %}
-    <button class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border
-                   {% if loop.first %}bg-blue-600 text-white border-blue-600
-                   {% else %}bg-white text-gray-600 border-slate-300 hover:border-blue-400 hover:text-blue-700{% endif %}"
+    <button class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border"
+            :class="activeStatus === '{{ val }}'
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-slate-300 hover:border-blue-400 hover:text-blue-700'"
+            @click="activeStatus = '{{ val }}'"
             hx-get="/api/production/ops{% if val %}?status={{ val }}{% endif %}"
             hx-target="#ops-table-body"
-            hx-swap="innerHTML"
-            onclick="document.querySelectorAll('[\\x68x-get^=\"/api/production/ops\"]').forEach(b => {
-              b.classList.remove('bg-blue-600','text-white','border-blue-600');
-              b.classList.add('bg-white','text-gray-600','border-slate-300');
-            }); this.classList.add('bg-blue-600','text-white','border-blue-600');
-            this.classList.remove('bg-white','text-gray-600','border-slate-300');">
+            hx-swap="innerHTML">
       {{ label }}
     </button>
     {% endfor %}

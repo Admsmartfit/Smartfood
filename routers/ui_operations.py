@@ -33,3 +33,7 @@ def production_list(request: Request, db: Session = Depends(get_db)):
 @router.get("/operations/labels", response_class=HTMLResponse)
 def labels(request: Request):
     return templates.TemplateResponse("operations/labels.html", _ctx(request))
+
+@router.get("/cadastro", response_class=HTMLResponse)
+def cadastro(request: Request):
+    return templates.TemplateResponse("cadastro/index.html", _ctx(request))

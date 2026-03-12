@@ -32,7 +32,13 @@ function appState() {
       });
       document.addEventListener('htmx:responseError', (e) => {
         if (typeof NProgress !== 'undefined') NProgress.done();
-        this.addToast('Erro na requisição. Tente novamente.', 'error');
+        // Suprime toast para fragments automáticos (load/every) — eles exibem erro inline
+        const verb = e.detail?.requestConfig?.verb || 'get';
+        const trigger = e.detail?.triggerSpec?.trigger || '';
+        const isAutoFragment = verb === 'get' && (trigger.includes('load') || trigger.includes('every'));
+        if (!isAutoFragment) {
+          this.addToast('Erro na requisição. Tente novamente.', 'error');
+        }
       });
 
       // Highlight de nav ativo

@@ -1,0 +1,9 @@
+{% for c in items %}
+<tr class="odd:bg-white even:bg-slate-50 text-sm" id="cus-{{ c.id }}">
+  <td class="px-4 py-2 font-medium text-gray-900">{{ c.nome }}</td>
+  <td class="px-4 py-2 text-gray-500">{{ c.whatsapp or '—' }}</td>
+  <td class="px-4 py-2 text-gray-500 hidden md:table-cell">{{ c.email or '—' }}</td>
+</tr>
+{% else %}
+<tr><td colspan="3" class="px-4 py-8 text-center text-sm text-gray-400">Nenhum cliente cadastrado.</td></tr>
+{% endfor %}
