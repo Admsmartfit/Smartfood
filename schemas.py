@@ -60,7 +60,45 @@ class CostCalculationResponse(BaseModel):
     alertas: List[str]
 
 
-# --- Product Schemas (criação básica para seed/testes) ---
+# --- Ingredient Schemas ---
+
+class IngredientCreate(BaseModel):
+    nome: str
+    unidade: str = "kg"
+    fc_medio: float = 1.0
+    custo_atual: float = 0.0
+    estoque_atual: float = 0.0
+    estoque_minimo: float = 0.0
+    lead_time_dias: int = 0
+    ativo: bool = True
+
+
+class IngredientUpdate(BaseModel):
+    nome: Optional[str] = None
+    unidade: Optional[str] = None
+    fc_medio: Optional[float] = None
+    custo_atual: Optional[float] = None
+    estoque_atual: Optional[float] = None
+    estoque_minimo: Optional[float] = None
+    lead_time_dias: Optional[int] = None
+    ativo: Optional[bool] = None
+
+
+class IngredientResponse(BaseModel):
+    id: uuid.UUID
+    nome: str
+    unidade: str
+    fc_medio: float
+    custo_atual: float
+    estoque_atual: float
+    estoque_minimo: float
+    lead_time_dias: int
+    ativo: bool
+
+    model_config = {"from_attributes": True}
+
+
+# --- Product Schemas ---
 
 class ProductCreate(BaseModel):
     nome: str
@@ -72,16 +110,45 @@ class ProductCreate(BaseModel):
     margem_minima: float = 0.0
     tempo_producao_min: float = 30.0
     custo_energia: float = 0.50
+    rendimento_por_lote: float = 1.0
+    modo_preparo_interno: Optional[str] = None
+    ativo: bool = True
 
 
-class IngredientCreate(BaseModel):
+class ProductUpdate(BaseModel):
+    nome: Optional[str] = None
+    sku: Optional[str] = None
+    categoria: Optional[str] = None
+    fc: Optional[float] = None
+    fcoc: Optional[float] = None
+    markup: Optional[float] = None
+    margem_minima: Optional[float] = None
+    tempo_producao_min: Optional[float] = None
+    custo_energia: Optional[float] = None
+    rendimento_por_lote: Optional[float] = None
+    modo_preparo_interno: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class ProductResponse(BaseModel):
+    id: uuid.UUID
     nome: str
-    unidade: str = "kg"
-    fc_medio: float = 1.0
-    custo_atual: float = 0.0
-    estoque_minimo: float = 0.0
-    lead_time_dias: int = 0
+    sku: Optional[str] = None
+    categoria: Optional[str] = None
+    fc: float
+    fcoc: float
+    markup: float
+    margem_minima: float
+    tempo_producao_min: float
+    custo_energia: float
+    rendimento_por_lote: float
+    modo_preparo_interno: Optional[str] = None
+    ativo: bool
 
+    model_config = {"from_attributes": True}
+
+
+# --- Supply Schemas ---
 
 class SupplyCreate(BaseModel):
     nome: str
@@ -91,3 +158,63 @@ class SupplyCreate(BaseModel):
     estoque_minimo: float = 0.0
     lead_time_dias: int = 0
     consumo_por_lote: float = 0.0
+    ativo: bool = True
+
+
+class SupplyUpdate(BaseModel):
+    nome: Optional[str] = None
+    tipo: Optional[str] = None
+    unidade: Optional[str] = None
+    custo_atual: Optional[float] = None
+    estoque_minimo: Optional[float] = None
+    lead_time_dias: Optional[int] = None
+    consumo_por_lote: Optional[float] = None
+    ativo: Optional[bool] = None
+
+
+class SupplyResponse(BaseModel):
+    id: uuid.UUID
+    nome: str
+    tipo: str
+    unidade: str
+    custo_atual: float
+    estoque_minimo: float
+    lead_time_dias: int
+    consumo_por_lote: float
+    ativo: bool
+
+    model_config = {"from_attributes": True}
+
+
+# --- BatchIngredientUsage Schemas ---
+
+class BatchIngredientUsageCreate(BaseModel):
+    ingredient_id: Optional[uuid.UUID] = None
+    supply_id: Optional[uuid.UUID] = None
+    quantidade_real: float
+    quantidade_planejada: float = 0.0
+    motivo_desvio: Optional[str] = None
+
+    @field_validator("ingredient_id", "supply_id", mode="before")
+    @classmethod
+    def pelo_menos_um_fk(cls, v):
+        return v  # cross-field validation handled at API layer
+
+    @field_validator("quantidade_real")
+    @classmethod
+    def quantidade_real_positiva(cls, v):
+        if v < 0:
+            raise ValueError("quantidade_real não pode ser negativa")
+        return v
+
+
+class BatchIngredientUsageResponse(BaseModel):
+    id: uuid.UUID
+    batch_id: uuid.UUID
+    ingredient_id: Optional[uuid.UUID] = None
+    supply_id: Optional[uuid.UUID] = None
+    quantidade_real: float
+    quantidade_planejada: float
+    motivo_desvio: Optional[str] = None
+
+    model_config = {"from_attributes": True}

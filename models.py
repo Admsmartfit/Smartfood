@@ -26,6 +26,11 @@ class Product(Base, TimestampMixin):
     estoque_atual = Column(Float, default=0.0, comment="Estoque de produto acabado (unidades)")
     estoque_seguranca_pct = Column(Float, default=15.0, comment="% de segurança sobre a previsão")
     ativo = Column(Boolean, default=True)
+    # REQ-02: Ficha Técnica Operacional
+    rendimento_por_lote = Column(Float, default=1.0,
+                                 comment="Qtd gerada por 1 Lote Padrão (ex: 100 un, 5 kg)")
+    modo_preparo_interno = Column(Text, nullable=True,
+                                  comment="Instruções operacionais para a cozinha (não vai para o QR público)")
     # E-12: Catálogo B2B
     foto_url = Column(String, nullable=True)
     descricao_marketing = Column(Text, nullable=True)
@@ -41,21 +46,22 @@ class Ingredient(Base, TimestampMixin):
     __tablename__ = "ingredients"
     
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    nome = Column(String, nullable=False)
+    nome = Column(String, nullable=False, unique=True, index=True)  # REQ-05: unicidade
     unidade = Column(String)  # kg, g, un, etc
     fc_medio = Column(Float, default=1.0)
     custo_atual = Column(Float)
     estoque_atual = Column(Float, default=0.0)
     estoque_minimo = Column(Float, default=0.0)
     lead_time_dias = Column(Integer, default=0)
-    
+    ativo = Column(Boolean, default=True)  # REQ-01: soft-delete
+
     bom_items = relationship("BOMItem", back_populates="ingredient")
 
 class Supply(Base, TimestampMixin):
     __tablename__ = "supplies"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    nome = Column(String, nullable=False)
+    nome = Column(String, nullable=False, unique=True, index=True)  # REQ-05: unicidade
     tipo = Column(String)  # embalagem_primaria|embalagem_secundaria|etiqueta|limpeza|epi|outros
     unidade = Column(String)
     custo_atual = Column(Float, default=0.0)
@@ -64,6 +70,7 @@ class Supply(Base, TimestampMixin):
     lead_time_dias = Column(Integer, default=0)
     consumo_por_lote = Column(Float, default=0.0)   # embalagens: consumo por lote de produção
     consumo_diario_fixo = Column(Float, default=0.0, comment="Limpeza/EPI: consumo diário por operador")
+    ativo = Column(Boolean, default=True)  # REQ-01: soft-delete
 
     bom_items = relationship("BOMItem", back_populates="supply")
 
@@ -110,13 +117,16 @@ class BatchIngredientUsage(Base, TimestampMixin):
     
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     batch_id = Column(GUID(), ForeignKey("production_batches.id"))
-    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"))
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=True)  # REQ-03
+    supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=True)  # REQ-03: apontamento de perdas de embalagens
     qty_planejada = Column(Float)
     qty_real = Column(Float)
     custo_unitario = Column(Float)
     divergencia_pct = Column(Float)
-    
+
     batch = relationship("ProductionBatch", back_populates="ingredient_usages")
+    ingredient = relationship("Ingredient", backref="batch_usages")
+    supply = relationship("Supply", backref="batch_usages")
 
 class DemandEvent(Base, TimestampMixin):
     __tablename__ = "demand_events"
@@ -154,6 +164,7 @@ class SystemAlert(Base, TimestampMixin):
     categoria = Column(String)  # financeiro|estoque|producao|capacidade|demanda|comercial|qualidade
     produto_id = Column(GUID(), ForeignKey("products.id"), nullable=True)
     supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=True)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=True)  # REQ-04: rastreabilidade de alertas de insumo
     mensagem = Column(Text)
     severidade = Column(String)  # critico|atencao|info
     status = Column(String)  # ativo|resolvido|snoozed
