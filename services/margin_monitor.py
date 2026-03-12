@@ -209,6 +209,16 @@ def recalculate_products_for_ingredient(
 # Leitura rápida de margens (sem alterar alertas — para fragments HTMX)
 # ---------------------------------------------------------------------------
 
+def get_avg_margin(db: Session) -> float:
+    """
+    Margem média (%) de todos os produtos ativos em uma única chamada.
+    Reutiliza get_all_margins — sem N+1.
+    """
+    rows = get_all_margins(db)
+    values = [r["margin_pct"] for r in rows if r.get("margin_pct") is not None]
+    return round(sum(values) / len(values), 1) if values else 0.0
+
+
 def get_all_margins(db: Session) -> list:
     """
     Retorna a margem calculada de todos os produtos ativos.

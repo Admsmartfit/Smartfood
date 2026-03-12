@@ -31,40 +31,39 @@ def _html(template: str, ctx: dict, trigger: Optional[dict] = None) -> HTMLRespo
 @router.get("/kpis", response_class=HTMLResponse)
 def fragment_kpis(request: Request, db: Session = Depends(get_db)):
     """
-    Retorna 4 KPI cards:
-    - Previsão Semanal (demand forecast)
-    - Compras Urgentes (insumos críticos)
-    - Produção Pendente (OPs aprovadas)
-    - Margem Média (produtos ativos)
+    Retorna 4 KPI cards usando consultas SQL agregadas — sem N+1.
+    Cada métrica é obtida numa única query ou via serviço com joinedload.
     """
+    from sqlalchemy import func
     from models import ProductionBatch, Ingredient, Product
+    from services.margin_monitor import get_avg_margin
 
-    # OPs pendentes (APROVADA)
-    ops_pendentes = (
-        db.query(ProductionBatch)
+    # 1 query COUNT — OPs ativas
+    ops_pendentes: int = (
+        db.query(func.count(ProductionBatch.id))
         .filter(ProductionBatch.status.in_(["APROVADA", "EM_PRODUCAO"]))
-        .count()
+        .scalar() or 0
     )
 
-    # Compras urgentes
-    ings = db.query(Ingredient).filter(Ingredient.ativo == True).all()
-    compras_urgentes = sum(
-        1 for i in ings
-        if (i.estoque_atual or 0) <= (i.estoque_minimo or 0)
+    # 1 query COUNT com filtro de coluna — sem carregar linhas para Python
+    compras_urgentes: int = (
+        db.query(func.count(Ingredient.id))
+        .filter(
+            Ingredient.ativo == True,
+            Ingredient.estoque_atual <= Ingredient.estoque_minimo,
+        )
+        .scalar() or 0
     )
 
-    # Margem média dos produtos
-    produtos = db.query(Product).filter(Product.ativo == True).all()
-    margens = []
-    for p in produtos:
-        try:
-            from services.margin_monitor import calcular_margem_produto
-            m = calcular_margem_produto(db, p)
-            if m and m.get("margem_pct") is not None:
-                margens.append(m["margem_pct"])
-        except Exception:
-            pass
-    margem_media = round(sum(margens) / len(margens), 1) if margens else 0.0
+    # 1 query COUNT
+    produtos_ativos: int = (
+        db.query(func.count(Product.id))
+        .filter(Product.ativo == True)
+        .scalar() or 0
+    )
+
+    # Serviço de margem — joinedload em batch, sem N+1
+    margem_media: float = get_avg_margin(db)
 
     kpis = [
         {
@@ -89,7 +88,7 @@ def fragment_kpis(request: Request, db: Session = Depends(get_db)):
         },
         {
             "label": "Produtos Ativos",
-            "value": len(produtos),
+            "value": produtos_ativos,
             "unit": "",
             "subtitle": "no catálogo",
             "icon": "package",
