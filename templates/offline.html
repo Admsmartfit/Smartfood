@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sem conexão — SmartFood Ops 360</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#1d4ed8">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Detecta reconexão e recarrega automaticamente
+    window.addEventListener('online', () => {
+      document.getElementById('status').textContent = 'Conexão restaurada! Recarregando…';
+      document.getElementById('spinner').style.display = 'block';
+      setTimeout(() => location.reload(), 800);
+    });
+  </script>
+</head>
+<body class="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+  <div class="max-w-sm w-full text-center space-y-6">
+
+    <!-- Logo / ícone -->
+    <div class="flex justify-center">
+      <div class="w-20 h-20 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"
+             class="w-10 h-10" aria-hidden="true">
+          <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"
+                stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Título -->
+    <div>
+      <h1 class="text-2xl font-bold text-white">Sem conexão</h1>
+      <p class="text-slate-400 mt-2 text-sm leading-relaxed">
+        Você está offline. Verifique sua rede e aguarde — a página será recarregada
+        automaticamente quando a conexão for restaurada.
+      </p>
+    </div>
+
+    <!-- Animação de pulso indicando espera -->
+    <div class="flex justify-center gap-1.5" aria-label="Aguardando conexão">
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.3s]"></span>
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-bounce [animation-delay:-0.15s]"></span>
+      <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-bounce"></span>
+    </div>
+
+    <!-- Spinner de reconexão (oculto até ficar online) -->
+    <div id="spinner" style="display:none" class="flex justify-center">
+      <svg class="w-6 h-6 text-green-400 animate-spin" fill="none" viewBox="0 0 24 24"
+           aria-hidden="true">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+        <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+      </svg>
+    </div>
+
+    <!-- Status dinâmico -->
+    <p id="status" class="text-slate-500 text-xs">Aguardando conexão…</p>
+
+    <!-- Botão de tentativa manual -->
+    <button onclick="location.reload()"
+            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white text-sm
+                   font-semibold rounded-xl transition-colors shadow">
+      Tentar novamente
+    </button>
+
+    <!-- Rodapé -->
+    <p class="text-slate-600 text-xs">
+      SmartFood Ops 360 &mdash; PWA
+    </p>
+
+  </div>
+</body>
+</html>

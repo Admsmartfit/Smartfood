@@ -1,13 +1,250 @@
 {% extends "base.html" %}
 {% block title %}Configurações{% endblock %}
 {% block page_title %}Configurações{% endblock %}
-{% block page_subtitle %}FE-08 — Em implementação{% endblock %}
+{% block page_subtitle %}Parâmetros do sistema, integrações e notificações{% endblock %}
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-gear text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Configurações</p>
-    <p class="text-sm mt-1">Módulo FE-08 — será implementado em breve.</p>
-  </div>
+
+<div class="max-w-4xl mx-auto space-y-8"
+     x-data="{ saved: false }">
+
+  <!-- Toast de feedback (injetado via HTMX no #settings-feedback) -->
+  <div id="settings-feedback"></div>
+
+  <form hx-post="/api/settings/save"
+        hx-target="#settings-feedback"
+        hx-swap="innerHTML"
+        class="space-y-8">
+
+    <!-- ── Seção 1: Empresa ──────────────────────────────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-buildings text-blue-600 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">Dados da Empresa</h2>
+      </div>
+      <div class="p-6 grid md:grid-cols-2 gap-5">
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="empresa_nome">
+            Razão Social / Nome
+          </label>
+          <input id="empresa_nome" name="empresa_nome" type="text"
+                 value="{{ settings.get('empresa_nome', '') }}"
+                 placeholder="Ex.: SmartFood Indústria Ltda"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="empresa_cnpj">
+            CNPJ
+          </label>
+          <input id="empresa_cnpj" name="empresa_cnpj" type="text"
+                 value="{{ settings.get('empresa_cnpj', '') }}"
+                 placeholder="00.000.000/0001-00"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="space-y-1 md:col-span-2">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="empresa_endereco">
+            Endereço
+          </label>
+          <input id="empresa_endereco" name="empresa_endereco" type="text"
+                 value="{{ settings.get('empresa_endereco', '') }}"
+                 placeholder="Rua, número, cidade – UF"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Seção 2: Alertas & Margens ───────────────────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-gauge text-amber-600 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">Thresholds de Alertas</h2>
+      </div>
+      <div class="p-6 grid md:grid-cols-2 gap-5">
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="margem_minima_pct">
+            Margem Bruta Mínima (%)
+          </label>
+          <div class="relative">
+            <input id="margem_minima_pct" name="margem_minima_pct" type="number"
+                   min="0" max="100" step="0.5"
+                   value="{{ settings.get('margem_minima_pct', '30') }}"
+                   class="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span class="absolute right-3 top-2.5 text-gray-400 text-sm pointer-events-none">%</span>
+          </div>
+          <p class="text-xs text-gray-400">Dispara alerta quando margem cair abaixo deste valor.</p>
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="alerta_estoque_dias">
+            Cobertura Mínima de Estoque (dias)
+          </label>
+          <div class="relative">
+            <input id="alerta_estoque_dias" name="alerta_estoque_dias" type="number"
+                   min="1" max="365" step="1"
+                   value="{{ settings.get('alerta_estoque_dias', '7') }}"
+                   class="w-full pl-3 pr-12 py-2 border border-slate-300 rounded-lg text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span class="absolute right-3 top-2.5 text-gray-400 text-sm pointer-events-none">dias</span>
+          </div>
+          <p class="text-xs text-gray-400">Alerta de ruptura quando cobertura estiver abaixo deste valor.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Seção 3: Integrações Mega API (WhatsApp) ──────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-whatsapp-logo text-green-600 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">WhatsApp — Mega API</h2>
+      </div>
+      <div class="p-6 grid md:grid-cols-2 gap-5">
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="mega_api_instance">
+            Instance ID
+          </label>
+          <input id="mega_api_instance" name="mega_api_instance" type="text"
+                 value="{{ settings.get('mega_api_instance', '') }}"
+                 placeholder="sua-instancia"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="mega_api_token">
+            API Token
+          </label>
+          <input id="mega_api_token" name="mega_api_token" type="password"
+                 value="{{ settings.get('mega_api_token', '') }}"
+                 placeholder="••••••••••••"
+                 autocomplete="new-password"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Seção 4: E-mail ───────────────────────────────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-envelope text-red-500 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">E-mail (Gmail SMTP)</h2>
+      </div>
+      <div class="p-6">
+        <div class="space-y-1 max-w-sm">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="gmail_user">
+            Conta Gmail de Envio
+          </label>
+          <input id="gmail_user" name="gmail_user" type="email"
+                 value="{{ settings.get('gmail_user', '') }}"
+                 placeholder="operacoes@suaempresa.com"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <p class="text-xs text-gray-400">Usado para envio de OCs e relatórios por e-mail.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Seção 5: Impressora Zebra/TSPL ───────────────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-printer text-gray-700 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">Impressora de Etiquetas</h2>
+      </div>
+      <div class="p-6 grid md:grid-cols-2 gap-5">
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="impressora_host">
+            Host / IP
+          </label>
+          <input id="impressora_host" name="impressora_host" type="text"
+                 value="{{ settings.get('impressora_host', '') }}"
+                 placeholder="192.168.1.100"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="space-y-1">
+          <label class="text-xs font-medium text-gray-500 uppercase tracking-wide" for="impressora_porta">
+            Porta TCP
+          </label>
+          <input id="impressora_porta" name="impressora_porta" type="number"
+                 min="1" max="65535"
+                 value="{{ settings.get('impressora_porta', '9100') }}"
+                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <p class="text-xs text-gray-400">Padrão Zebra: 9100. Padrão TSPL: 9100.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── Seção 6: Preferências de Notificação ──────────────── -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b border-slate-200">
+        <i class="ph ph-bell text-blue-600 text-xl" aria-hidden="true"></i>
+        <h2 class="font-semibold text-gray-800">Notificações</h2>
+      </div>
+      <div class="p-6 space-y-4">
+
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="notif_whatsapp" value="1"
+                 {% if settings.get('notif_whatsapp') %}checked{% endif %}
+                 class="w-4 h-4 rounded accent-green-600">
+          <div>
+            <span class="text-sm font-medium text-gray-800">Alertas via WhatsApp</span>
+            <p class="text-xs text-gray-400">Envia alertas críticos e briefing diário via Mega API.</p>
+          </div>
+        </label>
+
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="notif_email" value="1"
+                 {% if settings.get('notif_email') %}checked{% endif %}
+                 class="w-4 h-4 rounded accent-blue-600">
+          <div>
+            <span class="text-sm font-medium text-gray-800">Alertas via E-mail</span>
+            <p class="text-xs text-gray-400">Envia cópia dos alertas e relatórios DRE por e-mail.</p>
+          </div>
+        </label>
+
+        <label class="flex items-center gap-3 cursor-pointer">
+          <input type="checkbox" name="notif_alertas_criticos" value="1"
+                 {% if settings.get('notif_alertas_criticos', '1') %}checked{% endif %}
+                 class="w-4 h-4 rounded accent-red-600">
+          <div>
+            <span class="text-sm font-medium text-gray-800">Alertas Críticos Imediatos</span>
+            <p class="text-xs text-gray-400">Notificações imediatas para ruptura de estoque e margem abaixo do mínimo.</p>
+          </div>
+        </label>
+
+      </div>
+    </section>
+
+    <!-- ── Botão Salvar ──────────────────────────────────────── -->
+    <div class="flex items-center justify-end gap-3 pb-4">
+      <a href="/dashboard"
+         class="px-5 py-2.5 text-sm text-gray-600 hover:text-gray-800 font-medium transition-colors">
+        Cancelar
+      </a>
+      <button type="submit"
+              class="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700
+                     text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+        <i class="ph ph-floppy-disk" aria-hidden="true"></i>
+        Salvar Configurações
+      </button>
+    </div>
+
+  </form>
+
 </div>
 {% endblock %}

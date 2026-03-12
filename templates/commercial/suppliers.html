@@ -1,13 +1,64 @@
 {% extends "base.html" %}
-{% block title %}Fornecedores / SPI{% endblock %}
 {% block page_title %}Fornecedores / SPI{% endblock %}
-{% block page_subtitle %}FE-07 — Em implementação{% endblock %}
+
 {% block content %}
-<div class="flex items-center justify-center h-64">
-  <div class="text-center text-gray-400">
-    <i class="ph ph-handshake text-5xl block mb-3" aria-hidden="true"></i>
-    <p class="font-medium text-gray-600">Fornecedores / SPI</p>
-    <p class="text-sm mt-1">Módulo FE-07 — será implementado em breve.</p>
+<div class="p-6 space-y-5 max-w-7xl mx-auto">
+
+  <!-- Cabecalho -->
+  <div class="flex flex-wrap items-center justify-between gap-4">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Fornecedores — SPI Score</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Ranking de performance: pontualidade, acuracidade e cotacoes</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <label class="text-sm text-gray-600">Janela historica:</label>
+      <select name="months"
+              class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:ring-2 focus:ring-blue-500"
+              hx-get="/api/fragments/suppliers-spi"
+              hx-target="#spi-table"
+              hx-trigger="change"
+              hx-include="[name=months]">
+        <option value="3">3 meses</option>
+        <option value="6" selected>6 meses</option>
+        <option value="12">12 meses</option>
+      </select>
+    </div>
   </div>
+
+  <!-- Legenda de classificacoes -->
+  <div class="flex flex-wrap gap-3 text-xs">
+    {% for cls, lbl, desc in [
+      ('bg-green-100 text-green-800', 'A — Excelente', 'SPI >= 80'),
+      ('bg-blue-100 text-blue-800',   'B — Bom',       'SPI 60-79'),
+      ('bg-yellow-100 text-yellow-800','C — Regular',  'SPI 40-59'),
+      ('bg-red-100 text-red-800',     'D — Ruim',      'SPI < 40'),
+    ] %}
+    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full {{ cls }} font-medium">
+      {{ lbl }} <span class="opacity-70">({{ desc }})</span>
+    </span>
+    {% endfor %}
+  </div>
+
+  <!-- Tabela SPI -->
+  <div class="rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div id="spi-table"
+         hx-get="/api/fragments/suppliers-spi"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <!-- Skeleton -->
+      <div class="animate-pulse">
+        <div class="bg-slate-50 h-10 border-b border-slate-200"></div>
+        {% for _ in range(5) %}
+        <div class="flex gap-4 px-4 py-3 border-b border-slate-100">
+          <div class="h-4 bg-slate-200 rounded w-6"></div>
+          <div class="h-4 bg-slate-200 rounded w-32"></div>
+          <div class="h-2.5 bg-slate-200 rounded-full flex-1"></div>
+          <div class="h-5 bg-slate-200 rounded-full w-7"></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}

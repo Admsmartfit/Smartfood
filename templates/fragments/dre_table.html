@@ -1,0 +1,138 @@
+{# Fragmento: Tabela DRE consolidada do período #}
+{% if error %}
+<div class="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-sm">
+  <i class="ph-fill ph-x-circle text-red-600 text-xl flex-shrink-0 mt-0.5" aria-hidden="true"></i>
+  <div>
+    <p class="font-semibold text-red-800">Erro ao calcular DRE</p>
+    <p class="text-red-700 mt-1">{{ error }}</p>
+  </div>
+</div>
+
+{% elif dre %}
+{% set receita = dre.get('receita_bruta', 0) %}
+{% set cmv = dre.get('cmv', 0) %}
+{% set lucro = dre.get('lucro_bruto', 0) %}
+{% set margem = dre.get('margem_bruta_pct', 0) %}
+{% set breakdown = dre.get('cmv_breakdown', {}) %}
+
+<div class="space-y-5">
+
+  <!-- KPIs principais -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+      <p class="text-xs font-medium text-blue-600 uppercase tracking-wider">Receita Bruta</p>
+      <p class="text-2xl font-bold text-blue-900 mt-1">R$ {{ receita | round(0) | int | string | replace('.', ',') }}</p>
+      <p class="text-xs text-blue-500 mt-1">{{ dre.get('total_pedidos', 0) }} pedidos</p>
+    </div>
+    <div class="bg-red-50 rounded-xl p-4 border border-red-100">
+      <p class="text-xs font-medium text-red-600 uppercase tracking-wider">CMV Total</p>
+      <p class="text-2xl font-bold text-red-900 mt-1">R$ {{ cmv | round(0) | int }}</p>
+      <p class="text-xs text-red-500 mt-1">
+        {% if receita > 0 %}{{ (cmv / receita * 100) | round(1) }}% da receita{% endif %}
+      </p>
+    </div>
+    <div class="{% if lucro >= 0 %}bg-green-50 border-green-100{% else %}bg-red-50 border-red-100{% endif %} rounded-xl p-4 border">
+      <p class="text-xs font-medium {% if lucro >= 0 %}text-green-600{% else %}text-red-600{% endif %} uppercase tracking-wider">Lucro Bruto</p>
+      <p class="text-2xl font-bold {% if lucro >= 0 %}text-green-900{% else %}text-red-900{% endif %} mt-1">
+        {% if lucro >= 0 %}+{% endif %}R$ {{ lucro | round(0) | int }}
+      </p>
+      <p class="text-xs {% if lucro >= 0 %}text-green-500{% else %}text-red-500{% endif %} mt-1">Margem: {{ margem | round(1) }}%</p>
+    </div>
+    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+      <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Ticket Médio</p>
+      <p class="text-2xl font-bold text-gray-900 mt-1">R$ {{ dre.get('ticket_medio', 0) | round(2) }}</p>
+      <p class="text-xs text-gray-400 mt-1">{{ dre.get('total_lotes_produzidos', 0) }} lotes produzidos</p>
+    </div>
+  </div>
+
+  <!-- Tabela DRE estruturada -->
+  <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+    <table class="w-full text-sm" role="table" aria-label="DRE do período">
+      <thead>
+        <tr class="bg-slate-50 border-b border-slate-200">
+          <th class="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Item</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Valor (R$)</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">% Receita</th>
+          <th class="px-5 py-3 hidden lg:table-cell"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+
+        <!-- Receita -->
+        <tr class="bg-white font-semibold">
+          <td class="px-5 py-3 text-gray-900">Receita Bruta</td>
+          <td class="px-5 py-3 text-right text-blue-700 font-bold">{{ receita | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">100%</td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            <div class="h-2 bg-blue-400 rounded-full" style="width: 100%"></div>
+          </td>
+        </tr>
+
+        <!-- CMV total -->
+        <tr class="bg-slate-50">
+          <td class="px-5 py-3 text-gray-700">(-) CMV — Custo Insumos</td>
+          <td class="px-5 py-3 text-right text-red-700">-{{ breakdown.get('insumos', 0) | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">
+            {% if receita > 0 %}{{ (breakdown.get('insumos', 0) / receita * 100) | round(1) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            {% set pct_i = (breakdown.get('insumos', 0) / [receita, 0.01] | max * 100) | round(0) | int %}
+            <div class="h-2 bg-red-300 rounded-full" style="width: {{ pct_i }}%"></div>
+          </td>
+        </tr>
+
+        <tr class="bg-white">
+          <td class="px-5 py-3 text-gray-700 pl-8">(-) Labor</td>
+          <td class="px-5 py-3 text-right text-red-600">-{{ breakdown.get('labor', 0) | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">
+            {% if receita > 0 %}{{ (breakdown.get('labor', 0) / receita * 100) | round(1) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            {% set pct_l = (breakdown.get('labor', 0) / [receita, 0.01] | max * 100) | round(0) | int %}
+            <div class="h-2 bg-orange-300 rounded-full" style="width: {{ pct_l }}%"></div>
+          </td>
+        </tr>
+
+        <tr class="bg-slate-50">
+          <td class="px-5 py-3 text-gray-700 pl-8">(-) Energia</td>
+          <td class="px-5 py-3 text-right text-red-600">-{{ breakdown.get('energia', 0) | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">
+            {% if receita > 0 %}{{ (breakdown.get('energia', 0) / receita * 100) | round(1) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell"></td>
+        </tr>
+
+        <!-- Lucro bruto (separador) -->
+        <tr class="border-t-2 border-slate-300 {% if lucro >= 0 %}bg-green-50{% else %}bg-red-50{% endif %}">
+          <td class="px-5 py-3 font-bold {% if lucro >= 0 %}text-green-900{% else %}text-red-900{% endif %}">(=) Lucro Bruto</td>
+          <td class="px-5 py-3 text-right font-bold text-lg {% if lucro >= 0 %}text-green-700{% else %}text-red-700{% endif %}">
+            {% if lucro >= 0 %}+{% endif %}{{ lucro | round(2) }}
+          </td>
+          <td class="px-5 py-3 text-right font-semibold {% if margem >= 0 %}text-green-600{% else %}text-red-600{% endif %} hidden md:table-cell">
+            {{ margem | round(1) }}%
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            {% set pct_m = [margem | abs | round(0) | int, 100] | min %}
+            <div class="h-2 {% if lucro >= 0 %}bg-green-400{% else %}bg-red-400{% endif %} rounded-full" style="width: {{ pct_m }}%"></div>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Nota de rodapé -->
+  <p class="text-xs text-gray-400">
+    Período: {{ periodo.get('inicio', '') }} a {{ periodo.get('fim', '') }}
+    · Calculado em {{ now().strftime('%d/%m/%Y %H:%M') if now is defined else '' }}
+  </p>
+
+</div>
+
+{% else %}
+<div class="flex flex-col items-center justify-center py-12 text-gray-400">
+  <i class="ph ph-chart-line text-4xl mb-3" aria-hidden="true"></i>
+  <p class="text-sm font-medium text-gray-500">Nenhum dado para o período selecionado.</p>
+  <p class="text-xs mt-1">Verifique se há pedidos entregues e OPs concluídas no período.</p>
+</div>
+{% endif %}
