@@ -2,8 +2,17 @@
 {% block page_title %}{{ "Editar" if produto else "Nova" }} Ficha Técnica{% endblock %}
 
 {% block content %}
+{# Build initial items JSON for Alpine config #}
+{% set _items_json %}[{% for item in bom_items %}{"_key":{{ loop.index }},"tipo":"{{ 'ingrediente' if item.ingredient_id else 'embalagem' }}","ingredient_id":"{{ item.ingredient_id or '' }}","supply_id":"{{ item.supply_id or '' }}","quantidade":{{ item.quantidade }},"unidade":"{{ item.unidade or 'kg' }}","perda_esperada_pct":{{ item.perda_esperada_pct or 0 }}}{% if not loop.last %},{% endif %}{% endfor %}]{% endset %}
 <div class="p-6 max-w-7xl mx-auto space-y-6"
-     x-data="bomBuilder()"
+     x-data="bomBuilder({
+       fc: {{ produto.fc if produto else 1.0 }},
+       fcoc: {{ produto.fcoc if produto else 1.0 }},
+       rendimentoKg: {{ produto.rendimento_por_lote if produto else 1.0 }},
+       pesoPorcaoGramas: {{ (produto.peso_porcao_gramas | int) if produto and produto.peso_porcao_gramas else 350 }},
+       markup: {{ produto.markup if produto else 2.0 }},
+       items: {{ _items_json }}
+     })"
      x-init="init()">
 
   <!-- Cabeçalho -->
@@ -504,107 +513,4 @@
   </form>
 </div>
 
-<script>
-function bomBuilder() {
-  return {
-    activeTab: 'receita',
-    items: [],
-    _counter: 0,
-
-    // Rendimento wizard
-    pesoBruto: 0,
-    pesoLimpo: 0,
-    pesoFinal: 0,
-    fc:   {{ produto.fc   if produto else 1.0 }},
-    fcoc: {{ produto.fcoc if produto else 1.0 }},
-
-    // Porcionamento
-    rendimentoKg:     {{ produto.rendimento_por_lote   if produto else 1.0 }},
-    pesoPorcaoGramas: {{ produto.peso_porcao_gramas     if produto and produto.peso_porcao_gramas else 350 }},
-    markup:           {{ produto.markup                 if produto else 2.0 }},
-    custoIngredientes: 0,
-    custoEmbalagens:   0,
-    numPorcoes:   0,
-    sobraGramas:  0,
-    custoPorPorcao: 0,
-    precoSugerido:  0,
-    margemPct:      0,
-
-    init() {
-      {% if bom_items %}
-      this.items = [
-        {% for item in bom_items %}
-        {
-          _key: {{ loop.index }},
-          tipo: '{{ "ingrediente" if item.ingredient_id else "embalagem" }}',
-          ingredient_id: '{{ item.ingredient_id or "" }}',
-          supply_id: '{{ item.supply_id or "" }}',
-          quantidade: {{ item.quantidade }},
-          unidade: '{{ item.unidade or "kg" }}',
-          perda_esperada_pct: {{ item.perda_esperada_pct or 0 }},
-        },
-        {% endfor %}
-      ];
-      this._counter = this.items.length;
-      {% endif %}
-      this.$nextTick(() => this.calcPorcoes());
-    },
-
-    addItem(tipo) {
-      this._counter++;
-      this.items.push({
-        _key: this._counter, tipo,
-        ingredient_id: '', supply_id: '',
-        quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
-        perda_esperada_pct: 0,
-      });
-    },
-
-    removeItem(index) { this.items.splice(index, 1); },
-
-    calcFC() {
-      this.fc   = this.pesoLimpo > 0 ? +(this.pesoBruto / this.pesoLimpo).toFixed(4)  : 0;
-      this.fcoc = this.pesoFinal > 0 ? +(this.pesoLimpo / this.pesoFinal).toFixed(4) : 0;
-      this.calcPorcoes();
-    },
-
-    _estimarCustos() {
-      let ing = 0, sup = 0;
-      this.items.forEach(item => {
-        const qty   = parseFloat(item.quantidade) || 0;
-        const perda = parseFloat(item.perda_esperada_pct) || 0;
-        const fator = 1 + perda / 100;
-        let opt;
-        if (item.tipo === 'ingrediente' && item.ingredient_id) {
-          opt = document.querySelector(`option[value="${item.ingredient_id}"]`);
-          ing += (parseFloat(opt?.dataset?.custo) || 0) * qty * fator;
-        } else if (item.tipo === 'embalagem' && item.supply_id) {
-          opt = document.querySelector(`option[value="${item.supply_id}"]`);
-          sup += (parseFloat(opt?.dataset?.custo) || 0) * qty;
-        }
-      });
-      this.custoIngredientes = ing;
-      this.custoEmbalagens   = sup;
-    },
-
-    calcPorcoes() {
-      this._estimarCustos();
-      const totalG = this.rendimentoKg * 1000;
-      const porcao = this.pesoPorcaoGramas;
-      if (!porcao || porcao <= 0 || totalG <= 0) {
-        this.numPorcoes = 0; this.sobraGramas = 0;
-        this.custoPorPorcao = 0; this.precoSugerido = 0; this.margemPct = 0;
-        return;
-      }
-      this.numPorcoes  = Math.floor(totalG / porcao);
-      this.sobraGramas = totalG % porcao;
-      const custo = this.custoIngredientes + this.custoEmbalagens;
-      this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
-      this.precoSugerido  = this.custoPorPorcao * this.markup;
-      this.margemPct      = this.precoSugerido > 0
-        ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
-    },
-  };
-}
-</script>
 {% endblock %}

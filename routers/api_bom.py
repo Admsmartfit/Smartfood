@@ -236,3 +236,22 @@ def bom_save(
         {"showToast": {"message": f'Ficha "{produto.nome}" {action}!', "type": "success"}}
     )
     return r
+
+
+@router.delete("/{product_id}", response_class=HTMLResponse)
+def bom_delete(product_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Inativa uma ficha técnica (soft-delete)."""
+    from models import Product
+    produto = db.query(Product).filter(Product.id == product_id).first()
+    if not produto:
+        return HTMLResponse("", status_code=404)
+
+    nome = produto.nome
+    produto.ativo = False
+    db.commit()
+
+    response = HTMLResponse("")  # Remove a linha da tabela
+    response.headers["HX-Trigger"] = json.dumps(
+        {"showToast": {"message": f'Ficha "{nome}" excluída.', "type": "warning"}}
+    )
+    return response

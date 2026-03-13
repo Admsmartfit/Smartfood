@@ -56,6 +56,7 @@ function appState() {
         this.addToast('Conexão restaurada. Sincronizando...', 'success');
         this.syncOfflineData();
       });
+
     },
 
     // ── Toast ──
@@ -147,3 +148,114 @@ function appState() {
     },
   };
 }
+
+// ─── BOM Builder Alpine Component ─────────────────────────────────────────────
+// Defined globally in app.js so it persists across hx-boost navigations
+// (avoids race condition where Alpine MutationObserver fires before HTMX
+//  re-executes inline scripts from swapped content).
+function bomBuilder(cfg) {
+  cfg = cfg || {};
+  return {
+    activeTab: 'receita',
+    items: Array.isArray(cfg.items) ? cfg.items : [],
+    _counter: Array.isArray(cfg.items) ? cfg.items.length : 0,
+
+    // Rendimento wizard
+    pesoBruto: 0,
+    pesoLimpo: 0,
+    pesoFinal: 0,
+    fc:   cfg.fc   !== undefined ? cfg.fc   : 1.0,
+    fcoc: cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
+
+    // Porcionamento
+    rendimentoKg:     cfg.rendimentoKg     !== undefined ? cfg.rendimentoKg     : 1.0,
+    pesoPorcaoGramas: cfg.pesoPorcaoGramas !== undefined ? cfg.pesoPorcaoGramas : 350,
+    markup:           cfg.markup           !== undefined ? cfg.markup           : 2.0,
+    custoIngredientes: 0,
+    custoEmbalagens:   0,
+    numPorcoes:   0,
+    sobraGramas:  0,
+    custoPorPorcao: 0,
+    precoSugerido:  0,
+    margemPct:      0,
+
+    init() {
+      // Pequeno delay para garantir que o DOM dos selects/options esteja pronto
+      setTimeout(() => {
+        try { this.calcPorcoes(); } catch (e) { console.error(e); }
+      }, 50);
+    },
+
+    addItem(tipo) {
+      this._counter++;
+      this.items.push({
+        _key: this._counter, tipo,
+        ingredient_id: '', supply_id: '',
+        quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
+        perda_esperada_pct: 0,
+      });
+    },
+
+    removeItem(index) { this.items.splice(index, 1); },
+
+    calcFC() {
+      try {
+        this.fc   = this.pesoLimpo > 0 ? +(this.pesoBruto / this.pesoLimpo).toFixed(4)  : 0;
+        this.fcoc = this.pesoFinal > 0 ? +(this.pesoLimpo / this.pesoFinal).toFixed(4) : 0;
+        this.calcPorcoes();
+      } catch (e) { console.error(e); }
+    },
+
+    _estimarCustos() {
+      try {
+        let ing = 0, sup = 0;
+        this.items.forEach(item => {
+          const qty   = parseFloat(item.quantidade) || 0;
+          const perda = parseFloat(item.perda_esperada_pct) || 0;
+          const fator = 1 + perda / 100;
+          if (item.tipo === 'ingrediente' && item.ingredient_id) {
+            const opt = document.querySelector(`option[value="${item.ingredient_id}"]`);
+            if (opt) {
+              ing += (parseFloat(opt.dataset?.custo) || 0) * qty * fator;
+            }
+          } else if (item.tipo === 'embalagem' && item.supply_id) {
+            const opt = document.querySelector(`option[value="${item.supply_id}"]`);
+            if (opt) {
+              sup += (parseFloat(opt.dataset?.custo) || 0) * qty;
+            }
+          }
+        });
+        this.custoIngredientes = ing;
+        this.custoEmbalagens   = sup;
+      } catch (e) { console.error(e); }
+    },
+
+    calcPorcoes() {
+      try {
+        this._estimarCustos();
+        const totalG = this.rendimentoKg * 1000;
+        const porcao = this.pesoPorcaoGramas;
+        if (!porcao || porcao <= 0 || totalG <= 0) {
+          this.numPorcoes = 0; this.sobraGramas = 0;
+          this.custoPorPorcao = 0; this.precoSugerido = 0; this.margemPct = 0;
+          return;
+        }
+        this.numPorcoes  = Math.floor(totalG / porcao);
+        this.sobraGramas = totalG % porcao;
+        const custo = this.custoIngredientes + this.custoEmbalagens;
+        this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
+        this.precoSugerido  = this.custoPorPorcao * this.markup;
+        this.margemPct      = this.precoSugerido > 0
+          ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
+      } catch (e) { console.error(e); }
+    },
+  };
+}
+
+// ── Reinit Alpine após swap HTMX (resolve race condition em hx-boost) ──
+document.addEventListener('htmx:afterSettle', (evt) => {
+  if (window.Alpine && evt.detail?.target) {
+    window.Alpine.initTree(evt.detail.target);
+  }
+});
+

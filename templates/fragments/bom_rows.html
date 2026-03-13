@@ -36,12 +36,22 @@
            hx-push-url="true">
           <i class="ph ph-eye" aria-hidden="true"></i>
         </a>
-        <button class="text-gray-500 hover:text-blue-700"
-                title="Recalcular custo"
-                hx-post="/api/bom/{{ item.id }}/calculate"
-                hx-target="#cost-result-{{ item.id }}"
-                hx-swap="innerHTML">
-          <i class="ph ph-calculator" aria-hidden="true"></i>
+        <a href="/operations/bom/{{ item.id }}/edit"
+           class="text-amber-600 hover:text-amber-800"
+           title="Editar ficha"
+           hx-get="/operations/bom/{{ item.id }}/edit"
+           hx-target="#main-content"
+           hx-select="#main-content"
+           hx-push-url="true">
+          <i class="ph ph-pencil-simple" aria-hidden="true"></i>
+        </a>
+        <button class="text-gray-400 hover:text-red-600 transition-colors"
+                title="Excluir ficha"
+                hx-delete="/api/bom/{{ item.id }}"
+                hx-confirm="Tem certeza que deseja excluir esta ficha?"
+                hx-target="#bom-row-{{ item.id }}"
+                hx-swap="outerHTML">
+          <i class="ph ph-trash" aria-hidden="true"></i>
         </button>
       </div>
       <div id="cost-result-{{ item.id }}"></div>
