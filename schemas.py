@@ -113,6 +113,9 @@ class ProductCreate(BaseModel):
     rendimento_por_lote: float = 1.0
     modo_preparo_interno: Optional[str] = None
     ativo: bool = True
+    # E-21
+    peso_porcao_gramas: Optional[float] = None
+    unidade_estoque: str = "unid"
 
 
 class ProductUpdate(BaseModel):
@@ -128,6 +131,8 @@ class ProductUpdate(BaseModel):
     rendimento_por_lote: Optional[float] = None
     modo_preparo_interno: Optional[str] = None
     ativo: Optional[bool] = None
+    peso_porcao_gramas: Optional[float] = None
+    unidade_estoque: Optional[str] = None
 
 
 class ProductResponse(BaseModel):
@@ -144,6 +149,41 @@ class ProductResponse(BaseModel):
     rendimento_por_lote: float
     modo_preparo_interno: Optional[str] = None
     ativo: bool
+    peso_porcao_gramas: Optional[float] = None
+    unidade_estoque: str = "unid"
+
+    model_config = {"from_attributes": True}
+
+
+# --- YieldHistory Schemas ---
+
+class YieldHistoryCreate(BaseModel):
+    batch_id: uuid.UUID
+    product_id: uuid.UUID
+    peso_bruto_kg: Optional[float] = None
+    peso_limpo_kg: Optional[float] = None
+    peso_final_kg: Optional[float] = None
+    porcoes_esperadas: Optional[float] = None
+    porcoes_reais: Optional[float] = None
+    peso_porcao_gramas_configurado: Optional[float] = None
+    sobra_gramas: Optional[float] = None
+    custo_total_lote: Optional[float] = None
+    custo_por_porcao_real: Optional[float] = None
+    alerta_erosao_margem: bool = False
+    operador_id: Optional[str] = None
+
+
+class YieldHistoryResponse(BaseModel):
+    id: uuid.UUID
+    batch_id: uuid.UUID
+    product_id: uuid.UUID
+    fc_real: Optional[float] = None
+    fcoc_real: Optional[float] = None
+    porcoes_esperadas: Optional[float] = None
+    porcoes_reais: Optional[float] = None
+    sobra_gramas: Optional[float] = None
+    custo_por_porcao_real: Optional[float] = None
+    alerta_erosao_margem: bool
 
     model_config = {"from_attributes": True}
 

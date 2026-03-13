@@ -17,11 +17,30 @@
       <h1 class="text-xl font-bold text-gray-900">
         {{ "Editar" if produto else "Nova" }} Ficha Técnica
       </h1>
-      <p class="text-sm text-gray-500 mt-0.5">Monte a receita, defina quantidades e modo de preparo</p>
+      <p class="text-sm text-gray-500 mt-0.5">Receita · Rendimento · Porcionamento</p>
     </div>
   </div>
 
-  <!-- Formulário principal -->
+  <!-- Abas -->
+  <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+    {% for tab_id, tab_label, tab_icon in [
+      ("receita",    "Receita",      "list-checks"),
+      ("rendimento", "Rendimento",   "scales"),
+      ("porcoes",    "Porcionamento","cutting-board"),
+    ] %}
+    <button type="button"
+            @click="activeTab = '{{ tab_id }}'"
+            :class="activeTab === '{{ tab_id }}'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all">
+      <i class="ph ph-{{ tab_icon }}"></i>
+      {{ tab_label }}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- Formulário -->
   <form id="bom-form"
         hx-post="/api/bom/save"
         hx-target="#form-feedback"
@@ -29,237 +48,444 @@
         hx-include="#bom-form"
         class="space-y-6">
 
-    <!-- Campo hidden: serializa items do Alpine para JSON -->
     <input type="hidden" name="items_json" :value="JSON.stringify(items)">
+    <input type="hidden" name="fc"   :value="fc">
+    <input type="hidden" name="fcoc" :value="fcoc">
     {% if produto %}
     <input type="hidden" name="product_id" value="{{ produto.id }}">
     {% else %}
     <input type="hidden" name="product_id" value="">
     {% endif %}
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- ═══════════════════════════════════════════════════════════
+         ABA 1 — RECEITA
+    ═══════════════════════════════════════════════════════════ -->
+    <div x-show="activeTab === 'receita'" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      <!-- ── Coluna Esquerda: Cabeçalho da Receita ─────────────────────── -->
+      <!-- Esquerda: Dados do Produto + Modo de Preparo -->
       <div class="space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
           <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
             <i class="ph ph-notebook text-blue-500"></i> Dados do Produto
           </h2>
-
           <div class="space-y-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">
-                Nome do Produto <span class="text-red-500">*</span>
-              </label>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nome <span class="text-red-500">*</span></label>
               <input type="text" name="nome" required
                      value="{{ produto.nome if produto else '' }}"
                      placeholder="Ex: Frango Grelhado 300g"
                      class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-                <input type="text" name="sku"
-                       value="{{ produto.sku or '' if produto else '' }}"
+                <input type="text" name="sku" value="{{ produto.sku or '' if produto else '' }}"
                        placeholder="FG-300"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                <input type="text" name="categoria"
-                       value="{{ produto.categoria or '' if produto else '' }}"
+                <input type="text" name="categoria" value="{{ produto.categoria or '' if produto else '' }}"
                        placeholder="Proteínas"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Rendimento por Lote
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Rendimento por Lote</label>
                 <input type="number" name="rendimento_por_lote" min="0.001" step="0.001"
+                       x-model.number="rendimentoKg" @input="calcPorcoes()"
                        value="{{ produto.rendimento_por_lote if produto else '1.0' }}"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                <p class="text-xs text-gray-400 mt-1">unidades ou kg por lote padrão</p>
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-400 mt-1">kg ou unid por lote padrão</p>
               </div>
               <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Tempo de Produção (min)
-                </label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Tempo de Produção (min)</label>
                 <input type="number" name="tempo_producao_min" min="1" step="1"
                        value="{{ produto.tempo_producao_min if produto else '30' }}"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
-
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Markup (×)</label>
                 <input type="number" name="markup" min="1" step="0.1"
+                       x-model.number="markup" @input="calcPorcoes()"
                        value="{{ produto.markup if produto else '2.0' }}"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Margem Mínima (%)</label>
                 <input type="number" name="margem_minima" min="0" step="1"
                        value="{{ produto.margem_minima if produto else '30' }}"
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                              focus:outline-none focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Modo de Preparo -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
           <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
             <i class="ph ph-cooking-pot text-orange-500"></i> Modo de Preparo Interno
           </h2>
-          <textarea name="modo_preparo_interno" rows="8"
-                    placeholder="Descreva o passo a passo para a equipa da cozinha…&#10;&#10;1. Descongele o frango por 12h em geladeira&#10;2. Tempere com…"
+          <textarea name="modo_preparo_interno" rows="7"
+                    placeholder="1. Descongele o frango por 12h em geladeira&#10;2. Tempere com…"
                     class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y">{{ produto.modo_preparo_interno or '' if produto else '' }}</textarea>
-          <p class="text-xs text-gray-400">
-            <i class="ph ph-lock-simple-open"></i>
-            Visível apenas para a equipa interna — não publicado no catálogo B2B.
-          </p>
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y">{{ produto.modo_preparo_interno or '' if produto else '' }}</textarea>
+          <p class="text-xs text-gray-400"><i class="ph ph-lock-simple-open"></i> Não publicado no catálogo B2B.</p>
         </div>
       </div>
 
-      <!-- ── Coluna Direita: Insumos e Embalagens ───────────────────────── -->
+      <!-- Direita: Insumos e Embalagens -->
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-            <i class="ph ph-list-checks text-green-500"></i>
-            Insumos e Embalagens
-            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full"
-                  x-text="items.length"></span>
-          </h2>
-        </div>
+        <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <i class="ph ph-list-checks text-green-500"></i>
+          Insumos e Embalagens
+          <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full"
+                x-text="items.length"></span>
+        </h2>
 
-        <!-- Lista de itens -->
-        <div class="space-y-3" id="bom-items-list">
+        <div class="space-y-3">
           <template x-for="(item, index) in items" :key="item._key">
-            <div class="flex flex-col sm:flex-row gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50 group">
-              <!-- Tipo badge -->
-              <div class="flex items-center gap-1.5 sm:w-28 shrink-0">
+            <div class="flex flex-col sm:flex-row gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
+              <div class="shrink-0 sm:w-28 flex items-center">
                 <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                      :class="item.tipo === 'ingrediente'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-purple-100 text-purple-700'">
-                  <i class="ph" :class="item.tipo === 'ingrediente' ? 'ph-leaf' : 'ph-package'"></i>
-                  <span x-text="item.tipo === 'ingrediente' ? 'Ingrediente' : 'Embalagem'"></span>
+                      :class="item.tipo==='ingrediente' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'">
+                  <i class="ph" :class="item.tipo==='ingrediente' ? 'ph-leaf' : 'ph-package'"></i>
+                  <span x-text="item.tipo==='ingrediente' ? 'Insumo' : 'Embalagem'"></span>
                 </span>
               </div>
-
-              <!-- Select ingrediente/embalagem -->
-              <select x-model="item.ingredient_id"
-                      x-show="item.tipo === 'ingrediente'"
-                      class="flex-1 border border-slate-300 rounded-lg px-2 py-2 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                <option value="">— Selecionar ingrediente —</option>
+              <select x-model="item.ingredient_id" x-show="item.tipo==='ingrediente'"
+                      @change="calcPorcoes()"
+                      class="flex-1 border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white
+                             focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Selecionar —</option>
                 {% for ing in ingredients %}
-                <option value="{{ ing.id }}">{{ ing.nome }} ({{ ing.unidade }})</option>
+                <option value="{{ ing.id }}" data-custo="{{ ing.custo_atual or 0 }}">
+                  {{ ing.nome }} ({{ ing.unidade }})
+                </option>
                 {% endfor %}
               </select>
-
-              <select x-model="item.supply_id"
-                      x-show="item.tipo === 'embalagem'"
-                      class="flex-1 border border-slate-300 rounded-lg px-2 py-2 text-sm
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                <option value="">— Selecionar embalagem —</option>
+              <select x-model="item.supply_id" x-show="item.tipo==='embalagem'"
+                      @change="calcPorcoes()"
+                      class="flex-1 border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white
+                             focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Selecionar —</option>
                 {% for sup in supplies %}
-                <option value="{{ sup.id }}">{{ sup.nome }} ({{ sup.unidade }})</option>
+                <option value="{{ sup.id }}" data-custo="{{ sup.custo_atual or 0 }}">
+                  {{ sup.nome }} ({{ sup.unidade }})
+                </option>
                 {% endfor %}
               </select>
-
-              <!-- Quantidade -->
-              <input type="number" x-model="item.quantidade" min="0.001" step="0.001"
-                     placeholder="Qtd"
+              <input type="number" x-model.number="item.quantidade" @input="calcPorcoes()"
+                     min="0.001" step="0.001" placeholder="Qtd"
                      class="w-24 border border-slate-300 rounded-lg px-2 py-2 text-sm text-right
                             focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-              <!-- Unidade -->
-              <input type="text" x-model="item.unidade"
-                     placeholder="un"
+              <input type="text" x-model="item.unidade" placeholder="kg"
                      class="w-16 border border-slate-300 rounded-lg px-2 py-2 text-sm text-center
                             focus:outline-none focus:ring-2 focus:ring-blue-500">
-
-              <!-- Perda % -->
               <div class="relative w-20 shrink-0">
-                <input type="number" x-model="item.perda_esperada_pct" min="0" max="100" step="0.1"
+                <input type="number" x-model.number="item.perda_esperada_pct" min="0" max="100" step="0.1"
                        placeholder="0"
                        class="w-full border border-slate-300 rounded-lg pl-2 pr-6 py-2 text-sm text-right
                               focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <span class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
               </div>
-
-              <!-- Remover -->
-              <button type="button" @click="removeItem(index)"
-                      class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      aria-label="Remover item">
+              <button type="button" @click="removeItem(index); calcPorcoes()"
+                      class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                 <i class="ph ph-trash text-lg"></i>
               </button>
             </div>
           </template>
 
-          <!-- Empty state -->
           <div x-show="items.length === 0"
-               class="flex flex-col items-center justify-center py-10 text-center text-gray-400 rounded-lg border-2 border-dashed border-slate-200">
+               class="flex flex-col items-center justify-center py-10 text-center text-gray-400
+                      rounded-lg border-2 border-dashed border-slate-200">
             <i class="ph ph-plus-circle text-4xl mb-2"></i>
             <p class="text-sm font-medium">Nenhum item ainda</p>
-            <p class="text-xs mt-1">Use os botões abaixo para adicionar ingredientes ou embalagens</p>
+            <p class="text-xs mt-1">Use os botões abaixo para adicionar insumos ou embalagens</p>
           </div>
         </div>
 
-        <!-- Legenda de colunas (só aparece quando há itens) -->
-        <div x-show="items.length > 0"
-             class="grid grid-cols-[7rem_1fr_6rem_4rem_5rem_2.5rem] gap-2 px-1">
-          <span class="text-xs text-gray-400">Tipo</span>
-          <span class="text-xs text-gray-400">Item</span>
-          <span class="text-xs text-gray-400 text-right">Qtd</span>
-          <span class="text-xs text-gray-400 text-center">Un.</span>
-          <span class="text-xs text-gray-400 text-right">Perda</span>
-          <span></span>
-        </div>
-
-        <!-- Botões de adição -->
         <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
           <button type="button" @click="addItem('ingrediente')"
                   class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
                          bg-green-50 text-green-700 border border-green-200
                          hover:bg-green-100 text-sm font-medium transition-colors min-h-[44px]">
-            <i class="ph ph-plus-circle text-lg"></i>
-            Adicionar Ingrediente
+            <i class="ph ph-plus-circle text-lg"></i> Adicionar Insumo
           </button>
           <button type="button" @click="addItem('embalagem')"
                   class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg
                          bg-purple-50 text-purple-700 border border-purple-200
                          hover:bg-purple-100 text-sm font-medium transition-colors min-h-[44px]">
-            <i class="ph ph-plus-circle text-lg"></i>
-            Adicionar Embalagem
+            <i class="ph ph-plus-circle text-lg"></i> Adicionar Embalagem
           </button>
         </div>
 
-        <!-- Resumo custo (calculado no cliente) -->
+        <!-- Mini painel de custo estimado -->
         <div x-show="items.length > 0"
-             class="bg-blue-50 rounded-lg p-3 text-sm text-blue-800 border border-blue-100">
-          <span class="font-medium" x-text="items.length + ' item(s) adicionado(s)'"></span>
-          — o custo total será calculado ao salvar a ficha.
+             class="bg-slate-50 rounded-lg p-3 border border-slate-200 text-sm space-y-1">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Insumos estimados</span>
+            <span class="font-mono font-medium" x-text="'R$ ' + custoIngredientes.toFixed(2)"></span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Embalagens estimadas</span>
+            <span class="font-mono font-medium" x-text="'R$ ' + custoEmbalagens.toFixed(2)"></span>
+          </div>
+          <div class="flex justify-between border-t border-slate-200 pt-1 font-semibold">
+            <span>Total do lote</span>
+            <span class="font-mono" x-text="'R$ ' + (custoIngredientes + custoEmbalagens).toFixed(2)"></span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Feedback + Botão Salvar -->
-    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+    <!-- ═══════════════════════════════════════════════════════════
+         ABA 2 — RENDIMENTO (Wizard FC / FCoc)
+    ═══════════════════════════════════════════════════════════ -->
+    <div x-show="activeTab === 'rendimento'" class="max-w-2xl space-y-5">
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex gap-3">
+        <i class="ph ph-info text-xl shrink-0 mt-0.5"></i>
+        <div>
+          <p class="font-semibold">O Caminho do Frango</p>
+          <p class="mt-0.5">Registe as 3 pesagens do insumo principal para calcular
+            <strong>FC (Fator de Correção)</strong> e <strong>FCoc (Fator de Cocção)</strong>
+            reais. Os valores são gravados na ficha ao salvar.</p>
+        </div>
+      </div>
+
+      <!-- Passo 1 -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">1</div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Peso Bruto</h3>
+            <p class="text-xs text-gray-500">Como sai da embalagem (congelado, com gelo e aparas)</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="number" x-model.number="pesoBruto" @input="calcFC()"
+                 min="0" step="0.001" placeholder="0.000"
+                 class="w-40 h-12 border-2 border-slate-300 rounded-xl px-3 text-right text-lg font-mono
+                        focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <span class="text-gray-500 font-medium">kg</span>
+        </div>
+      </div>
+
+      <!-- Passo 2 -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">2</div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Peso Limpo <span class="text-gray-400 font-normal">(pós-degelo/limpeza)</span></h3>
+            <p class="text-xs text-gray-500">Após retirada de gelo, ossos e aparas não utilizáveis</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex items-center gap-3">
+            <input type="number" x-model.number="pesoLimpo" @input="calcFC()"
+                   min="0" step="0.001" placeholder="0.000"
+                   class="w-40 h-12 border-2 border-slate-300 rounded-xl px-3 text-right text-lg font-mono
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span class="text-gray-500 font-medium">kg</span>
+          </div>
+          <div x-show="fc > 0" class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <span class="text-xs text-blue-600 font-medium">FC calculado</span>
+            <span class="text-xl font-bold text-blue-700 font-mono" x-text="fc.toFixed(3)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Passo 3 -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">3</div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Peso Final <span class="text-gray-400 font-normal">(pós-cozimento)</span></h3>
+            <p class="text-xs text-gray-500">Insumo pronto para o porcionamento</p>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-4">
+          <div class="flex items-center gap-3">
+            <input type="number" x-model.number="pesoFinal" @input="calcFC()"
+                   min="0" step="0.001" placeholder="0.000"
+                   class="w-40 h-12 border-2 border-slate-300 rounded-xl px-3 text-right text-lg font-mono
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <span class="text-gray-500 font-medium">kg</span>
+          </div>
+          <div x-show="fcoc > 0" class="flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <span class="text-xs text-indigo-600 font-medium">FCoc calculado</span>
+            <span class="text-xl font-bold text-indigo-700 font-mono" x-text="fcoc.toFixed(3)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resultado: painel de rendimento -->
+      <div x-show="fc > 0 && fcoc > 0"
+           class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl p-5 space-y-3">
+        <h3 class="font-semibold text-lg flex items-center gap-2">
+          <i class="ph ph-calculator"></i> Resultado do Rendimento
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div class="bg-white/10 rounded-lg p-3">
+            <p class="text-xs opacity-75">FC</p>
+            <p class="text-2xl font-bold font-mono" x-text="fc.toFixed(3)"></p>
+          </div>
+          <div class="bg-white/10 rounded-lg p-3">
+            <p class="text-xs opacity-75">FCoc</p>
+            <p class="text-2xl font-bold font-mono" x-text="fcoc.toFixed(3)"></p>
+          </div>
+          <div class="bg-white/10 rounded-lg p-3">
+            <p class="text-xs opacity-75">Perda Total</p>
+            <p class="text-2xl font-bold font-mono"
+               x-text="pesoBruto > 0 ? (((pesoBruto - pesoFinal) / pesoBruto) * 100).toFixed(1) + '%' : '—'"></p>
+          </div>
+          <div class="bg-white/10 rounded-lg p-3">
+            <p class="text-xs opacity-75">Custo/kg real</p>
+            <p class="text-xl font-bold font-mono"
+               x-text="custoIngredientes > 0 && pesoFinal > 0
+                        ? 'R$' + (custoIngredientes / pesoFinal).toFixed(2) : '—'"></p>
+          </div>
+        </div>
+        <p class="text-xs opacity-60 text-center">FC e FCoc serão gravados na ficha ao salvar.</p>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         ABA 3 — PORCIONAMENTO
+    ═══════════════════════════════════════════════════════════ -->
+    <div x-show="activeTab === 'porcoes'" class="max-w-2xl space-y-5">
+
+      <!-- Config -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+        <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <i class="ph ph-cutting-board text-rose-500"></i> Definição da Porção / Unidade
+        </h2>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Peso da Porção (g)</label>
+            <input type="number" name="peso_porcao_gramas"
+                   x-model.number="pesoPorcaoGramas" @input="calcPorcoes()"
+                   min="1" step="5" placeholder="350"
+                   value="{{ produto.peso_porcao_gramas or '' if produto else '' }}"
+                   class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-gray-400 mt-1">Ex: 350 para porção de 350g</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Unidade de Estoque</label>
+            <select name="unidade_estoque"
+                    class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white
+                           focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="unid" {% if not produto or produto.unidade_estoque == 'unid' %}selected{% endif %}>unid (porções)</option>
+              <option value="kg"   {% if produto and produto.unidade_estoque == 'kg' %}selected{% endif %}>kg</option>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">Modo de incremento ao finalizar OP</p>
+          </div>
+        </div>
+
+        <!-- Slider de ajuste rápido -->
+        <div x-show="pesoPorcaoGramas > 0">
+          <label class="block text-sm font-medium text-gray-700 mb-2">
+            Ajuste rápido:
+            <span class="text-blue-600 font-bold" x-text="pesoPorcaoGramas + 'g'"></span>
+          </label>
+          <input type="range" x-model.number="pesoPorcaoGramas" @input="calcPorcoes()"
+                 min="50" max="2000" step="10"
+                 class="w-full accent-blue-600">
+          <div class="flex justify-between text-xs text-gray-400 mt-1">
+            <span>50g</span><span>500g</span><span>1 kg</span><span>2 kg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Calculadora ao vivo -->
+      <div x-show="pesoPorcaoGramas > 0 && rendimentoKg > 0"
+           class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+          <i class="ph ph-calculator text-blue-500"></i>
+          Resultado do Lote
+          <span class="text-xs text-gray-400 font-normal">(tempo real)</span>
+        </h3>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-green-600 font-medium uppercase tracking-wider">Nº de Porções</p>
+            <p class="text-3xl font-bold text-green-700 font-mono mt-1" x-text="numPorcoes"></p>
+          </div>
+          <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-blue-600 font-medium uppercase tracking-wider">Custo / Porção</p>
+            <p class="text-2xl font-bold text-blue-700 font-mono mt-1"
+               x-text="numPorcoes > 0 ? 'R$' + custoPorPorcao.toFixed(3) : '—'"></p>
+          </div>
+          <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-indigo-600 font-medium uppercase tracking-wider">Preço Sugerido</p>
+            <p class="text-2xl font-bold text-indigo-700 font-mono mt-1"
+               x-text="numPorcoes > 0 ? 'R$' + precoSugerido.toFixed(2) : '—'"></p>
+          </div>
+          <div class="border rounded-xl p-3 text-center"
+               :class="margemPct >= 30 ? 'bg-green-50 border-green-200' : margemPct >= 15 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'">
+            <p class="text-xs font-medium uppercase tracking-wider"
+               :class="margemPct >= 30 ? 'text-green-600' : margemPct >= 15 ? 'text-amber-600' : 'text-red-600'">Margem</p>
+            <p class="text-2xl font-bold font-mono mt-1"
+               :class="margemPct >= 30 ? 'text-green-700' : margemPct >= 15 ? 'text-amber-700' : 'text-red-700'"
+               x-text="numPorcoes > 0 ? margemPct.toFixed(1) + '%' : '—'"></p>
+          </div>
+          <div class="border rounded-xl p-3 text-center"
+               :class="sobraGramas > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'">
+            <p class="text-xs font-medium uppercase tracking-wider"
+               :class="sobraGramas > 0 ? 'text-amber-600' : 'text-gray-500'">Sobra</p>
+            <p class="text-2xl font-bold font-mono mt-1"
+               :class="sobraGramas > 0 ? 'text-amber-700' : 'text-gray-400'"
+               x-text="sobraGramas.toFixed(0) + 'g'"></p>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-500 font-medium uppercase tracking-wider">Peso Total Lote</p>
+            <p class="text-2xl font-bold text-gray-700 font-mono mt-1"
+               x-text="(rendimentoKg * 1000).toFixed(0) + 'g'"></p>
+          </div>
+        </div>
+
+        <!-- Alerta de desperdício -->
+        <div x-show="sobraGramas > 5"
+             class="flex items-start gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm">
+          <i class="ph-fill ph-warning text-xl text-amber-500 shrink-0 mt-0.5"></i>
+          <div>
+            <p class="font-medium text-amber-800">Desperdício de massa detectado</p>
+            <p class="text-amber-700 mt-0.5">
+              Sobrarão <strong x-text="sobraGramas.toFixed(0) + 'g'"></strong> ao fim do lote.
+              Para render <strong x-text="numPorcoes + 1"></strong> porções exatas,
+              adicione <strong x-text="(pesoPorcaoGramas - sobraGramas).toFixed(0) + 'g'"></strong>
+              de insumo ao lote.
+            </p>
+          </div>
+        </div>
+
+        <!-- Alerta de margem baixa -->
+        <div x-show="numPorcoes > 0 && margemPct < 20"
+             class="flex items-start gap-3 p-3 rounded-xl bg-red-50 border border-red-200 text-sm">
+          <i class="ph-fill ph-x-circle text-xl text-red-500 shrink-0 mt-0.5"></i>
+          <div>
+            <p class="font-medium text-red-800">Margem abaixo do recomendado!</p>
+            <p class="text-red-700 mt-0.5">
+              Margem de <strong x-text="margemPct.toFixed(1) + '%'"></strong> está abaixo de 20%.
+              Reveja o custo dos insumos ou ajuste o markup na aba Receita.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Botão Salvar ──────────────────────────────────────────────── -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 pt-2 border-t border-slate-200">
       <button type="submit"
               class="inline-flex items-center gap-2 px-6 py-3 rounded-xl
                      bg-blue-600 text-white font-semibold hover:bg-blue-700
@@ -272,7 +498,7 @@
          class="text-sm text-gray-500 hover:text-gray-700 underline transition-colors">
         Cancelar
       </a>
-      <div id="form-feedback" class="flex-1"></div>
+      <div id="form-feedback" class="flex-1 text-sm"></div>
     </div>
 
   </form>
@@ -281,8 +507,28 @@
 <script>
 function bomBuilder() {
   return {
+    activeTab: 'receita',
     items: [],
     _counter: 0,
+
+    // Rendimento wizard
+    pesoBruto: 0,
+    pesoLimpo: 0,
+    pesoFinal: 0,
+    fc:   {{ produto.fc   if produto else 1.0 }},
+    fcoc: {{ produto.fcoc if produto else 1.0 }},
+
+    // Porcionamento
+    rendimentoKg:     {{ produto.rendimento_por_lote   if produto else 1.0 }},
+    pesoPorcaoGramas: {{ produto.peso_porcao_gramas     if produto and produto.peso_porcao_gramas else 350 }},
+    markup:           {{ produto.markup                 if produto else 2.0 }},
+    custoIngredientes: 0,
+    custoEmbalagens:   0,
+    numPorcoes:   0,
+    sobraGramas:  0,
+    custoPorPorcao: 0,
+    precoSugerido:  0,
+    margemPct:      0,
 
     init() {
       {% if bom_items %}
@@ -301,23 +547,62 @@ function bomBuilder() {
       ];
       this._counter = this.items.length;
       {% endif %}
+      this.$nextTick(() => this.calcPorcoes());
     },
 
     addItem(tipo) {
       this._counter++;
       this.items.push({
-        _key: this._counter,
-        tipo: tipo,
-        ingredient_id: '',
-        supply_id: '',
-        quantidade: '',
-        unidade: tipo === 'ingrediente' ? 'kg' : 'un',
+        _key: this._counter, tipo,
+        ingredient_id: '', supply_id: '',
+        quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
         perda_esperada_pct: 0,
       });
     },
 
-    removeItem(index) {
-      this.items.splice(index, 1);
+    removeItem(index) { this.items.splice(index, 1); },
+
+    calcFC() {
+      this.fc   = this.pesoLimpo > 0 ? +(this.pesoBruto / this.pesoLimpo).toFixed(4)  : 0;
+      this.fcoc = this.pesoFinal > 0 ? +(this.pesoLimpo / this.pesoFinal).toFixed(4) : 0;
+      this.calcPorcoes();
+    },
+
+    _estimarCustos() {
+      let ing = 0, sup = 0;
+      this.items.forEach(item => {
+        const qty   = parseFloat(item.quantidade) || 0;
+        const perda = parseFloat(item.perda_esperada_pct) || 0;
+        const fator = 1 + perda / 100;
+        let opt;
+        if (item.tipo === 'ingrediente' && item.ingredient_id) {
+          opt = document.querySelector(`option[value="${item.ingredient_id}"]`);
+          ing += (parseFloat(opt?.dataset?.custo) || 0) * qty * fator;
+        } else if (item.tipo === 'embalagem' && item.supply_id) {
+          opt = document.querySelector(`option[value="${item.supply_id}"]`);
+          sup += (parseFloat(opt?.dataset?.custo) || 0) * qty;
+        }
+      });
+      this.custoIngredientes = ing;
+      this.custoEmbalagens   = sup;
+    },
+
+    calcPorcoes() {
+      this._estimarCustos();
+      const totalG = this.rendimentoKg * 1000;
+      const porcao = this.pesoPorcaoGramas;
+      if (!porcao || porcao <= 0 || totalG <= 0) {
+        this.numPorcoes = 0; this.sobraGramas = 0;
+        this.custoPorPorcao = 0; this.precoSugerido = 0; this.margemPct = 0;
+        return;
+      }
+      this.numPorcoes  = Math.floor(totalG / porcao);
+      this.sobraGramas = totalG % porcao;
+      const custo = this.custoIngredientes + this.custoEmbalagens;
+      this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
+      this.precoSugerido  = this.custoPorPorcao * this.markup;
+      this.margemPct      = this.precoSugerido > 0
+        ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
     },
   };
 }

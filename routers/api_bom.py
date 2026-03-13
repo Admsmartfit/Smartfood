@@ -91,6 +91,56 @@ def bom_calculate(
     return response
 
 
+@router.post("/calculate-portions")
+def calculate_portions(
+    rendimento_por_lote: float = Form(1.0),
+    peso_porcao_gramas: float = Form(350.0),
+    custo_ingredientes: float = Form(0.0),
+    custo_embalagens: float = Form(0.0),
+    markup: float = Form(2.0),
+    peso_bruto_kg: float = Form(0.0),
+    peso_limpo_kg: float = Form(0.0),
+    peso_final_kg: float = Form(0.0),
+):
+    """
+    Calculadora de porcionamento — chamada via fetch() do Alpine.js.
+    Retorna JSON com: num_porcoes, sobra_gramas, custo_por_porcao,
+    preco_sugerido_porcao, margem_pct, fc, fcoc, sugestao_lote.
+    """
+    import math
+
+    porcao_kg = peso_porcao_gramas / 1000.0
+    rendimento_g = rendimento_por_lote * 1000.0
+
+    num_porcoes = math.floor(rendimento_g / peso_porcao_gramas) if peso_porcao_gramas > 0 else 0
+    sobra_gramas = rendimento_g % peso_porcao_gramas if peso_porcao_gramas > 0 else 0
+
+    # Custo por porção
+    custo_total = custo_ingredientes + custo_embalagens
+    custo_por_porcao = custo_total / num_porcoes if num_porcoes > 0 else 0.0
+    preco_sugerido = custo_por_porcao * markup
+    margem_pct = ((preco_sugerido - custo_por_porcao) / preco_sugerido * 100) if preco_sugerido > 0 else 0.0
+
+    # FC / FCoc
+    fc = round(peso_bruto_kg / peso_limpo_kg, 4) if peso_limpo_kg > 0 else 0.0
+    fcoc = round(peso_limpo_kg / peso_final_kg, 4) if peso_final_kg > 0 else 0.0
+
+    # Sugestão: quantos gramas de ingrediente adicionar para render 1 porção a mais
+    sugestao_gramas = round(peso_porcao_gramas - sobra_gramas, 1) if sobra_gramas > 0 else 0.0
+
+    return {
+        "num_porcoes": num_porcoes,
+        "sobra_gramas": round(sobra_gramas, 1),
+        "custo_por_porcao": round(custo_por_porcao, 4),
+        "preco_sugerido_porcao": round(preco_sugerido, 2),
+        "margem_pct": round(margem_pct, 1),
+        "fc": fc,
+        "fcoc": fcoc,
+        "sugestao_gramas": sugestao_gramas,
+        "porcao_kg": porcao_kg,
+    }
+
+
 @router.post("/save", response_class=HTMLResponse)
 def bom_save(
     _request: Request,
@@ -103,6 +153,10 @@ def bom_save(
     markup: float = Form(2.0),
     margem_minima: float = Form(30.0),
     modo_preparo_interno: str = Form(""),
+    peso_porcao_gramas: float = Form(0.0),
+    unidade_estoque: str = Form("unid"),
+    fc: float = Form(1.0),
+    fcoc: float = Form(1.0),
     items_json: str = Form("[]"),
     db: Session = Depends(get_db),
 ):
@@ -138,6 +192,10 @@ def bom_save(
         produto.margem_minima = margem_minima
         produto.modo_preparo_interno = modo_preparo_interno.strip() or None
         produto.ativo = True
+        produto.fc = fc
+        produto.fcoc = fcoc
+        produto.peso_porcao_gramas = peso_porcao_gramas if peso_porcao_gramas > 0 else None
+        produto.unidade_estoque = unidade_estoque or "unid"
         db.flush()
 
         # ── BOM Items — substitui tudo ────────────────────────────────

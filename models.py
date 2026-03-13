@@ -31,6 +31,11 @@ class Product(Base, TimestampMixin):
                                  comment="Qtd gerada por 1 Lote Padrão (ex: 100 un, 5 kg)")
     modo_preparo_interno = Column(Text, nullable=True,
                                   comment="Instruções operacionais para a cozinha (não vai para o QR público)")
+    # E-21: Porcionamento industrial
+    peso_porcao_gramas = Column(Float, nullable=True,
+                                comment="Peso de cada porção/unidade em gramas (ex: 350g)")
+    unidade_estoque = Column(String, default="unid",
+                             comment="'unid' ou 'kg' — modo de incremento do estoque ao finalizar OP")
     # E-12: Catálogo B2B
     foto_url = Column(String, nullable=True)
     descricao_marketing = Column(Text, nullable=True)
@@ -108,6 +113,13 @@ class ProductionBatch(Base, TimestampMixin):
     operador_id = Column(String, nullable=True, comment="ID ou nome do operador que iniciou")
     status = Column(String, default="RASCUNHO")  # RASCUNHO|APROVADA|EM_PRODUCAO|CONCLUIDA|CANCELADA
     motivo_cancelamento = Column(String, nullable=True)
+    # E-21: Porcionamento
+    porcoes_esperadas = Column(Float, nullable=True,
+                               comment="Nº de porções calculadas com base na ficha técnica")
+    porcoes_reais_produzidas = Column(Float, nullable=True,
+                                      comment="Nº real apontado pelo operador ao finalizar")
+    sobra_gramas = Column(Float, nullable=True,
+                          comment="Sobra de massa/recheio em gramas após porcionamento")
 
     product = relationship("Product", back_populates="production_batches")
     ingredient_usages = relationship("BatchIngredientUsage", back_populates="batch")
@@ -433,6 +445,39 @@ class SurveyResponse(Base, TimestampMixin):
     nota_entrega = Column(Integer, nullable=True, comment="0-10: nota para a entrega")
     comentario = Column(Text, nullable=True)
     ip = Column(String, nullable=True)
+
+
+class YieldHistory(Base, TimestampMixin):
+    """
+    E-21 — Histórico de rendimento por lote de produção.
+    Registra FC e FCoc reais medidos pelo operador para análise de perdas
+    e sugestão de ajuste nas fichas técnicas.
+    """
+    __tablename__ = "yield_history"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    batch_id = Column(GUID(), ForeignKey("production_batches.id"), nullable=False)
+    product_id = Column(GUID(), ForeignKey("products.id"), nullable=False)
+    # Pesagens do insumo principal (wizard de rendimento)
+    peso_bruto_kg = Column(Float, nullable=True, comment="Peso bruto (como saiu da embalagem)")
+    peso_limpo_kg = Column(Float, nullable=True, comment="Peso após degelo/limpeza")
+    peso_final_kg = Column(Float, nullable=True, comment="Peso após cozimento/processamento")
+    fc_real = Column(Float, nullable=True, comment="FC calculado: bruto/limpo")
+    fcoc_real = Column(Float, nullable=True, comment="FCoc calculado: limpo/final")
+    # Porcionamento
+    porcoes_esperadas = Column(Float, nullable=True)
+    porcoes_reais = Column(Float, nullable=True)
+    peso_porcao_gramas_configurado = Column(Float, nullable=True)
+    sobra_gramas = Column(Float, nullable=True)
+    # Custo
+    custo_total_lote = Column(Float, nullable=True)
+    custo_por_porcao_real = Column(Float, nullable=True)
+    # Alertas
+    alerta_erosao_margem = Column(Boolean, default=False)
+    operador_id = Column(String, nullable=True)
+
+    batch = relationship("ProductionBatch", backref="yield_records")
+    product = relationship("Product", backref="yield_history")
 
 
 class NFePending(Base, TimestampMixin):

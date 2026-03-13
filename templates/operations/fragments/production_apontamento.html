@@ -1,0 +1,136 @@
+{% set batch_id_str = batch.id | string %}
+<div
+  x-data="{
+    porcoes: '',
+    sobra: 0,
+    pesoPorcao: {{ batch.product.peso_porcao_gramas | default(0) }},
+    operador: '',
+    submitting: false,
+    get custo() {
+      const c = {{ batch.custo_total | default(0) }};
+      const p = parseFloat(this.porcoes) || 0;
+      return p > 0 ? (c / p).toFixed(4) : '—';
+    }
+  }"
+  class="space-y-6 p-4"
+>
+  <!-- Cabeçalho -->
+  <div class="rounded-xl bg-indigo-50 border border-indigo-200 p-4 space-y-1">
+    <p class="text-xs text-indigo-500 uppercase tracking-wide font-medium">Apontamento de Porções</p>
+    <p class="font-semibold text-indigo-900 text-lg">{{ batch.product.nome if batch.product else 'Produto' }}</p>
+    <div class="flex items-center gap-4 text-sm text-indigo-700">
+      <span>Lote: <strong>{{ batch_id_str[:8] | upper }}</strong></span>
+      {% if batch.quantidade_planejada %}
+      <span>Planejado: <strong>{{ batch.quantidade_planejada | round(2) }} kg</strong></span>
+      {% endif %}
+      {% if porcoes_esperadas %}
+      <span>Esperado: <strong>{{ porcoes_esperadas }} porções</strong></span>
+      {% endif %}
+    </div>
+  </div>
+
+  <form
+    hx-post="/api/production/{{ batch_id_str }}/finalizar-porcoes"
+    hx-target="#apontamento-result-{{ batch_id_str[:8] }}"
+    hx-swap="innerHTML"
+    @submit.prevent="submitting = true; $el.submit()"
+    class="space-y-4"
+  >
+    <!-- Porções reais -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">
+        Porções produzidas <span class="text-red-500">*</span>
+      </label>
+      <input
+        type="number"
+        name="porcoes_reais"
+        x-model="porcoes"
+        min="0"
+        step="1"
+        required
+        placeholder="Ex: 42"
+        class="w-full h-14 text-xl text-center rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+      />
+      {% if porcoes_esperadas %}
+      <p class="text-xs text-gray-500 mt-1 text-center">Esperado: {{ porcoes_esperadas }} porções</p>
+      {% endif %}
+    </div>
+
+    <!-- Peso médio por porção -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Peso médio por porção (gramas)</label>
+      <div class="flex items-center gap-3">
+        <input
+          type="number"
+          name="peso_medio_porcao_gramas"
+          x-model="pesoPorcao"
+          min="0"
+          step="1"
+          placeholder="Ex: 350"
+          class="flex-1 h-12 text-lg text-center rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+        />
+        <span class="text-sm text-gray-500">g</span>
+      </div>
+      {% if batch.product and batch.product.peso_porcao_gramas %}
+      <p class="text-xs text-gray-500 mt-1">
+        Configurado: {{ batch.product.peso_porcao_gramas | int }}g
+        <span
+          x-show="pesoPorcao > 0 && pesoPorcao > {{ batch.product.peso_porcao_gramas }} * 1.05"
+          class="ml-2 text-amber-600 font-medium"
+        >⚠️ Acima do padrão (+5%)</span>
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- Sobra -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Sobra / Perda (gramas)</label>
+      <input
+        type="number"
+        name="sobra_gramas"
+        x-model="sobra"
+        min="0"
+        step="1"
+        placeholder="0"
+        class="w-full h-12 text-lg text-center rounded-xl border border-gray-300 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+      />
+    </div>
+
+    <!-- Operador -->
+    <div>
+      <label class="block text-sm font-medium text-gray-700 mb-1">Operador</label>
+      <input
+        type="text"
+        name="operador_id"
+        x-model="operador"
+        placeholder="Nome ou código do operador"
+        class="w-full h-12 rounded-xl border border-gray-300 px-4 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+      />
+    </div>
+
+    <!-- Custo preview -->
+    <div x-show="porcoes > 0" class="rounded-xl bg-gray-50 border border-gray-200 p-3 flex items-center justify-between text-sm">
+      <span class="text-gray-600">Custo estimado por porção:</span>
+      <span class="font-semibold text-gray-800">R$ <span x-text="custo"></span></span>
+    </div>
+
+    <!-- Botão -->
+    <button
+      type="submit"
+      :disabled="submitting || !porcoes"
+      class="w-full h-14 rounded-xl bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-lg flex items-center justify-center gap-2 transition-colors"
+    >
+      <span x-show="!submitting"><i class="ph-fill ph-check-circle"></i> Finalizar e Estocar</span>
+      <span x-show="submitting" class="flex items-center gap-2">
+        <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+        </svg>
+        Processando...
+      </span>
+    </button>
+  </form>
+
+  <!-- Resultado -->
+  <div id="apontamento-result-{{ batch_id_str[:8] }}"></div>
+</div>

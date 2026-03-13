@@ -2,6 +2,9 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()  # carrega .env antes de qualquer import que use os.getenv
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates  # noqa: F401 — disponível para routers via import direto

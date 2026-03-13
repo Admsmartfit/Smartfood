@@ -61,6 +61,13 @@ def receiving_conferencia(nfe_id: str, request: Request):
 def production_list(request: Request):
     return templates.TemplateResponse("operations/production_list.html", _ctx(request))
 
+@router.get("/operations/production/{batch_id}/apontamento", response_class=HTMLResponse)
+def production_apontamento(batch_id: str, request: Request):
+    return templates.TemplateResponse(
+        "operations/production_portioning.html",
+        _ctx(request, batch_id=batch_id),
+    )
+
 @router.get("/operations/labels", response_class=HTMLResponse)
 def labels(request: Request):
     return templates.TemplateResponse("operations/labels.html", _ctx(request))
