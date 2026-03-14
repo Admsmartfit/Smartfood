@@ -5,7 +5,7 @@
   <td class="px-4 py-2 text-gray-500">{{ s.cnpj or '—' }}</td>
   <td class="px-4 py-2 text-gray-500 hidden md:table-cell">{{ s.whatsapp or '—' }}</td>
   <td class="px-4 py-2 text-center">
-    <button @click="catalogSupId = '{{ s.id }}'; catalogSupNome = '{{ s.nome }}'; catalogModal = true; $dispatch('catalogLoaded')"
+    <button @click="catalogSupId = '{{ s.id }}'; catalogSupNome = '{{ s.nome }}'; catalogModal = true; $nextTick(() => htmx.ajax('GET', `/api/cadastro/supplier/{{ s.id }}/catalog`, {target: '#catalog-rows', swap: 'innerHTML'}))"
             class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">
       <i class="ph ph-books"></i> Catálogo
     </button>

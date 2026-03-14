@@ -248,8 +248,14 @@
             </div>
             <div class="space-y-1">
               <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Categoria</label>
-              <input name="categoria" type="text" placeholder="Salgados"
-                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <select name="categoria"
+                      hx-get="/api/cadastro/category-options"
+                      hx-trigger="load"
+                      hx-swap="innerHTML"
+                      hx-target="this"
+                      class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Sem categoria —</option>
+              </select>
             </div>
             <div class="space-y-1">
               <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Markup (×)</label>
@@ -635,16 +641,20 @@
                       hx-get="/api/cadastro/equipments-options"
                       hx-trigger="load"
                       hx-swap="innerHTML"
+                      hx-target="this"
                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="">— Selecionar —</option>
               </select>
             </div>
-            <template x-if="selectedEqId">
-              <form :hx-post="`/api/cadastro/equipment/${selectedEqId}/parameter`"
+
+            <div x-show="selectedEqId" style="display:none"
+                 class="space-y-3 border-t border-slate-100 pt-3">
+              <form x-ref="eqParamForm"
+                    x-effect="if(selectedEqId){ $refs.eqParamForm.setAttribute('hx-post', `/api/cadastro/equipment/${selectedEqId}/parameter`); htmx.process($refs.eqParamForm); }"
                     hx-target="#eq-params-list"
                     hx-swap="afterbegin"
-                    hx-on::after-request="if(event.detail.successful) this.reset()"
-                    class="space-y-3 border-t border-slate-100 pt-3">
+                    @htmx:after-request="if($event.detail.successful){ $el.reset(); }"
+                    class="space-y-3">
                 <div class="space-y-1">
                   <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nome do Parâmetro *</label>
                   <input name="nome_parametro" type="text" required placeholder="Ex.: Temperatura"
@@ -662,13 +672,13 @@
                            class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   </div>
                 </div>
-                <ul id="eq-params-list" class="space-y-1"></ul>
                 <button type="submit"
                         class="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
                   <i class="ph ph-plus"></i> Adicionar Parâmetro
                 </button>
               </form>
-            </template>
+              <ul id="eq-params-list" class="space-y-1 mt-2"></ul>
+            </div>
           </div>
         </div>
       </div>
@@ -730,19 +740,21 @@
     </div>
     <div class="flex-1 overflow-y-auto p-6 space-y-4">
       <!-- Adicionar ao catálogo -->
-      <form :hx-post="`/api/cadastro/supplier/${catalogSupId}/catalog`"
+      <form x-ref="catalogForm"
+            x-effect="if(catalogSupId){ $refs.catalogForm.setAttribute('hx-post', `/api/cadastro/supplier/${catalogSupId}/catalog`); htmx.process($refs.catalogForm); }"
             hx-target="#catalog-rows"
             hx-swap="afterbegin"
-            hx-on::after-request="if(event.detail.successful) this.reset()"
+            @htmx:after-request="if($event.detail.successful) $el.reset()"
             class="flex gap-2 items-end">
         <div class="flex-1 space-y-1">
           <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Ingrediente</label>
           <select name="ingredient_id" required
-                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  hx-get="/api/cadastro/equipments-options"
-                  hx-trigger="none">
+                  hx-get="/api/cadastro/ingredient-options"
+                  hx-trigger="load"
+                  hx-swap="innerHTML"
+                  hx-target="this"
+                  class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">— Selecionar —</option>
-            {# Pre-populated via HTMX when modal opens #}
           </select>
         </div>
         <div class="w-32 space-y-1">
@@ -766,12 +778,8 @@
               <th class="px-4 py-2.5"></th>
             </tr>
           </thead>
-          <tbody id="catalog-rows"
-                 :hx-get="`/api/cadastro/supplier/${catalogSupId}/catalog`"
-                 hx-trigger="catalogLoaded from:body"
-                 hx-swap="innerHTML"
-                 class="divide-y divide-slate-100">
-            <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">Carregando...</td></tr>
+          <tbody id="catalog-rows" class="divide-y divide-slate-100">
+            <tr><td colspan="3" class="px-4 py-6 text-center text-gray-400 text-sm">Abrindo catálogo...</td></tr>
           </tbody>
         </table>
       </div>

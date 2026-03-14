@@ -371,6 +371,14 @@ def create_customer(
 
 # ─── Categorias ────────────────────────────────────────────────────────────────
 
+@router.get("/category-options", response_class=HTMLResponse)
+def category_options(db: Session = Depends(get_db)):
+    from models import Category
+    items = db.query(Category).order_by(Category.nome).all()
+    html = "".join(f'<option value="{c.nome}">{c.nome} ({c.tipo})</option>' for c in items)
+    return HTMLResponse(html or "")
+
+
 @router.get("/categories", response_class=HTMLResponse)
 def list_categories(request: Request, db: Session = Depends(get_db)):
     from models import Category

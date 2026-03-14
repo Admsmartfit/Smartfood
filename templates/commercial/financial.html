@@ -12,6 +12,7 @@
        totalPago: 0,
        totalPendente: 0,
        async loadSummary() {
+         htmx.ajax('GET', `/api/finances/expenses?period=${this.period}`, {target: '#expense-tbody', swap: 'innerHTML'});
          const res = await fetch(`/api/finances/dre-summary?period=${this.period}`);
          const d = await res.json();
          this.totalMes = d.total_despesas || 0;
@@ -143,10 +144,6 @@
           </tr>
         </thead>
         <tbody id="expense-tbody"
-               hx-get="/api/finances/expenses"
-               :hx-vals='JSON.stringify({period: period})'
-               hx-trigger="load, refresh"
-               hx-swap="innerHTML"
                class="divide-y divide-slate-100">
           {% for _ in range(4) %}
           <tr class="animate-pulse">
