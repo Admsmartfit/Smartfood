@@ -41,6 +41,7 @@ from routers.api_settings_ui import router as api_settings_ui_router
 from routers.api_cadastro_ui import router as api_cadastro_ui_router
 from routers.api_users_ui import router as api_users_ui_router
 from routers.api_receiving_ui import router as api_receiving_ui_router
+from routers.api_finances_ui import router as api_finances_ui_router
 from services.margin_monitor import margin_monitor_task
 from services.demand_engine import daily_demand_task
 from services.alert_orchestrator import alert_orchestrator_task
@@ -77,6 +78,14 @@ app = FastAPI(
     version="0.20.0",
     lifespan=lifespan,
 )
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    import os
+    from fastapi.responses import FileResponse, Response
+    if os.path.exists("static/favicon.ico"):
+        return FileResponse("static/favicon.ico")
+    return Response(status_code=204)
 
 app.include_router(bom.router)
 app.include_router(pricing.router)
@@ -115,4 +124,5 @@ app.include_router(api_settings_ui_router)
 app.include_router(api_cadastro_ui_router)
 app.include_router(api_users_ui_router)
 app.include_router(api_receiving_ui_router)
+app.include_router(api_finances_ui_router)
 app.mount("/static", StaticFiles(directory="static"), name="static")

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Financeiro{% endblock %}
+{% block page_title %}Módulo Financeiro{% endblock %}
+{% block page_subtitle %}Despesas Operacionais · Fluxo de Caixa{% endblock %}
+{% block content %}
+
+<div class="max-w-6xl mx-auto space-y-6"
+     x-data="{
+       showForm: false,
+       period: '{{ today_period }}',
+       totalMes: 0,
+       totalPago: 0,
+       totalPendente: 0,
+       async loadSummary() {
+         const res = await fetch(`/api/finances/dre-summary?period=${this.period}`);
+         const d = await res.json();
+         this.totalMes = d.total_despesas || 0;
+         this.totalPago = d.total_pago || 0;
+         this.totalPendente = d.total_pendente || 0;
+       }
+     }"
+     x-init="loadSummary()">
+
+  <!-- Cabeçalho -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <input type="month" x-model="period"
+             @change="loadSummary(); htmx.trigger('#expense-tbody', 'refresh')"
+             class="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+    </div>
+    <button @click="showForm = !showForm"
+            class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
+      <i class="ph ph-plus-circle text-base"></i>
+      Novo Lançamento
+    </button>
+  </div>
+
+  <!-- Cards resumo -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Despesas Mês</p>
+      <p class="text-3xl font-bold text-gray-900 mt-2 font-mono"
+         x-text="'R$ ' + totalMes.toLocaleString('pt-BR', {minimumFractionDigits:2})"></p>
+    </div>
+    <div class="bg-green-50 rounded-2xl border border-green-200 shadow-sm p-5">
+      <p class="text-xs font-semibold text-green-600 uppercase tracking-wider">Pagas</p>
+      <p class="text-3xl font-bold text-green-700 mt-2 font-mono"
+         x-text="'R$ ' + totalPago.toLocaleString('pt-BR', {minimumFractionDigits:2})"></p>
+    </div>
+    <div class="bg-amber-50 rounded-2xl border border-amber-200 shadow-sm p-5">
+      <p class="text-xs font-semibold text-amber-600 uppercase tracking-wider">Pendentes</p>
+      <p class="text-3xl font-bold text-amber-700 mt-2 font-mono"
+         x-text="'R$ ' + totalPendente.toLocaleString('pt-BR', {minimumFractionDigits:2})"></p>
+    </div>
+  </div>
+
+  <!-- Formulário de novo lançamento -->
+  <div x-show="showForm"
+       x-cloak
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0 -translate-y-2"
+       x-transition:enter-end="opacity-100 translate-y-0"
+       class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+    <h2 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <i class="ph ph-plus-circle text-blue-600 text-lg"></i>
+      Novo Lançamento
+    </h2>
+    <form hx-post="/api/finances/expense"
+          hx-target="#expense-tbody"
+          hx-swap="afterbegin"
+          hx-on::after-request="if(event.detail.successful){ this.reset(); showForm=false; loadSummary(); }"
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="sm:col-span-2 lg:col-span-1 space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Descrição *</label>
+        <input name="descricao" type="text" required placeholder="Ex.: Aluguel galpão"
+               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Categoria</label>
+        <select name="categoria_despesa"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="Aluguel">Aluguel</option>
+          <option value="Luz">Luz</option>
+          <option value="Água">Água</option>
+          <option value="Impostos">Impostos</option>
+          <option value="Folha">Folha</option>
+          <option value="Outros" selected>Outros</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Valor (R$) *</label>
+        <input name="valor" type="number" step="0.01" min="0" required placeholder="0,00"
+               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Competência (mês) *</label>
+        <input name="data_competencia" type="month" required :value="period"
+               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Vencimento</label>
+        <input name="data_vencimento" type="date"
+               class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Status</label>
+        <select name="status_pagamento"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="pendente" selected>Pendente</option>
+          <option value="pago">Pago</option>
+          <option value="vencido">Vencido</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2 lg:col-span-3 flex gap-3 pt-2">
+        <button type="submit"
+                class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors flex items-center gap-2">
+          <i class="ph ph-floppy-disk"></i> Salvar Lançamento
+        </button>
+        <button type="button" @click="showForm = false"
+                class="px-4 py-2.5 text-gray-500 hover:text-gray-700 text-sm underline transition-colors">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tabela de despesas -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+      <h2 class="font-semibold text-gray-800">Lançamentos do período</h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+          <tr class="border-b border-slate-200">
+            <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Descrição</th>
+            <th class="text-left px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Categoria</th>
+            <th class="text-right px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Valor</th>
+            <th class="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Competência</th>
+            <th class="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase hidden md:table-cell">Vencimento</th>
+            <th class="text-center px-4 py-2.5 text-xs font-semibold text-gray-500 uppercase">Status</th>
+            <th class="px-4 py-2.5"></th>
+          </tr>
+        </thead>
+        <tbody id="expense-tbody"
+               hx-get="/api/finances/expenses"
+               :hx-vals='JSON.stringify({period: period})'
+               hx-trigger="load, refresh"
+               hx-swap="innerHTML"
+               class="divide-y divide-slate-100">
+          {% for _ in range(4) %}
+          <tr class="animate-pulse">
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-40"></div></td>
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-20"></div></td>
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-20 ml-auto"></div></td>
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-16 mx-auto"></div></td>
+            <td class="px-4 py-3 hidden md:table-cell"><div class="h-3.5 bg-slate-200 rounded w-20 mx-auto"></div></td>
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-16 mx-auto"></div></td>
+            <td class="px-4 py-3"><div class="h-3.5 bg-slate-200 rounded w-8"></div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

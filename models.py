@@ -90,6 +90,8 @@ class BOMItem(Base, TimestampMixin):
     unidade = Column(String)
     perda_esperada_pct = Column(Float, default=0.0)
     
+    perda_processo_kg = Column(Float, default=0.0)
+
     product = relationship("Product", back_populates="bom_items")
     ingredient = relationship("Ingredient", back_populates="bom_items")
     supply = relationship("Supply", back_populates="bom_items")
@@ -199,7 +201,7 @@ class NotificationPreference(Base, TimestampMixin):
 
 class Supplier(Base, TimestampMixin):
     __tablename__ = "suppliers"
-    
+
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     nome = Column(String, nullable=False)
     tipo = Column(String)
@@ -207,6 +209,12 @@ class Supplier(Base, TimestampMixin):
     email = Column(String)
     spi_score = Column(Float, default=0.0)
     lead_time_medio_dias = Column(Integer, default=0)
+    cnpj = Column(String, unique=True, nullable=True)
+    razao_social = Column(String, nullable=True)
+    nome_representante = Column(String, nullable=True)
+    telefone_representante = Column(String, nullable=True)
+    telefone_vendedor = Column(String, nullable=True)
+    endereco_completo = Column(String, nullable=True)
 
 class RFQ(Base, TimestampMixin):
     __tablename__ = "rfqs"
@@ -251,7 +259,7 @@ class PurchaseOrder(Base, TimestampMixin):
 
 class Customer(Base, TimestampMixin):
     __tablename__ = "customers"
-    
+
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     nome = Column(String, nullable=False)
     whatsapp = Column(String)
@@ -259,7 +267,13 @@ class Customer(Base, TimestampMixin):
     tabela_preco_id = Column(String)
     historico_volume_mensal = Column(Float)
     ultimo_pedido_em = Column(DateTime)
-    
+    cnpj = Column(String, unique=True, nullable=True)
+    razao_social = Column(String, nullable=True)
+    nome_representante = Column(String, nullable=True)
+    telefone_representante = Column(String, nullable=True)
+    telefone_vendedor = Column(String, nullable=True)
+    endereco_completo = Column(String, nullable=True)
+
     orders = relationship("Order", back_populates="customer")
 
 class Order(Base, TimestampMixin):
@@ -545,3 +559,74 @@ class SyncEvent(Base, TimestampMixin):
                     comment="pendente | processado | erro | ignorado (duplicata)")
     erro_msg = Column(Text, nullable=True)
     synced_at = Column(DateTime, nullable=True, comment="Timestamp da criação no device (UTC)")
+
+
+# ─── Novos modelos — Fase 1 ───────────────────────────────────────────────────
+
+class Category(Base, TimestampMixin):
+    __tablename__ = "categories"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    nome = Column(String, nullable=False, unique=True)
+    tipo = Column(String, default="Insumo")  # Insumo | Embalagem | Produto Final
+
+
+class IngredientManufacturer(Base, TimestampMixin):
+    __tablename__ = "ingredient_manufacturers"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=False)
+    nome_fabricante = Column(String, nullable=False)
+    percentual_rendimento = Column(Float, default=100.0)
+    pontuacao_qualidade = Column(Integer, default=3)
+    ingredient = relationship("Ingredient", backref="manufacturers")
+
+
+class SupplierIngredient(Base, TimestampMixin):
+    __tablename__ = "supplier_ingredients"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    supplier_id = Column(GUID(), ForeignKey("suppliers.id"), nullable=False)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=False)
+    ingredient_manufacturer_id = Column(GUID(), ForeignKey("ingredient_manufacturers.id"), nullable=True)
+    preco_ultima_compra = Column(Float, nullable=True)
+    data_atualizacao = Column(DateTime, nullable=True)
+    supplier = relationship("Supplier", backref="catalogo")
+    ingredient = relationship("Ingredient", backref="supplier_links")
+
+
+class Equipment(Base, TimestampMixin):
+    __tablename__ = "equipments"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    nome = Column(String, nullable=False)
+    descricao = Column(String, nullable=True)
+    ativo = Column(Boolean, default=True)
+
+
+class EquipmentParameter(Base, TimestampMixin):
+    __tablename__ = "equipment_parameters"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    equipment_id = Column(GUID(), ForeignKey("equipments.id"), nullable=False)
+    nome_parametro = Column(String, nullable=False)
+    valor_padrao = Column(String, nullable=True)
+    unidade_medida = Column(String, nullable=True)
+    equipment = relationship("Equipment", backref="parameters")
+
+
+class BOMEquipment(Base, TimestampMixin):
+    __tablename__ = "bom_equipments"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    product_id = Column(GUID(), ForeignKey("products.id"), nullable=False)
+    equipment_id = Column(GUID(), ForeignKey("equipments.id"), nullable=False)
+    parametros_json = Column(JSON, nullable=True)
+    perda_processo_kg = Column(Float, default=0.0)
+    equipment = relationship("Equipment")
+    product = relationship("Product", backref="bom_equipments")
+
+
+class FinancialExpense(Base, TimestampMixin):
+    __tablename__ = "financial_expenses"
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    descricao = Column(String, nullable=False)
+    categoria_despesa = Column(String, default="Outros")  # Aluguel|Luz|Água|Impostos|Folha|Outros
+    valor = Column(Float, nullable=False)
+    data_competencia = Column(DateTime, nullable=False)
+    data_vencimento = Column(DateTime, nullable=True)
+    status_pagamento = Column(String, default="pendente")  # pendente|pago|vencido

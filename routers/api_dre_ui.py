@@ -54,6 +54,32 @@ def dre_fragment(
     except Exception as e:
         error_msg = str(e)
 
+    # Despesas operacionais do período
+    total_despesas_op = 0.0
+    despesas_breakdown = {}
+    try:
+        from models import FinancialExpense
+        from sqlalchemy import func as sqlfunc
+        from datetime import datetime as _dt
+        _start_dt = _dt.fromisoformat(start)
+        _end_dt = _dt.fromisoformat(end).replace(hour=23, minute=59, second=59)
+        rows = (
+            db.query(
+                FinancialExpense.categoria_despesa,
+                sqlfunc.sum(FinancialExpense.valor).label("total"),
+            )
+            .filter(
+                FinancialExpense.data_competencia >= _start_dt,
+                FinancialExpense.data_competencia <= _end_dt,
+            )
+            .group_by(FinancialExpense.categoria_despesa)
+            .all()
+        )
+        despesas_breakdown = {r.categoria_despesa: round(r.total, 2) for r in rows}
+        total_despesas_op = round(sum(despesas_breakdown.values()), 2)
+    except Exception:
+        pass
+
     return templates.TemplateResponse(
         "fragments/dre_table.html",
         {
@@ -63,6 +89,8 @@ def dre_fragment(
             "evolucao": dre.get("evolucao_temporal", []),
             "period": period,
             "error": error_msg,
+            "total_despesas_op": total_despesas_op,
+            "despesas_breakdown": despesas_breakdown,
         },
     )
 

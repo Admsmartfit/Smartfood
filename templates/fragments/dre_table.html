@@ -117,6 +117,48 @@
           </td>
         </tr>
 
+        {% if total_despesas_op is defined and total_despesas_op %}
+        <!-- Despesas Operacionais -->
+        <tr class="bg-white">
+          <td class="px-5 py-3 text-gray-700">(-) Despesas Operacionais</td>
+          <td class="px-5 py-3 text-right text-red-700">-{{ total_despesas_op | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">
+            {% if receita > 0 %}{{ (total_despesas_op / receita * 100) | round(1) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            {% set pct_d = (total_despesas_op / [receita, 0.01] | max * 100) | round(0) | int %}
+            <div class="h-2 bg-rose-300 rounded-full" style="width: {{ [pct_d, 100] | min }}%"></div>
+          </td>
+        </tr>
+        {% for cat, val in despesas_breakdown.items() %}
+        <tr class="bg-slate-50">
+          <td class="px-5 py-3 text-gray-600 pl-8">(-) {{ cat }}</td>
+          <td class="px-5 py-3 text-right text-red-600">-{{ val | round(2) }}</td>
+          <td class="px-5 py-3 text-right text-gray-400 hidden md:table-cell">
+            {% if receita > 0 %}{{ (val / receita * 100) | round(1) }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell"></td>
+        </tr>
+        {% endfor %}
+
+        <!-- Lucro Líquido -->
+        {% set lucro_liquido = lucro - total_despesas_op %}
+        {% set margem_liquida = (lucro_liquido / receita * 100) if receita > 0 else 0 %}
+        <tr class="border-t-2 border-slate-400 {% if lucro_liquido >= 0 %}bg-blue-50{% else %}bg-red-50{% endif %}">
+          <td class="px-5 py-3 font-bold {% if lucro_liquido >= 0 %}text-blue-900{% else %}text-red-900{% endif %}">(=) Lucro Líquido</td>
+          <td class="px-5 py-3 text-right font-bold text-lg {% if lucro_liquido >= 0 %}text-blue-700{% else %}text-red-700{% endif %}">
+            {% if lucro_liquido >= 0 %}+{% endif %}{{ lucro_liquido | round(2) }}
+          </td>
+          <td class="px-5 py-3 text-right font-semibold {% if margem_liquida >= 0 %}text-blue-600{% else %}text-red-600{% endif %} hidden md:table-cell">
+            {{ margem_liquida | round(1) }}%
+          </td>
+          <td class="px-5 py-3 hidden lg:table-cell">
+            {% set pct_ll = [margem_liquida | abs | round(0) | int, 100] | min %}
+            <div class="h-2 {% if lucro_liquido >= 0 %}bg-blue-400{% else %}bg-red-400{% endif %} rounded-full" style="width: {{ pct_ll }}%"></div>
+          </td>
+        </tr>
+        {% endif %}
+
       </tbody>
     </table>
   </div>

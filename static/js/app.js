@@ -252,10 +252,6 @@ function bomBuilder(cfg) {
   };
 }
 
-// ── Reinit Alpine após swap HTMX (resolve race condition em hx-boost) ──
-document.addEventListener('htmx:afterSettle', (evt) => {
-  if (window.Alpine && evt.detail?.target) {
-    window.Alpine.initTree(evt.detail.target);
-  }
-});
+// bomBuilder is defined in this file (app.js), which is never swapped by HTMX boost,
+// so Alpine can always find it — no need to reinit after settle.
 

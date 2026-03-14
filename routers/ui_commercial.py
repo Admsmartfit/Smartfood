@@ -30,6 +30,13 @@ def suppliers(request: Request, db: Session = Depends(get_db)):
 def dre(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("commercial/dre.html", _ctx(request))
 
+@router.get("/commercial/financial", response_class=HTMLResponse)
+def financial(request: Request, db: Session = Depends(get_db)):
+    from datetime import date
+    today = date.today()
+    today_period = f"{today.year}-{today.month:02d}"
+    return templates.TemplateResponse("commercial/financial.html", _ctx(request, today_period=today_period))
+
 @router.get("/portal/catalog", response_class=HTMLResponse)
 def portal_catalog(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("portal/catalog.html", _ctx(request))
