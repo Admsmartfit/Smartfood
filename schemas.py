@@ -11,6 +11,7 @@ class BOMItemCreate(BaseModel):
     quantidade: float
     unidade: str
     perda_esperada_pct: float = 0.0
+    perda_processo_kg: float = 0.0
 
     @field_validator("quantidade")
     @classmethod
@@ -32,6 +33,7 @@ class BOMItemResponse(BaseModel):
     quantidade: float
     unidade: str
     perda_esperada_pct: float
+    perda_processo_kg: float = 0.0
 
     model_config = {"from_attributes": True}
 
@@ -285,5 +287,208 @@ class BatchIngredientUsageResponse(BaseModel):
     quantidade_real: float
     quantidade_planejada: float
     motivo_desvio: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Category Schemas ──────────────────────────────────────────────────────────
+
+class CategoryCreate(BaseModel):
+    nome: str
+    tipo: str = "Insumo"
+
+
+class CategoryUpdate(BaseModel):
+    nome: Optional[str] = None
+    tipo: Optional[str] = None
+
+
+class CategoryResponse(BaseModel):
+    id: uuid.UUID
+    nome: str
+    tipo: str
+
+    model_config = {"from_attributes": True}
+
+
+# ─── IngredientManufacturer Schemas ───────────────────────────────────────────
+
+class IngredientManufacturerCreate(BaseModel):
+    ingredient_id: uuid.UUID
+    nome_fabricante: str
+    percentual_rendimento: float = 100.0
+    pontuacao_qualidade: int = 3
+
+    @field_validator("pontuacao_qualidade")
+    @classmethod
+    def qualidade_range(cls, v: int) -> int:
+        if not (1 <= v <= 5):
+            raise ValueError("pontuacao_qualidade deve estar entre 1 e 5")
+        return v
+
+    @field_validator("percentual_rendimento")
+    @classmethod
+    def rendimento_range(cls, v: float) -> float:
+        if not (0.0 <= v <= 100.0):
+            raise ValueError("percentual_rendimento deve estar entre 0 e 100")
+        return v
+
+
+class IngredientManufacturerUpdate(BaseModel):
+    nome_fabricante: Optional[str] = None
+    percentual_rendimento: Optional[float] = None
+    pontuacao_qualidade: Optional[int] = None
+
+
+class IngredientManufacturerResponse(BaseModel):
+    id: uuid.UUID
+    ingredient_id: uuid.UUID
+    nome_fabricante: str
+    percentual_rendimento: float
+    pontuacao_qualidade: int
+
+    model_config = {"from_attributes": True}
+
+
+# ─── SupplierIngredient Schemas ───────────────────────────────────────────────
+
+class SupplierIngredientCreate(BaseModel):
+    supplier_id: uuid.UUID
+    ingredient_id: uuid.UUID
+    ingredient_manufacturer_id: Optional[uuid.UUID] = None
+    preco_ultima_compra: Optional[float] = None
+
+
+class SupplierIngredientUpdate(BaseModel):
+    ingredient_manufacturer_id: Optional[uuid.UUID] = None
+    preco_ultima_compra: Optional[float] = None
+
+
+class SupplierIngredientResponse(BaseModel):
+    id: uuid.UUID
+    supplier_id: uuid.UUID
+    ingredient_id: uuid.UUID
+    ingredient_manufacturer_id: Optional[uuid.UUID] = None
+    preco_ultima_compra: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── Equipment Schemas ────────────────────────────────────────────────────────
+
+class EquipmentCreate(BaseModel):
+    nome: str
+    descricao: Optional[str] = None
+    ativo: bool = True
+
+
+class EquipmentUpdate(BaseModel):
+    nome: Optional[str] = None
+    descricao: Optional[str] = None
+    ativo: Optional[bool] = None
+
+
+class EquipmentResponse(BaseModel):
+    id: uuid.UUID
+    nome: str
+    descricao: Optional[str] = None
+    ativo: bool
+
+    model_config = {"from_attributes": True}
+
+
+# ─── EquipmentParameter Schemas ───────────────────────────────────────────────
+
+class EquipmentParameterCreate(BaseModel):
+    equipment_id: uuid.UUID
+    nome_parametro: str
+    valor_padrao: Optional[str] = None
+    unidade_medida: Optional[str] = None
+
+
+class EquipmentParameterUpdate(BaseModel):
+    nome_parametro: Optional[str] = None
+    valor_padrao: Optional[str] = None
+    unidade_medida: Optional[str] = None
+
+
+class EquipmentParameterResponse(BaseModel):
+    id: uuid.UUID
+    equipment_id: uuid.UUID
+    nome_parametro: str
+    valor_padrao: Optional[str] = None
+    unidade_medida: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+# ─── BOMEquipment Schemas ─────────────────────────────────────────────────────
+
+class BOMEquipmentCreate(BaseModel):
+    product_id: uuid.UUID
+    equipment_id: uuid.UUID
+    parametros_json: Optional[dict] = None
+    perda_processo_kg: float = 0.0
+
+
+class BOMEquipmentUpdate(BaseModel):
+    parametros_json: Optional[dict] = None
+    perda_processo_kg: Optional[float] = None
+
+
+class BOMEquipmentResponse(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    equipment_id: uuid.UUID
+    parametros_json: Optional[dict] = None
+    perda_processo_kg: float
+
+    model_config = {"from_attributes": True}
+
+
+# ─── FinancialExpense Schemas ──────────────────────────────────────────────────
+
+from datetime import datetime as _dt
+
+class FinancialExpenseCreate(BaseModel):
+    descricao: str
+    categoria_despesa: str = "Outros"
+    valor: float
+    data_competencia: _dt
+    data_vencimento: Optional[_dt] = None
+    status_pagamento: str = "pendente"
+
+    @field_validator("valor")
+    @classmethod
+    def valor_positivo(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("valor deve ser maior que zero")
+        return v
+
+    @field_validator("status_pagamento")
+    @classmethod
+    def status_valido(cls, v: str) -> str:
+        if v not in ("pendente", "pago", "vencido"):
+            raise ValueError("status_pagamento deve ser: pendente, pago ou vencido")
+        return v
+
+
+class FinancialExpenseUpdate(BaseModel):
+    descricao: Optional[str] = None
+    categoria_despesa: Optional[str] = None
+    valor: Optional[float] = None
+    data_competencia: Optional[_dt] = None
+    data_vencimento: Optional[_dt] = None
+    status_pagamento: Optional[str] = None
+
+
+class FinancialExpenseResponse(BaseModel):
+    id: uuid.UUID
+    descricao: str
+    categoria_despesa: str
+    valor: float
+    data_competencia: _dt
+    data_vencimento: Optional[_dt] = None
+    status_pagamento: str
 
     model_config = {"from_attributes": True}
