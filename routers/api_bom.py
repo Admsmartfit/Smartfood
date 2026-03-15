@@ -64,7 +64,7 @@ def bom_calculate(
     db: Session = Depends(get_db),
 ):
     """Recalcula custo completo de uma ficha e retorna o fragmento de resultado."""
-    from models import Product, BOMItem
+    from models import Product, BOMItem, BOMEquipment
     from cost_calculator import calculate_product_cost
 
     produto = db.query(Product).filter(Product.id == product_id).first()
@@ -76,8 +76,10 @@ def bom_calculate(
         item.ingredient
         item.supply
 
+    bom_equipments = db.query(BOMEquipment).filter(BOMEquipment.product_id == product_id).all()
+
     try:
-        result = calculate_product_cost(produto, bom_items)
+        result = calculate_product_cost(produto, bom_items, bom_equipments=bom_equipments)
     except Exception as e:
         return HTMLResponse(f"<p class='text-red-500'>Erro: {e}</p>")
 
@@ -220,6 +222,9 @@ def bom_save(
                 quantidade=qty,
                 unidade=item.get("unidade", "kg"),
                 perda_esperada_pct=float(item.get("perda_esperada_pct", 0) or 0),
+                peso_bruto_kg=float(item.get("peso_bruto_kg", 0) or 0),
+                peso_limpo_kg=float(item.get("peso_limpo_kg", 0) or 0),
+                peso_final_kg=float(item.get("peso_final_kg", 0) or 0),
             )
             db.add(bom)
 

@@ -22,10 +22,12 @@ def bom_new(request: Request, db: Session = Depends(get_db)):
     supplies = db.query(Supply).filter(Supply.ativo == True).order_by(Supply.nome).all()
     equipments = db.query(Equipment).filter(Equipment.ativo == True).order_by(Equipment.nome).all()
     equipments_json = json.dumps([{"id": str(e.id), "nome": e.nome} for e in equipments])
+    ingredients_map_json = json.dumps({str(i.id): i.nome for i in ingredients})
     return templates.TemplateResponse(
         "operations/bom_form.html",
         _ctx(request, produto=None, bom_items=[], ingredients=ingredients, supplies=supplies,
-             equipments=equipments, equipments_json=equipments_json, bom_eq_json="[]"),
+             equipments=equipments, equipments_json=equipments_json, bom_eq_json="[]",
+             ingredients_map_json=ingredients_map_json),
     )
 
 @router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
@@ -73,11 +75,13 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
             "params": params,
         })
     bom_eq_json = json.dumps(bom_eq_list)
+    ingredients_map_json = json.dumps({str(i.id): i.nome for i in ingredients})
 
     return templates.TemplateResponse(
         "operations/bom_form.html",
         _ctx(request, produto=produto, bom_items=bom_items, ingredients=ingredients, supplies=supplies,
-             equipments=equipments, equipments_json=equipments_json, bom_eq_json=bom_eq_json),
+             equipments=equipments, equipments_json=equipments_json, bom_eq_json=bom_eq_json,
+             ingredients_map_json=ingredients_map_json),
     )
 
 @router.get("/operations/bom/{product_id}", response_class=HTMLResponse)

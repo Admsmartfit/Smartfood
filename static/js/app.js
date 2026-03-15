@@ -167,12 +167,14 @@ function bomBuilder(cfg) {
       : [],
     _eqCounter: Array.isArray(cfg.bomEquipments) ? cfg.bomEquipments.length : 0,
 
-    // Rendimento wizard
-    pesoBruto: 0,
-    pesoLimpo: 0,
-    pesoFinal: 0,
+    // Rendimento agregado por ingrediente
+    totalPesoBruto: 0,
+    totalPesoLimpo: 0,
+    totalPesoFinal: 0,
     fc:   cfg.fc   !== undefined ? cfg.fc   : 1.0,
     fcoc: cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
+    // Mapa id→nome para exibir nomes na aba Rendimento sem depender do DOM
+    ingredientsMap: cfg.ingredientsMap || {},
 
     // Porcionamento
     rendimentoKg:     cfg.rendimentoKg     !== undefined ? cfg.rendimentoKg     : 1.0,
@@ -180,6 +182,7 @@ function bomBuilder(cfg) {
     markup:           cfg.markup           !== undefined ? cfg.markup           : 2.0,
     custoIngredientes: 0,
     custoEmbalagens:   0,
+    perdaEquipamentosKg: 0,
     numPorcoes:   0,
     sobraGramas:  0,
     custoPorPorcao: 0,
@@ -232,17 +235,36 @@ function bomBuilder(cfg) {
         ingredient_id: '', supply_id: '',
         quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
         perda_esperada_pct: 0,
+        // Pesagem por ingrediente (aba Rendimento)
+        peso_bruto_kg: 0, peso_limpo_kg: 0, peso_final_kg: 0,
       });
     },
 
-    removeItem(index) { this.items.splice(index, 1); },
+    removeItem(index) {
+      this.items.splice(index, 1);
+      this.calcFC();
+    },
 
+    // Agrega pesos de todos os ingredientes e recalcula FC/FCoc/rendimento
     calcFC() {
       try {
-        this.fc   = this.pesoLimpo > 0 ? +(this.pesoBruto / this.pesoLimpo).toFixed(4)  : 0;
-        this.fcoc = this.pesoFinal > 0 ? +(this.pesoLimpo / this.pesoFinal).toFixed(4) : 0;
+        const ings = this.items.filter(i => i.tipo === 'ingrediente');
+        const tb = ings.reduce((s, i) => s + (parseFloat(i.peso_bruto_kg) || 0), 0);
+        const tl = ings.reduce((s, i) => s + (parseFloat(i.peso_limpo_kg) || 0), 0);
+        const tf = ings.reduce((s, i) => s + (parseFloat(i.peso_final_kg) || 0), 0);
+        this.totalPesoBruto = +tb.toFixed(4);
+        this.totalPesoLimpo = +tl.toFixed(4);
+        this.totalPesoFinal = +tf.toFixed(4);
+        this.fc   = tl > 0 ? +(tb / tl).toFixed(4) : 0;
+        this.fcoc = tf > 0 ? +(tl / tf).toFixed(4) : 0;
+        // Atualiza rendimento automaticamente quando o peso final total for preenchido
+        if (tf > 0) this.rendimentoKg = +tf.toFixed(3);
         this.calcPorcoes();
       } catch (e) { console.error(e); }
+    },
+
+    ingredientName(id) {
+      return this.ingredientsMap[id] || '—';
     },
 
     _estimarCustos() {
@@ -272,7 +294,15 @@ function bomBuilder(cfg) {
     calcPorcoes() {
       try {
         this._estimarCustos();
-        const totalG = this.rendimentoKg * 1000;
+
+        // Perdas em equipamentos reduzem o rendimento líquido disponível para porcionamento
+        const perdaEqKg = this.bomEquipments.reduce(
+          (sum, eq) => sum + (parseFloat(eq.perda_processo_kg) || 0), 0
+        );
+        this.perdaEquipamentosKg = perdaEqKg;
+        const rendimentoLiquidoKg = Math.max(0, this.rendimentoKg - perdaEqKg);
+        const totalG = rendimentoLiquidoKg * 1000;
+
         const porcao = this.pesoPorcaoGramas;
         if (!porcao || porcao <= 0 || totalG <= 0) {
           this.numPorcoes = 0; this.sobraGramas = 0;
@@ -281,8 +311,13 @@ function bomBuilder(cfg) {
         }
         this.numPorcoes  = Math.floor(totalG / porcao);
         this.sobraGramas = totalG % porcao;
-        const custo = this.custoIngredientes + this.custoEmbalagens;
-        this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
+
+        // Custo de insumos ajustado pela perda: o mesmo material comprado rende menos porções
+        const fatorPerda = perdaEqKg > 0 && rendimentoLiquidoKg > 0
+          ? this.rendimentoKg / rendimentoLiquidoKg : 1;
+        const custoAjustado = (this.custoIngredientes * fatorPerda) + this.custoEmbalagens;
+
+        this.custoPorPorcao = this.numPorcoes > 0 ? custoAjustado / this.numPorcoes : 0;
         this.precoSugerido  = this.custoPorPorcao * this.markup;
         this.margemPct      = this.precoSugerido > 0
           ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;

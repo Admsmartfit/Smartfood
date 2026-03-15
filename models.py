@@ -89,8 +89,11 @@ class BOMItem(Base, TimestampMixin):
     quantidade = Column(Float, nullable=False)
     unidade = Column(String)
     perda_esperada_pct = Column(Float, default=0.0)
-    
     perda_processo_kg = Column(Float, default=0.0)
+    # Pesagens por ingrediente para cálculo de FC/FCoc real
+    peso_bruto_kg = Column(Float, nullable=True, default=0.0, comment="Peso bruto antes da limpeza (kg)")
+    peso_limpo_kg = Column(Float, nullable=True, default=0.0, comment="Peso após limpeza/degelo (kg)")
+    peso_final_kg = Column(Float, nullable=True, default=0.0, comment="Peso após cozimento/processamento (kg)")
 
     product = relationship("Product", back_populates="bom_items")
     ingredient = relationship("Ingredient", back_populates="bom_items")
