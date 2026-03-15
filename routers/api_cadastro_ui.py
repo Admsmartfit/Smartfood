@@ -95,6 +95,8 @@ def ingredient_edit_row(ing_id: str, db: Session = Depends(get_db)):
     for u in ["kg", "g", "L", "mL", "un", "cx"]:
         sel = " selected" if ing.unidade == u else ""
         un_opts += f'<option value="{u}"{sel}>{u}</option>'
+    bruto_val = f"{ing.peso_bruto_padrao:.3f}" if ing.peso_bruto_padrao else ""
+    limpo_val = f"{ing.peso_limpo_padrao:.3f}" if ing.peso_limpo_padrao else ""
     html = (
         f'<tr id="ing-{ing.id}" class="bg-blue-50 border-y-2 border-blue-300">'
         f'<td colspan="7" class="px-4 py-3">'
@@ -106,6 +108,12 @@ def ingredient_edit_row(ing_id: str, db: Session = Depends(get_db)):
         f'class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"></div>'
         f'<div class="w-20"><label class="text-xs text-gray-500">Unidade</label>'
         f'<select name="unidade" class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm">{un_opts}</select></div>'
+        f'<div class="w-28"><label class="text-xs text-gray-500">Peso Bruto (kg)</label>'
+        f'<input name="peso_bruto_padrao" type="number" step="0.001" min="0" value="{bruto_val}" placeholder="0.000" '
+        f'class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"></div>'
+        f'<div class="w-28"><label class="text-xs text-gray-500">Peso Limpo (kg)</label>'
+        f'<input name="peso_limpo_padrao" type="number" step="0.001" min="0" value="{limpo_val}" placeholder="0.000" '
+        f'class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"></div>'
         f'<div class="w-28"><label class="text-xs text-gray-500">Custo R$/un</label>'
         f'<input name="custo_atual" type="number" step="0.01" min="0" value="{ing.custo_atual:.2f}" '
         f'class="w-full px-2 py-1.5 border border-slate-300 rounded text-sm"></div>'
@@ -135,6 +143,8 @@ def update_ingredient(
     ing_id: str,
     nome: str = Form(...),
     unidade: str = Form("kg"),
+    peso_bruto_padrao: float = Form(0.0),
+    peso_limpo_padrao: float = Form(0.0),
     custo_atual: float = Form(0.0),
     estoque_atual: float = Form(0.0),
     estoque_minimo: float = Form(0.0),
@@ -145,9 +155,14 @@ def update_ingredient(
     ing = db.query(Ingredient).filter(Ingredient.id == ing_id).first()
     if not ing:
         return _err("Ingrediente não encontrado.")
+    bruto = peso_bruto_padrao if peso_bruto_padrao > 0 else None
+    limpo = peso_limpo_padrao if peso_limpo_padrao > 0 else None
     try:
         ing.nome = nome.strip()
         ing.unidade = unidade.strip()
+        ing.peso_bruto_padrao = bruto
+        ing.peso_limpo_padrao = limpo
+        ing.fc_medio = round(bruto / limpo, 4) if bruto and limpo else ing.fc_medio
         ing.custo_atual = custo_atual
         ing.estoque_atual = estoque_atual
         ing.estoque_minimo = estoque_minimo
@@ -167,6 +182,8 @@ def create_ingredient(
     request: Request,
     nome: str = Form(...),
     unidade: str = Form("kg"),
+    peso_bruto_padrao: float = Form(0.0),
+    peso_limpo_padrao: float = Form(0.0),
     custo_atual: float = Form(0.0),
     estoque_atual: float = Form(0.0),
     estoque_minimo: float = Form(0.0),
@@ -174,11 +191,17 @@ def create_ingredient(
     db: Session = Depends(get_db),
 ):
     from models import Ingredient
+    bruto = peso_bruto_padrao if peso_bruto_padrao > 0 else None
+    limpo = peso_limpo_padrao if peso_limpo_padrao > 0 else None
+    fc_calc = round(bruto / limpo, 4) if bruto and limpo else 1.0
     try:
         ing = Ingredient(
             id=_uuid.uuid4(),
             nome=nome.strip(),
             unidade=unidade.strip(),
+            peso_bruto_padrao=bruto,
+            peso_limpo_padrao=limpo,
+            fc_medio=fc_calc,
             custo_atual=custo_atual,
             estoque_atual=estoque_atual,
             estoque_minimo=estoque_minimo,

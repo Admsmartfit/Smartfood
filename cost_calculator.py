@@ -3,7 +3,10 @@ E-02 — Calculadora de Custo de Fichas Técnicas
 Lógica pura em Python, independente do framework web.
 
 Fórmula mestre:
-    Preço = [(Custo_Insumo × FC ÷ FCoc) + Custo_Embalagem + Labor_min × Tempo + Energia] × Markup
+    Preço = [(Custo_Insumo × fc_medio_ingrediente × fcoc_receita) + Custo_Embalagem + Labor_min × Tempo + Energia] × Markup
+
+    FC (Fator de Correção, bruto→limpo) é atributo do ingrediente (ingredient.fc_medio).
+    FCoc (Fator de Cocção, mistura→peso final cozido) é atributo da receita (product.fcoc).
 """
 import os
 from typing import List, Any
@@ -39,23 +42,23 @@ def calculate_product_cost(
     """
     alertas: List[str] = []
 
-    fc: float = product.fc if product.fc is not None else 1.0
     fcoc: float = product.fcoc if product.fcoc is not None else 1.0
     markup: float = product.markup if product.markup is not None else 1.0
     margem_minima: float = product.margem_minima if product.margem_minima is not None else 0.0
 
-    # Validação de FC
-    if fc < 1.0:
-        alertas.append(
-            f"FC inválido: valor {fc:.3f} está abaixo de 1.0. "
-            "Verifique o Fator de Correção do produto."
-        )
-
-    # Custo de insumos alimentícios: Custo_Insumo × quantidade × FC ÷ FCoc
+    # Custo de insumos alimentícios:
+    # custo_unit = custo_atual × quantidade × fc_medio_ingrediente × fcoc_receita
+    # FC (bruto→limpo) vem do cadastro do ingrediente; FCoc (mistura→cozido) vem da receita.
     custo_insumos: float = 0.0
     for item in bom_items:
         if item.ingredient_id and item.ingredient:
-            custo_unit = (item.ingredient.custo_atual or 0.0) * item.quantidade * fc / fcoc
+            fc_ing: float = (item.ingredient.fc_medio or 1.0)
+            if fc_ing < 1.0:
+                alertas.append(
+                    f"FC inválido para '{item.ingredient.nome}': {fc_ing:.3f} < 1.0. "
+                    "Verifique os pesos bruto/limpo no cadastro do ingrediente."
+                )
+            custo_unit = (item.ingredient.custo_atual or 0.0) * item.quantidade * fc_ing * fcoc
             custo_insumos += custo_unit
 
     # Custo de embalagem / insumos não-alimentícios
@@ -123,10 +126,16 @@ def calculate_product_cost(
             f"configurada ({margem_minima:.1f}%). Revise o markup ou custos."
         )
 
+    # fc médio ponderado dos ingredientes (informativo)
+    fc_medio_ponderado: float = (
+        sum((i.ingredient.fc_medio or 1.0) * (i.quantidade or 0) for i in bom_items if i.ingredient_id and i.ingredient)
+        / max(sum(i.quantidade or 0 for i in bom_items if i.ingredient_id and i.ingredient), 0.001)
+    ) if any(i.ingredient_id and i.ingredient for i in bom_items) else 1.0
+
     return {
         "produto_id": product.id,
         "produto_nome": product.nome,
-        "fc": fc,
+        "fc": round(fc_medio_ponderado, 4),
         "fcoc": fcoc,
         "custo_insumos": round(custo_insumos, 4),
         "custo_embalagem": round(custo_embalagem, 4),

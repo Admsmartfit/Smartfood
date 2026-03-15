@@ -167,12 +167,10 @@ function bomBuilder(cfg) {
       : [],
     _eqCounter: Array.isArray(cfg.bomEquipments) ? cfg.bomEquipments.length : 0,
 
-    // Rendimento agregado por ingrediente
-    totalPesoBruto: 0,
-    totalPesoLimpo: 0,
-    totalPesoFinal: 0,
-    fc:   cfg.fc   !== undefined ? cfg.fc   : 1.0,
-    fcoc: cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
+    // FC vem dos ingredientes (cadastro); FCoc é da receita (mistura → peso final cozido)
+    fc:       cfg.fc   !== undefined ? cfg.fc   : 1.0,
+    fcoc:     cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
+    pesoFinal: cfg.rendimentoKg !== undefined ? cfg.rendimentoKg : 1.0,
     // Mapa id→nome para exibir nomes na aba Rendimento sem depender do DOM
     ingredientsMap: cfg.ingredientsMap || {},
 
@@ -235,8 +233,6 @@ function bomBuilder(cfg) {
         ingredient_id: '', supply_id: '',
         quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
         perda_esperada_pct: 0,
-        // Pesagem por ingrediente (aba Rendimento)
-        peso_bruto_kg: 0, peso_limpo_kg: 0, peso_final_kg: 0,
       });
     },
 
@@ -245,20 +241,20 @@ function bomBuilder(cfg) {
       this.calcFC();
     },
 
-    // Agrega pesos de todos os ingredientes e recalcula FC/FCoc/rendimento
+    // Soma das quantidades dos ingredientes da receita (Peso Total da Mistura)
+    pesoTotalIngredientes() {
+      return this.items
+        .filter(i => i.tipo === 'ingrediente')
+        .reduce((s, i) => s + (parseFloat(i.quantidade) || 0), 0);
+    },
+
+    // FCoc = Peso Total Mistura / Peso Final cozido (FC vem do cadastro do ingrediente)
     calcFC() {
       try {
-        const ings = this.items.filter(i => i.tipo === 'ingrediente');
-        const tb = ings.reduce((s, i) => s + (parseFloat(i.peso_bruto_kg) || 0), 0);
-        const tl = ings.reduce((s, i) => s + (parseFloat(i.peso_limpo_kg) || 0), 0);
-        const tf = ings.reduce((s, i) => s + (parseFloat(i.peso_final_kg) || 0), 0);
-        this.totalPesoBruto = +tb.toFixed(4);
-        this.totalPesoLimpo = +tl.toFixed(4);
-        this.totalPesoFinal = +tf.toFixed(4);
-        this.fc   = tl > 0 ? +(tb / tl).toFixed(4) : 0;
-        this.fcoc = tf > 0 ? +(tl / tf).toFixed(4) : 0;
-        // Atualiza rendimento automaticamente quando o peso final total for preenchido
-        if (tf > 0) this.rendimentoKg = +tf.toFixed(3);
+        const mistura = this.pesoTotalIngredientes();
+        const final   = parseFloat(this.pesoFinal) || 0;
+        this.fcoc = (mistura > 0 && final > 0) ? +(mistura / final).toFixed(4) : 0;
+        if (final > 0) this.rendimentoKg = +final.toFixed(3);
         this.calcPorcoes();
       } catch (e) { console.error(e); }
     },
@@ -271,13 +267,11 @@ function bomBuilder(cfg) {
       try {
         let ing = 0, sup = 0;
         this.items.forEach(item => {
-          const qty   = parseFloat(item.quantidade) || 0;
-          const perda = parseFloat(item.perda_esperada_pct) || 0;
-          const fator = 1 + perda / 100;
+          const qty = parseFloat(item.quantidade) || 0;
           if (item.tipo === 'ingrediente' && item.ingredient_id) {
             const opt = document.querySelector(`option[value="${item.ingredient_id}"]`);
             if (opt) {
-              ing += (parseFloat(opt.dataset?.custo) || 0) * qty * fator;
+              ing += (parseFloat(opt.dataset?.custo) || 0) * qty;
             }
           } else if (item.tipo === 'embalagem' && item.supply_id) {
             const opt = document.querySelector(`option[value="${item.supply_id}"]`);

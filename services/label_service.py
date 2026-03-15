@@ -1,5 +1,6 @@
 """
 E-14 — LabelService: Etiquetas Parametrizadas e QR Dinâmico
+          + Impressão por template com lote auto e validade em meses
 
 Funcionalidades:
   - Geração de ZPL (Zebra GK420t, ZD420, ZD230)
@@ -12,8 +13,11 @@ Funcionalidades:
 US-013: OP concluída com 200un → 200 etiquetas ZPL → Zebra TCP em <10s
 US-014: lote val=D+6 → QR redireciona para oferta 10% OFF
 """
+import calendar
 import logging
+import random
 import socket
+import string
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 import uuid
@@ -150,7 +154,7 @@ def generate_tspl(fields: dict, template: dict) -> str:
     x, y = pos("nome", 5, 5)
     fs = font_size("nome", 3)
     nome = (fields.get("nome") or "")[:30]
-    lines += [f'TEXT {x},{y},"3",0,1,1,"{nome}"']
+    lines += [f'TEXT {x},{y},"{fs}",0,1,1,"{nome}"']
 
     # Lote
     x, y = pos("lote", 5, 20)
@@ -499,6 +503,97 @@ def _rule_to_dict(r) -> dict:
         "url_destino": r.url_destino,
         "desconto_pct": r.desconto_pct,
         "prioridade": r.prioridade,
+    }
+
+
+def _generate_lot_code() -> str:
+    """Gera código de lote automático: LOT-YYYYMMDD-XXXX."""
+    suffix = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    return f"LOT-{datetime.now().strftime('%Y%m%d')}-{suffix}"
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Soma N meses a uma data sem depender de dateutil."""
+    month = dt.month - 1 + months
+    year = dt.year + month // 12
+    month = month % 12 + 1
+    day = min(dt.day, calendar.monthrange(year, month)[1])
+    return dt.replace(year=year, month=month, day=day)
+
+
+def print_by_template(
+    db: Session,
+    template_id: uuid.UUID,
+    quantidade: int = 1,
+    printer_host: str = DEFAULT_PRINTER_HOST,
+    printer_port: int = DEFAULT_PRINTER_PORT,
+) -> dict:
+    """
+    Imprime N etiquetas a partir de um template salvo.
+    - Lote gerado automaticamente: LOT-YYYYMMDD-XXXX
+    - Validade = data de hoje + validade_meses do template
+    """
+    from models import LabelTemplate, Product
+
+    tpl = db.query(LabelTemplate).filter(LabelTemplate.id == template_id, LabelTemplate.ativo == True).first()
+    if not tpl:
+        raise ValueError("Template não encontrado")
+
+    # Nome do produto (se vinculado)
+    produto_nome = "—"
+    if tpl.product_id:
+        prod = db.query(Product).filter(Product.id == tpl.product_id).first()
+        if prod:
+            produto_nome = prod.nome
+
+    now = datetime.now()
+    lote_code = _generate_lot_code()
+    data_fab = now.strftime("%d/%m/%Y")
+    meses = tpl.validade_meses or 3
+    data_val = _add_months(now, meses).strftime("%d/%m/%Y")
+
+    qr_url = f"{QR_BASE_URL}/{lote_code}"
+
+    fields = {
+        "nome": produto_nome,
+        "lote": lote_code,
+        "data_fab": data_fab,
+        "data_val": data_val,
+        "peso_liq": f"{tpl.peso_g:.0f}g" if tpl.peso_g else "—",
+        "alergenicos": tpl.alergenicos or "",
+        "temperatura": tpl.temperatura or "-18°C",
+        "ean13": "",
+        "qr_url": qr_url,
+    }
+
+    template_cfg = {
+        "printer_type": tpl.printer_type,
+        "width_mm": tpl.width_mm,
+        "height_mm": tpl.height_mm,
+        "fields_config": tpl.fields_config or {},
+    }
+
+    qty = max(1, int(quantidade))
+    printer_type = (tpl.printer_type or "ZPL").upper()
+
+    if printer_type == "TSPL":
+        single = generate_tspl(fields, template_cfg)
+        label_data = single.replace("PRINT 1,1", f"PRINT {qty},1")
+    else:
+        single = generate_zpl(fields, template_cfg)
+        label_data = single * qty
+
+    tcp_result = send_to_printer(label_data, host=printer_host, port=printer_port)
+
+    return {
+        "lote_code": lote_code,
+        "produto": produto_nome,
+        "data_fab": data_fab,
+        "data_val": data_val,
+        "quantidade": qty,
+        "validade_meses": meses,
+        "printer_type": printer_type,
+        "tcp_resultado": tcp_result,
     }
 
 

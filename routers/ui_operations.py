@@ -115,8 +115,26 @@ def production_apontamento(batch_id: str, request: Request):
     )
 
 @router.get("/operations/labels", response_class=HTMLResponse)
-def labels(request: Request):
-    return templates.TemplateResponse("operations/labels.html", _ctx(request))
+def labels(request: Request, db: Session = Depends(get_db)):
+    from models import LabelTemplate, Product
+    tpls = (
+        db.query(LabelTemplate)
+        .filter(LabelTemplate.ativo == True)
+        .order_by(LabelTemplate.nome)
+        .all()
+    )
+    products = (
+        db.query(Product)
+        .filter(Product.ativo == True)
+        .order_by(Product.nome)
+        .all()
+    )
+    # Enriquecer com nome do produto
+    prod_map = {str(p.id): p.nome for p in products}
+    return templates.TemplateResponse(
+        "operations/labels.html",
+        _ctx(request, templates_list=tpls, products=products, prod_map=prod_map),
+    )
 
 @router.get("/cadastro", response_class=HTMLResponse)
 def cadastro(request: Request):

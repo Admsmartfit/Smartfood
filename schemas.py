@@ -68,6 +68,8 @@ class IngredientCreate(BaseModel):
     nome: str
     unidade: str = "kg"
     fc_medio: float = 1.0
+    peso_bruto_padrao: Optional[float] = None
+    peso_limpo_padrao: Optional[float] = None
     custo_atual: float = 0.0
     estoque_atual: float = 0.0
     estoque_minimo: float = 0.0
@@ -79,6 +81,8 @@ class IngredientUpdate(BaseModel):
     nome: Optional[str] = None
     unidade: Optional[str] = None
     fc_medio: Optional[float] = None
+    peso_bruto_padrao: Optional[float] = None
+    peso_limpo_padrao: Optional[float] = None
     custo_atual: Optional[float] = None
     estoque_atual: Optional[float] = None
     estoque_minimo: Optional[float] = None
@@ -91,6 +95,8 @@ class IngredientResponse(BaseModel):
     nome: str
     unidade: str
     fc_medio: float
+    peso_bruto_padrao: Optional[float] = None
+    peso_limpo_padrao: Optional[float] = None
     custo_atual: float
     estoque_atual: float
     estoque_minimo: float

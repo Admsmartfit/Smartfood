@@ -1,0 +1,32 @@
+{% if templates_list %}
+<div class="divide-y divide-slate-100">
+  {% for tpl in templates_list %}
+  <div class="flex items-center justify-between py-3 px-1 gap-4">
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-semibold text-gray-900 truncate">{{ tpl.nome }}</p>
+      <p class="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+        <span>{{ prod_map.get(tpl.product_id | string, 'Genérico') }}</span>
+        <span>{{ tpl.printer_type }} · {{ tpl.width_mm }}×{{ tpl.height_mm }}mm</span>
+        <span>Validade: {{ tpl.validade_meses }} mes{{ 'es' if tpl.validade_meses != 1 else '' }}</span>
+        {% if tpl.peso_g %}<span>{{ tpl.peso_g | int }}g</span>{% endif %}
+        {% if tpl.temperatura %}<span>{{ tpl.temperatura }}</span>{% endif %}
+      </p>
+    </div>
+    <button
+      hx-delete="/api/labels/templates/{{ tpl.id }}"
+      hx-target="#templates-list"
+      hx-swap="innerHTML"
+      hx-confirm="Remover o modelo '{{ tpl.nome }}'?"
+      class="shrink-0 p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+      title="Remover modelo">
+      <i class="ph ph-trash text-base"></i>
+    </button>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="flex flex-col items-center justify-center py-10 text-gray-300">
+  <i class="ph ph-stack text-4xl mb-2"></i>
+  <p class="text-sm">Nenhum modelo cadastrado ainda.</p>
+</div>
+{% endif %}

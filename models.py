@@ -53,7 +53,9 @@ class Ingredient(Base, TimestampMixin):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     nome = Column(String, nullable=False, unique=True, index=True)  # REQ-05: unicidade
     unidade = Column(String)  # kg, g, un, etc
-    fc_medio = Column(Float, default=1.0)
+    fc_medio = Column(Float, default=1.0, comment="FC médio calculado = peso_bruto_padrao / peso_limpo_padrao")
+    peso_bruto_padrao = Column(Float, nullable=True, comment="Peso como chega do fornecedor (kg)")
+    peso_limpo_padrao = Column(Float, nullable=True, comment="Peso após degelo/limpeza (kg)")
     custo_atual = Column(Float)
     estoque_atual = Column(Float, default=0.0)
     estoque_minimo = Column(Float, default=0.0)
@@ -417,6 +419,11 @@ class LabelTemplate(Base, TimestampMixin):
     height_mm = Column(Integer, default=60)
     fields_config = Column(JSON, nullable=True,
                            comment="Dict com posição e tamanho de cada campo: {nome:{x,y,font_size},...}")
+    validade_meses = Column(Integer, default=3,
+                            comment="Meses de validade a partir da data de impressão")
+    peso_g = Column(Float, nullable=True, comment="Peso líquido em gramas (impresso na etiqueta)")
+    alergenicos = Column(String, nullable=True, comment="Texto livre de alérgenos")
+    temperatura = Column(String, default="-18°C", comment="Temperatura de conservação")
     ativo = Column(Boolean, default=True)
 
 

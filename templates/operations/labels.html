@@ -1,60 +1,235 @@
 {% extends "base.html" %}
-{% block page_title %}Editor de Etiquetas{% endblock %}
+{% block page_title %}Etiquetas{% endblock %}
 
 {% block content %}
-<div class="p-6 max-w-6xl mx-auto">
+<div class="p-6 max-w-5xl mx-auto" x-data="labelsPage()">
 
-  <div class="mb-5">
-    <h1 class="text-xl font-bold text-gray-900">Editor de Etiquetas</h1>
-    <p class="text-sm text-gray-500 mt-0.5">Configure, visualize e envie para impressora Zebra/Elgin via TCP</p>
+  <div class="mb-5 flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900">Etiquetas</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Modelos de etiqueta e impressão rápida por quantidade</p>
+    </div>
   </div>
 
-  <div class="grid md:grid-cols-2 gap-6">
+  <!-- Tabs -->
+  <div class="border-b border-slate-200 mb-6">
+    <nav class="flex gap-1 -mb-px">
+      <button @click="tab='imprimir'"
+        :class="tab==='imprimir' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 rounded-t-lg transition-colors">
+        <i class="ph ph-printer"></i> Imprimir
+      </button>
+      <button @click="tab='modelos'"
+        :class="tab==='modelos' ? 'border-blue-600 text-blue-700 bg-blue-50' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 rounded-t-lg transition-colors">
+        <i class="ph ph-stack"></i> Modelos
+        <span class="ml-1 text-xs bg-slate-100 text-slate-600 rounded-full px-2 py-0.5">{{ templates_list | length }}</span>
+      </button>
+    </nav>
+  </div>
 
-    <!-- Coluna esquerda: Formulario -->
-    <div class="space-y-5">
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABA: IMPRIMIR
+  ══════════════════════════════════════════════════════════════════ -->
+  <div x-show="tab==='imprimir'" x-cloak>
 
-      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
-        <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2">Dados da Etiqueta</h2>
+    {% if templates_list %}
+    <div class="grid md:grid-cols-2 gap-6">
 
-        <form id="label-form"
-              hx-post="/api/labels/preview"
-              hx-target="#label-preview"
-              hx-trigger="input changed delay:350ms from:#label-form"
+      <!-- Formulário de impressão -->
+      <div class="space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2">Dados para Impressão</h2>
+
+          <form id="print-form"
+                hx-post="/api/labels/print-by-template"
+                hx-target="#print-result"
+                hx-swap="innerHTML"
+                class="space-y-4">
+
+            <!-- Selecionar modelo -->
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Modelo de Etiqueta *</label>
+              <select name="template_id" required x-model="selectedTemplateId"
+                      @change="updatePreview()"
+                      class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Selecione um modelo...</option>
+                {% for tpl in templates_list %}
+                <option value="{{ tpl.id }}"
+                        data-nome="{{ tpl.nome }}"
+                        data-produto="{{ prod_map.get(tpl.product_id | string, '—') }}"
+                        data-validade="{{ tpl.validade_meses }}"
+                        data-peso="{{ tpl.peso_g | default('') }}"
+                        data-temp="{{ tpl.temperatura }}"
+                        data-impressora="{{ tpl.printer_type }}"
+                        data-dim="{{ tpl.width_mm }}×{{ tpl.height_mm }}mm">
+                  {{ tpl.nome }} — {{ prod_map.get(tpl.product_id | string, 'Genérico') }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- Quantidade -->
+            <div>
+              <label class="block text-xs font-medium text-gray-700 mb-1">Quantidade de Embalagens *</label>
+              <input type="number" name="quantidade" min="1" max="9999" value="1" required
+                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                     placeholder="Ex: 50">
+            </div>
+
+            <!-- Impressora -->
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">IP da Impressora</label>
+                <input type="text" name="printer_host" value="192.168.1.100"
+                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Porta TCP</label>
+                <input type="number" name="printer_port" value="9100"
+                       class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+
+            <button type="submit"
+                    :disabled="!selectedTemplateId"
+                    class="w-full py-2.5 bg-gray-900 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2">
+              <i class="ph ph-printer"></i>
+              Imprimir Etiquetas
+            </button>
+          </form>
+
+          <!-- Resultado da impressão -->
+          <div id="print-result"></div>
+        </div>
+      </div>
+
+      <!-- Preview do modelo selecionado -->
+      <div>
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm sticky top-6">
+          <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2 mb-4">Informações do Modelo</h2>
+
+          <template x-if="!selectedTemplateId">
+            <div class="flex flex-col items-center justify-center py-10 text-gray-300">
+              <i class="ph ph-cursor-click text-4xl mb-2"></i>
+              <p class="text-sm">Selecione um modelo para ver os detalhes</p>
+            </div>
+          </template>
+
+          <template x-if="selectedTemplateId && selectedTemplate">
+            <div class="space-y-3">
+              <!-- Simulação da etiqueta -->
+              <div class="border-2 border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 font-mono text-xs space-y-1.5">
+                <p class="font-bold text-sm text-gray-900" x-text="selectedTemplate.nome"></p>
+                <p class="text-gray-600">Produto: <span class="text-gray-900" x-text="selectedTemplate.produto"></span></p>
+                <p class="text-gray-500">Lote: <span class="text-gray-700">LOT-<span x-text="today"></span>-XXXX</span></p>
+                <div class="flex gap-4">
+                  <p class="text-gray-500">Fab: <span class="text-gray-700" x-text="todayFmt"></span></p>
+                  <p class="text-red-500 font-medium">Val: <span x-text="valDate"></span></p>
+                </div>
+                <template x-if="selectedTemplate.peso">
+                  <p class="text-gray-500">Peso: <span class="text-gray-700" x-text="selectedTemplate.peso + 'g'"></span></p>
+                </template>
+                <p class="text-gray-400 text-[10px]" x-text="selectedTemplate.temp"></p>
+              </div>
+              <!-- Metadados -->
+              <div class="grid grid-cols-2 gap-2 text-xs">
+                <div class="bg-slate-50 rounded-lg p-2.5">
+                  <p class="text-gray-400">Impressora</p>
+                  <p class="font-semibold text-gray-800" x-text="selectedTemplate.impressora"></p>
+                </div>
+                <div class="bg-slate-50 rounded-lg p-2.5">
+                  <p class="text-gray-400">Dimensões</p>
+                  <p class="font-semibold text-gray-800" x-text="selectedTemplate.dim"></p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-2.5 col-span-2">
+                  <p class="text-green-600">Validade configurada</p>
+                  <p class="font-semibold text-green-800">
+                    <span x-text="selectedTemplate.validade"></span>
+                    mes<span x-text="selectedTemplate.validade == 1 ? '' : 'es'"></span>
+                    a partir da impressão
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+    {% else %}
+    <!-- Nenhum modelo cadastrado -->
+    <div class="bg-white rounded-xl border border-slate-200 p-10 shadow-sm text-center">
+      <i class="ph ph-stack text-5xl text-gray-200 mb-3 block"></i>
+      <p class="text-gray-500 font-medium mb-1">Nenhum modelo de etiqueta cadastrado</p>
+      <p class="text-sm text-gray-400 mb-4">Crie um modelo na aba <strong>Modelos</strong> para habilitar a impressão.</p>
+      <button @click="tab='modelos'"
+              class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+        <i class="ph ph-plus"></i> Criar Primeiro Modelo
+      </button>
+    </div>
+    {% endif %}
+
+  </div><!-- /tab imprimir -->
+
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ABA: MODELOS
+  ══════════════════════════════════════════════════════════════════ -->
+  <div x-show="tab==='modelos'" x-cloak>
+    <div class="grid md:grid-cols-2 gap-6">
+
+      <!-- Formulário novo modelo -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2 mb-4">Novo Modelo de Etiqueta</h2>
+
+        <form hx-post="/api/labels/templates"
+              hx-target="#templates-list"
               hx-swap="innerHTML"
+              hx-on::after-request="this.reset()"
               class="space-y-3">
 
           <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Produto *</label>
-            <input type="text" name="product_name"
-                   placeholder="Ex: Hamburguer Artesanal 180g"
+            <label class="block text-xs font-medium text-gray-700 mb-1">Nome do Modelo *</label>
+            <input type="text" name="nome" required placeholder="Ex: Frango a Passarinho 300g"
                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Lote</label>
-              <input type="text" name="lot" placeholder="LOT-2026-001"
-                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Peso (g)</label>
-              <input type="number" name="weight_g" placeholder="180" min="0" step="1"
-                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Produto vinculado <span class="text-gray-400">(opcional)</span></label>
+            <select name="product_id"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Genérico (qualquer produto) —</option>
+              {% for p in products %}
+              <option value="{{ p.id }}">{{ p.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Validade (meses) *</label>
+            <input type="number" name="validade_meses" value="3" min="1" max="60" required
+                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <p class="text-xs text-gray-400 mt-0.5">Data na etiqueta = data de impressão + N meses</p>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Fabricacao</label>
-              <input type="date" name="fab_date"
+              <label class="block text-xs font-medium text-gray-700 mb-1">Peso líquido (g)</label>
+              <input type="number" name="peso_g" min="0" step="1" placeholder="Ex: 300"
                      class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
-              <label class="block text-xs font-medium text-gray-700 mb-1">Validade *</label>
-              <input type="date" name="exp_date"
-                     class="w-full px-3 py-2 border border-red-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+              <label class="block text-xs font-medium text-gray-700 mb-1">Temperatura</label>
+              <input type="text" name="temperatura" value="-18°C" placeholder="-18°C"
+                     class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">Alérgenos</label>
+            <input type="text" name="alergenicos" placeholder="Ex: Contém glúten, ovos"
+                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           </div>
 
           <div class="grid grid-cols-3 gap-3">
@@ -78,60 +253,66 @@
             </div>
           </div>
 
+          <button type="submit"
+                  class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 mt-2">
+            <i class="ph ph-floppy-disk"></i>
+            Salvar Modelo
+          </button>
         </form>
       </div>
 
-      <!-- Impressao por lote -->
-      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3"
-           x-data="{ batch_id: '', host: '192.168.1.100', port: 9100 }">
-        <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2">Imprimir Lote Completo</h2>
-        <div>
-          <label class="block text-xs font-medium text-gray-700 mb-1">ID da OP (Concluida)</label>
-          <input type="text" x-model="batch_id" placeholder="uuid da OP..."
-                 class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <!-- Lista de modelos -->
+      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2 mb-3">Modelos Salvos</h2>
+        <div id="templates-list">
+          {% include "fragments/label_templates_list.html" %}
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">IP da Impressora</label>
-            <input type="text" x-model="host"
-                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-gray-700 mb-1">Porta TCP</label>
-            <input type="number" x-model="port"
-                   class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          </div>
-        </div>
-        <div id="print-result"></div>
-        <button :disabled="!batch_id"
-                class="w-full py-2.5 bg-gray-900 hover:bg-gray-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="if(batch_id) htmx.ajax('POST', '/api/labels/print/' + batch_id, { target: '#print-result', values: { printer_host: host, printer_port: port } })"
-                hx-confirm="Enviar todas as etiquetas do lote para a impressora?">
-          <i class="ph ph-printer" aria-hidden="true"></i>
-          Imprimir Lote
-        </button>
       </div>
 
     </div>
+  </div><!-- /tab modelos -->
 
-    <!-- Coluna direita: Preview -->
-    <div>
-      <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm sticky top-6">
-        <h2 class="font-semibold text-gray-900 text-sm border-b border-slate-100 pb-2 mb-4">Preview em Tempo Real</h2>
-        <div id="label-preview"
-             hx-post="/api/labels/preview"
-             hx-trigger="load"
-             hx-include="#label-form"
-             hx-swap="innerHTML">
-          <div class="flex flex-col items-center justify-center py-12 text-gray-300">
-            <i class="ph ph-tag text-5xl mb-3" aria-hidden="true"></i>
-            <p class="text-sm">Preencha os campos para ver o preview</p>
-          </div>
-        </div>
-      </div>
-    </div>
+</div><!-- /x-data -->
 
-  </div>
+<script>
+function labelsPage() {
+  const today = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}${pad(today.getMonth()+1)}${pad(today.getDate())}`;
+  const todayFmt = `${pad(today.getDate())}/${pad(today.getMonth()+1)}/${today.getFullYear()}`;
 
-</div>
+  function addMonths(dt, m) {
+    const d = new Date(dt);
+    d.setMonth(d.getMonth() + m);
+    return d;
+  }
+
+  return {
+    tab: 'imprimir',
+    selectedTemplateId: '',
+    selectedTemplate: null,
+    today: todayStr,
+    todayFmt,
+    valDate: '',
+
+    updatePreview() {
+      if (!this.selectedTemplateId) { this.selectedTemplate = null; return; }
+      const opt = document.querySelector(`select[name="template_id"] option[value="${this.selectedTemplateId}"]`);
+      if (!opt) return;
+      const meses = parseInt(opt.dataset.validade || '3');
+      const val = addMonths(today, meses);
+      this.valDate = `${pad(val.getDate())}/${pad(val.getMonth()+1)}/${val.getFullYear()}`;
+      this.selectedTemplate = {
+        nome:       opt.dataset.nome,
+        produto:    opt.dataset.produto,
+        validade:   meses,
+        peso:       opt.dataset.peso,
+        temp:       opt.dataset.temp,
+        impressora: opt.dataset.impressora,
+        dim:        opt.dataset.dim,
+      };
+    },
+  };
+}
+</script>
 {% endblock %}
