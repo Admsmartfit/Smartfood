@@ -158,15 +158,21 @@ def bom_save(
     fc: float = Form(1.0),
     fcoc: float = Form(1.0),
     items_json: str = Form("[]"),
+    bom_equipments_json: str = Form("[]"),
     db: Session = Depends(get_db),
 ):
-    """Cria ou atualiza um Produto e os seus BOMItems."""
-    from models import Product, BOMItem
+    """Cria ou atualiza um Produto e os seus BOMItems e BOMEquipments."""
+    from models import Product, BOMItem, BOMEquipment
 
     try:
         items_data = json.loads(items_json)
     except Exception:
         items_data = []
+
+    try:
+        eq_data = json.loads(bom_equipments_json)
+    except Exception:
+        eq_data = []
 
     try:
         # ── Produto ──────────────────────────────────────────────────
@@ -216,6 +222,21 @@ def bom_save(
                 perda_esperada_pct=float(item.get("perda_esperada_pct", 0) or 0),
             )
             db.add(bom)
+
+        # ── BOM Equipments — substitui tudo ──────────────────────────
+        db.query(BOMEquipment).filter(BOMEquipment.product_id == produto.id).delete()
+        for eq in eq_data:
+            eq_id = eq.get("equipment_id") or None
+            if not eq_id:
+                continue
+            bom_eq = BOMEquipment(
+                id=uuid.uuid4(),
+                product_id=produto.id,
+                equipment_id=uuid.UUID(eq_id),
+                perda_processo_kg=float(eq.get("perda_processo_kg", 0) or 0),
+                parametros_json=eq.get("parametros_json") or {},
+            )
+            db.add(bom_eq)
 
         db.commit()
     except Exception as e:

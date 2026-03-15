@@ -725,7 +725,7 @@ def delete_equipment(eq_id: str, db: Session = Depends(get_db)):
     return r
 
 
-# ─── Endpoint para listagem de equipamentos (JSON para BOM form) ───────────────
+# ─── Endpoints de listagem de equipamentos ────────────────────────────────────
 
 @router.get("/equipments-options", response_class=HTMLResponse)
 def equipments_options(request: Request, db: Session = Depends(get_db)):
@@ -735,3 +735,25 @@ def equipments_options(request: Request, db: Session = Depends(get_db)):
         f'<option value="{e.id}">{e.nome}</option>' for e in items
     )
     return HTMLResponse(opts)
+
+
+@router.get("/equipment/{eq_id}/parameters-json")
+def equipment_parameters_json(eq_id: str, db: Session = Depends(get_db)):
+    """Retorna os parâmetros template de um equipamento como JSON (para o BOM form)."""
+    import json as _json
+    from models import EquipmentParameter
+    from fastapi.responses import JSONResponse
+    params = (
+        db.query(EquipmentParameter)
+        .filter(EquipmentParameter.equipment_id == eq_id)
+        .order_by(EquipmentParameter.nome_parametro)
+        .all()
+    )
+    return JSONResponse([
+        {
+            "nome": p.nome_parametro,
+            "valor_padrao": p.valor_padrao or "",
+            "unidade": p.unidade_medida or "",
+        }
+        for p in params
+    ])

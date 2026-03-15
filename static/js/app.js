@@ -160,6 +160,13 @@ function bomBuilder(cfg) {
     items: Array.isArray(cfg.items) ? cfg.items : [],
     _counter: Array.isArray(cfg.items) ? cfg.items.length : 0,
 
+    // Equipamentos
+    equipmentsList: Array.isArray(cfg.equipmentsList) ? cfg.equipmentsList : [],
+    bomEquipments: Array.isArray(cfg.bomEquipments)
+      ? cfg.bomEquipments.map((eq, i) => ({ _key: i + 1, params: [], ...eq }))
+      : [],
+    _eqCounter: Array.isArray(cfg.bomEquipments) ? cfg.bomEquipments.length : 0,
+
     // Rendimento wizard
     pesoBruto: 0,
     pesoLimpo: 0,
@@ -184,6 +191,38 @@ function bomBuilder(cfg) {
       setTimeout(() => {
         try { this.calcPorcoes(); } catch (e) { console.error(e); }
       }, 50);
+    },
+
+    addEquipment() {
+      this._eqCounter++;
+      this.bomEquipments.push({ _key: this._eqCounter, equipment_id: '', perda_processo_kg: 0, params: [] });
+    },
+
+    async loadEqParams(eq) {
+      if (!eq.equipment_id) { eq.params = []; return; }
+      try {
+        const res = await fetch(`/api/cadastro/equipment/${eq.equipment_id}/parameters-json`);
+        const data = await res.json();
+        eq.params = data.map(p => ({ nome: p.nome + (p.unidade ? ' (' + p.unidade + ')' : ''), valor: p.valor_padrao || '' }));
+      } catch (e) {
+        console.error('[SmartFood] Erro ao carregar parâmetros do equipamento:', e);
+        eq.params = [];
+      }
+    },
+
+    addEqParam(eq) {
+      if (!eq.params) eq.params = [];
+      if (eq.params.length < 5) {
+        eq.params.push({ nome: '', valor: '' });
+      }
+    },
+
+    bomEquipmentsJson() {
+      return JSON.stringify(this.bomEquipments.map(eq => ({
+        equipment_id: eq.equipment_id,
+        perda_processo_kg: eq.perda_processo_kg || 0,
+        parametros_json: Object.fromEntries((eq.params || []).map(p => [p.nome, p.valor])),
+      })));
     },
 
     addItem(tipo) {
