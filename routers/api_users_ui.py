@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
+from services.auth_service import AdminOnly
 
 router = APIRouter(prefix="/api/users", tags=["API — Utilizadores UI"])
 templates = Jinja2Templates(directory="templates")
@@ -30,7 +31,7 @@ def _err(msg: str) -> HTMLResponse:
 
 
 @router.get("", response_class=HTMLResponse)
-def list_users(request: Request, db: Session = Depends(get_db)):
+def list_users(request: Request, db: Session = Depends(get_db), _=AdminOnly):
     from models import User
     users = db.query(User).order_by(User.nome).all()
     return templates.TemplateResponse(
@@ -47,6 +48,7 @@ def create_user(
     perfil: str = Form("operador"),
     pin_code: str = Form(""),
     db: Session = Depends(get_db),
+    _=AdminOnly,
 ):
     from models import User
 
@@ -102,7 +104,7 @@ def create_user(
 
 
 @router.patch("/{user_id}/toggle", response_class=HTMLResponse)
-def toggle_user(user_id: str, db: Session = Depends(get_db)):
+def toggle_user(user_id: str, db: Session = Depends(get_db), _=AdminOnly):
     from models import User
     try:
         u = db.query(User).filter(User.id == _uuid.UUID(user_id)).first()

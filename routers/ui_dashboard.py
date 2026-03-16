@@ -14,6 +14,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
+from services.auth_service import AdminOrChef
 
 router = APIRouter(tags=["UI — Dashboard e Inteligência"])
 templates = Jinja2Templates(directory="templates")
@@ -35,7 +36,7 @@ def root_redirect():
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def dashboard(request: Request, _=AdminOrChef):
     """Página principal do dashboard com KPIs, monitor de margem e alertas."""
     return templates.TemplateResponse(
         "dashboard/index.html",
@@ -46,7 +47,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 # ─── Inteligência ─────────────────────────────────────────────────────────────
 
 @router.get("/intelligence/forecast", response_class=HTMLResponse)
-def forecast_page(request: Request):
+def forecast_page(request: Request, _=AdminOrChef):
     """Previsão de Demanda — seletor de produto + gráfico + simulador."""
     return templates.TemplateResponse(
         "intelligence/forecast.html",
@@ -55,7 +56,7 @@ def forecast_page(request: Request):
 
 
 @router.get("/intelligence/alerts", response_class=HTMLResponse)
-def alerts_page(request: Request, db: Session = Depends(get_db)):
+def alerts_page(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     """Central de Alertas — lista completa com filtros e snooze."""
     from models import SystemAlert
     alertas = (
@@ -72,7 +73,7 @@ def alerts_page(request: Request, db: Session = Depends(get_db)):
 
 
 @router.get("/intelligence/simulator", response_class=HTMLResponse)
-def simulator_page(request: Request):
+def simulator_page(request: Request, _=AdminOrChef):
     """Simulador 'E se?' — simula produção de qualquer produto/quantidade."""
     return templates.TemplateResponse(
         "intelligence/forecast.html",

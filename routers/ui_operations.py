@@ -4,6 +4,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from database import get_db
+from services.auth_service import AdminOnly, AdminOrChef
 
 router = APIRouter(tags=["UI — Operações"])
 templates = Jinja2Templates(directory="templates")
@@ -11,11 +12,11 @@ templates = Jinja2Templates(directory="templates")
 def _ctx(request: Request, **kw): return {"request": request, **kw}
 
 @router.get("/operations/bom", response_class=HTMLResponse)
-def bom_list(request: Request):
+def bom_list(request: Request, _=AdminOrChef):
     return templates.TemplateResponse("operations/bom_list.html", _ctx(request))
 
 @router.get("/operations/bom/new", response_class=HTMLResponse)
-def bom_new(request: Request, db: Session = Depends(get_db)):
+def bom_new(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     import json
     from models import Ingredient, Supply, Equipment
     ingredients = db.query(Ingredient).filter(Ingredient.ativo == True).order_by(Ingredient.nome).all()
@@ -32,7 +33,7 @@ def bom_new(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
-def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
+def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     import json
     from models import Product, BOMItem, Ingredient, Supply, Equipment, BOMEquipment, EquipmentParameter, RecipeSection
     produto = db.query(Product).filter(Product.id == product_id).first()
@@ -109,7 +110,7 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
     )
 
 @router.get("/operations/bom/{product_id}", response_class=HTMLResponse)
-def bom_detail(product_id: str, request: Request, db: Session = Depends(get_db)):
+def bom_detail(product_id: str, request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     from models import Product, BOMItem, RecipeSection
     produto = db.query(Product).filter(Product.id == product_id).first()
     sections = db.query(RecipeSection).filter(
@@ -135,33 +136,33 @@ def bom_detail(product_id: str, request: Request, db: Session = Depends(get_db))
     )
 
 @router.get("/operations/inventory", response_class=HTMLResponse)
-def inventory(request: Request):
+def inventory(request: Request, _=AdminOrChef):
     return templates.TemplateResponse("operations/inventory.html", _ctx(request))
 
 @router.get("/operations/receiving", response_class=HTMLResponse)
-def receiving(request: Request):
+def receiving(request: Request, _=AdminOrChef):
     return templates.TemplateResponse("operations/receiving.html", _ctx(request))
 
 @router.get("/operations/receiving/{nfe_id}/conferencia", response_class=HTMLResponse)
-def receiving_conferencia(nfe_id: str, request: Request):
+def receiving_conferencia(nfe_id: str, request: Request, _=AdminOrChef):
     return templates.TemplateResponse(
         "operations/receiving_conferencia.html",
         _ctx(request, nfe_id=nfe_id, nfe=None),
     )
 
 @router.get("/operations/production", response_class=HTMLResponse)
-def production_list(request: Request):
+def production_list(request: Request, _=AdminOrChef):
     return templates.TemplateResponse("operations/production_list.html", _ctx(request))
 
 @router.get("/operations/production/{batch_id}/apontamento", response_class=HTMLResponse)
-def production_apontamento(batch_id: str, request: Request):
+def production_apontamento(batch_id: str, request: Request, _=AdminOrChef):
     return templates.TemplateResponse(
         "operations/production_portioning.html",
         _ctx(request, batch_id=batch_id),
     )
 
 @router.get("/operations/labels", response_class=HTMLResponse)
-def labels_page(request: Request, db: Session = Depends(get_db)):
+def labels_page(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     """Página de impressão e gestão de Etiquetas"""
     from models import LabelTemplate, Product
 
@@ -184,5 +185,5 @@ def labels_page(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.get("/cadastro", response_class=HTMLResponse)
-def cadastro(request: Request):
+def cadastro(request: Request, _=AdminOnly):
     return templates.TemplateResponse("cadastro/index.html", _ctx(request))

@@ -56,7 +56,10 @@
     </p>
     {% endmacro %}
 
-    <!-- Inteligência -->
+    {% set perfil = request.session.get('user_perfil', '') %}
+
+    <!-- Inteligência — admin e chef -->
+    {% if perfil in ('admin', 'chef') %}
     <div>
       {{ nav_section("Inteligência") }}
       <div class="space-y-0.5">
@@ -67,7 +70,7 @@
       </div>
     </div>
 
-    <!-- Operação -->
+    <!-- Operação — admin e chef -->
     <div>
       {{ nav_section("Operação") }}
       <div class="space-y-0.5">
@@ -79,7 +82,7 @@
       </div>
     </div>
 
-    <!-- Comercial -->
+    <!-- Comercial — admin e chef -->
     <div>
       {{ nav_section("Comercial") }}
       <div class="space-y-0.5">
@@ -87,12 +90,16 @@
         {{ nav_item("Pedidos B2B",           "clipboard-text",   "/commercial/orders") }}
         {{ nav_item("Reposição Proativa",    "robot",            "/commercial/b2b-intelligence") }}
         {{ nav_item("Fornecedores / SPI",    "handshake",        "/commercial/suppliers") }}
+        {# DRE e Financeiro — apenas admin #}
+        {% if perfil == 'admin' %}
         {{ nav_item("DRE e Relatórios",      "chart-bar",        "/commercial/dre") }}
         {{ nav_item("Financeiro",            "money",            "/commercial/financial") }}
+        {% endif %}
       </div>
     </div>
 
-    <!-- Sistema -->
+    <!-- Sistema — apenas admin -->
+    {% if perfil == 'admin' %}
     <div>
       {{ nav_section("Sistema") }}
       <div class="space-y-0.5">
@@ -100,7 +107,15 @@
         {{ nav_item("Gestão de Equipa",      "users",            "/settings/users") }}
         {{ nav_item("API (Swagger)",         "code",             "/docs") }}
         {{ nav_item("Cadastros",             "database",         "/cadastro") }}
-        {{ nav_item("App Mobile",            "device-mobile",    "/mobile") }}
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <!-- App Mobile — todos os perfis -->
+    <div>
+      <div class="space-y-0.5">
+        {{ nav_item("App Mobile / Tablet",   "device-mobile",    "/mobile") }}
       </div>
     </div>
 
@@ -113,8 +128,8 @@
         <i class="ph-fill ph-user text-white text-sm" aria-hidden="true"></i>
       </div>
       <div class="min-w-0">
-        <p class="text-sm font-medium text-white truncate">Gestor</p>
-        <p class="text-xs text-gray-400 truncate">Administrador</p>
+        <p class="text-sm font-medium text-white truncate">{{ request.session.get('user_nome', 'Utilizador') }}</p>
+        <p class="text-xs text-gray-400 truncate capitalize">{{ request.session.get('user_perfil', '') }}</p>
       </div>
     </div>
   </div>

@@ -32,6 +32,15 @@ function appState() {
       });
       document.addEventListener('htmx:responseError', (e) => {
         if (typeof NProgress !== 'undefined') NProgress.done();
+        const status = e.detail?.xhr?.status;
+        if (status === 403) {
+          this.addToast('Sem permissão para aceder a esta área.', 'error');
+          return;
+        }
+        if (status === 401) {
+          window.location.href = '/login';
+          return;
+        }
         // Suprime toast para fragments automáticos (load/every) — eles exibem erro inline
         const verb = e.detail?.requestConfig?.verb || 'get';
         const trigger = e.detail?.triggerSpec?.trigger || '';
