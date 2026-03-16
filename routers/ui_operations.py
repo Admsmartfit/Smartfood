@@ -27,13 +27,14 @@ def bom_new(request: Request, db: Session = Depends(get_db)):
         "operations/bom_form.html",
         _ctx(request, produto=None, bom_items=[], ingredients=ingredients, supplies=supplies,
              equipments=equipments, equipments_json=equipments_json, bom_eq_json="[]",
-             ingredients_map_json=ingredients_map_json),
+             ingredients_map_json=ingredients_map_json,
+             sections_json="[]", bom_items_config_json="[]"),
     )
 
 @router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
 def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
     import json
-    from models import Product, BOMItem, Ingredient, Supply, Equipment, BOMEquipment, EquipmentParameter
+    from models import Product, BOMItem, Ingredient, Supply, Equipment, BOMEquipment, EquipmentParameter, RecipeSection
     produto = db.query(Product).filter(Product.id == product_id).first()
     if not produto:
         return templates.TemplateResponse("operations/bom_list.html", _ctx(request))
@@ -54,20 +55,13 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
         )
         saved = beq.parametros_json or {}
         params_dict = {}
-        # 1. Carrega os do template primeiro
         for p in param_templates:
-            nome_display = f"{p.nome_parametro} ({p.unidade_medida})" if p.unidade_medida else p.nome_parametro
             key_saved = p.nome_parametro + (f" ({p.unidade_medida})" if p.unidade_medida else "")
-            # O front-end envia como chave o nome + unidade juntos agora (devido à nossa mudança no app.js)
-            # Mas vamos procurar pelas chaves possíveis
             valor = saved.get(key_saved, saved.get(p.nome_parametro, p.valor_padrao or ""))
             params_dict[key_saved] = {"nome": key_saved, "valor": valor}
-        
-        # 2. Adiciona os customizados
         for k, v in saved.items():
             if k not in params_dict:
                 params_dict[k] = {"nome": k, "valor": v}
-        
         params = list(params_dict.values())
         bom_eq_list.append({
             "equipment_id": str(beq.equipment_id),
@@ -77,16 +71,68 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db)):
     bom_eq_json = json.dumps(bom_eq_list)
     ingredients_map_json = json.dumps({str(i.id): i.nome for i in ingredients})
 
+    # Seções e mapa de chaves
+    sections = db.query(RecipeSection).filter(
+        RecipeSection.product_id == product_id
+    ).order_by(RecipeSection.ordem).all()
+    sec_key_map = {str(s.id): i + 1 for i, s in enumerate(sections)}
+    sections_json = json.dumps([
+        {"_key": i + 1, "nome": s.nome, "ordem": s.ordem,
+         "peso_final_esperado_kg": s.peso_final_esperado_kg}
+        for i, s in enumerate(sections)
+    ])
+
+    # Items com section_key pré-calculado
+    bom_items_config = []
+    for idx, item in enumerate(bom_items):
+        bom_items_config.append({
+            "_key": idx + 1,
+            "tipo": "ingrediente" if item.ingredient_id else "embalagem",
+            "ingredient_id": str(item.ingredient_id) if item.ingredient_id else "",
+            "supply_id": str(item.supply_id) if item.supply_id else "",
+            "quantidade": float(item.quantidade),
+            "unidade": item.unidade or "kg",
+            "perda_esperada_pct": float(item.perda_esperada_pct or 0),
+            "peso_bruto_kg": float(item.peso_bruto_kg or 0),
+            "peso_limpo_kg": float(item.peso_limpo_kg or 0),
+            "peso_final_kg": float(item.peso_final_kg or 0),
+            "section_key": sec_key_map.get(str(item.section_id)) if item.section_id else None,
+        })
+    bom_items_config_json = json.dumps(bom_items_config)
+
     return templates.TemplateResponse(
         "operations/bom_form.html",
         _ctx(request, produto=produto, bom_items=bom_items, ingredients=ingredients, supplies=supplies,
              equipments=equipments, equipments_json=equipments_json, bom_eq_json=bom_eq_json,
-             ingredients_map_json=ingredients_map_json),
+             ingredients_map_json=ingredients_map_json,
+             sections_json=sections_json, bom_items_config_json=bom_items_config_json),
     )
 
 @router.get("/operations/bom/{product_id}", response_class=HTMLResponse)
-def bom_detail(product_id: str, request: Request):
-    return templates.TemplateResponse("operations/bom_detail.html", _ctx(request, product_id=product_id))
+def bom_detail(product_id: str, request: Request, db: Session = Depends(get_db)):
+    from models import Product, BOMItem, RecipeSection
+    produto = db.query(Product).filter(Product.id == product_id).first()
+    sections = db.query(RecipeSection).filter(
+        RecipeSection.product_id == product_id
+    ).order_by(RecipeSection.ordem).all()
+    all_items = db.query(BOMItem).filter(BOMItem.product_id == product_id).all()
+    for item in all_items:
+        item.ingredient
+        item.supply
+
+    seen = set()
+    sections_with_items = []
+    for sec in sections:
+        sec_items = [i for i in all_items if str(i.section_id) == str(sec.id)]
+        seen.update(i.id for i in sec_items)
+        sections_with_items.append({"section": sec, "items": sec_items})
+
+    sem_secao = [i for i in all_items if i.id not in seen]
+    return templates.TemplateResponse(
+        "operations/bom_detail.html",
+        _ctx(request, product_id=product_id, produto=produto,
+             sections_with_items=sections_with_items, sem_secao=sem_secao),
+    )
 
 @router.get("/operations/inventory", response_class=HTMLResponse)
 def inventory(request: Request):

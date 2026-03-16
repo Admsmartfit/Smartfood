@@ -1,0 +1,126 @@
+<!-- Resultado do Calculador de Produção — retornado via HTMX -->
+<div class="space-y-4" x-data>
+
+  <!-- Cabeçalho do resultado -->
+  <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h3 class="font-bold text-gray-900 text-base flex items-center gap-2">
+          <i class="ph ph-calculator text-amber-500"></i>
+          Lista de Separação — {{ porcoes }} porção{% if porcoes != 1 %}ões{% endif %}
+        </h3>
+        <p class="text-xs text-gray-500 mt-0.5">
+          {{ produto.nome }} · Peso total: <strong>{{ "%.3f"|format(peso_desejado_kg) }} kg</strong>
+          {% if produto.peso_porcao_gramas %} · {{ produto.peso_porcao_gramas | int }}g/porção{% endif %}
+        </p>
+      </div>
+      <div class="flex gap-3 text-center">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <p class="text-xs text-amber-600">Fator</p>
+          <p class="text-xl font-bold font-mono text-amber-800">{{ "%.2f"|format(lotes_necessarios) }}×</p>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+          <p class="text-xs text-blue-600">Peso total</p>
+          <p class="text-xl font-bold font-mono text-blue-800">{{ "%.2f"|format(peso_desejado_kg) }} kg</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seções com ingredientes escalados -->
+  {% for sec in sections %}
+  <div class="bg-white rounded-xl border border-amber-100 shadow-sm overflow-hidden">
+    <div class="bg-amber-50 border-b border-amber-100 px-5 py-2.5 flex items-center justify-between">
+      <h4 class="font-semibold text-amber-800 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center
+                     text-[10px] font-bold">{{ loop.index }}</span>
+        {{ sec.nome }}
+      </h4>
+      {% if sec.peso_final_esperado_kg %}
+      <span class="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+        Rendimento esperado: <strong>{{ "%.3f"|format(sec.peso_final_esperado_kg) }} kg</strong>
+      </span>
+      {% endif %}
+    </div>
+    {% if sec.items %}
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-gray-400 uppercase tracking-wider border-b border-slate-100">
+        <tr>
+          <th class="text-left px-5 py-2">Ingrediente</th>
+          <th class="text-right px-4 py-2">Original ({{ "%.2f"|format(lotes_necessarios) }}× base)</th>
+          <th class="text-right px-5 py-2 text-amber-700 font-bold">Necessário</th>
+          <th class="text-left px-3 py-2">Unid</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for item in sec.items %}
+        <tr class="{{ 'bg-green-50' if item.tipo == 'ingrediente' else 'bg-purple-50' }} hover:brightness-95 transition-colors">
+          <td class="px-5 py-2.5 text-gray-800 flex items-center gap-2">
+            <i class="ph ph-{{ 'leaf text-green-500' if item.tipo == 'ingrediente' else 'package text-purple-500' }} text-sm"></i>
+            {{ item.nome }}
+          </td>
+          <td class="px-4 py-2.5 text-right font-mono text-gray-400 text-xs">
+            {{ "%.3f"|format(item.quantidade_original) }}
+          </td>
+          <td class="px-5 py-2.5 text-right font-mono font-bold text-gray-900 text-base">
+            {{ "%.3f"|format(item.quantidade_escalada) }}
+          </td>
+          <td class="px-3 py-2.5 text-gray-400">{{ item.unidade }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="px-5 py-3 text-sm text-gray-400 italic">Nenhum item nesta seção.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <!-- Itens sem seção -->
+  {% if sem_secao %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    {% if sections %}
+    <div class="bg-slate-50 border-b border-slate-100 px-5 py-2.5">
+      <h4 class="font-semibold text-gray-600 text-sm">Outros ingredientes</h4>
+    </div>
+    {% endif %}
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 text-xs text-gray-400 uppercase tracking-wider border-b border-slate-100">
+        <tr>
+          <th class="text-left px-5 py-2">Insumo</th>
+          <th class="text-right px-4 py-2">Original</th>
+          <th class="text-right px-5 py-2 text-amber-700 font-bold">Necessário</th>
+          <th class="text-left px-3 py-2">Unid</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for item in sem_secao %}
+        <tr class="{{ 'bg-green-50' if item.tipo == 'ingrediente' else 'bg-purple-50' }} hover:brightness-95 transition-colors">
+          <td class="px-5 py-2.5 text-gray-800 flex items-center gap-2">
+            <i class="ph ph-{{ 'leaf text-green-500' if item.tipo == 'ingrediente' else 'package text-purple-500' }} text-sm"></i>
+            {{ item.nome }}
+          </td>
+          <td class="px-4 py-2.5 text-right font-mono text-gray-400 text-xs">
+            {{ "%.3f"|format(item.quantidade_original) }}
+          </td>
+          <td class="px-5 py-2.5 text-right font-mono font-bold text-gray-900 text-base">
+            {{ "%.3f"|format(item.quantidade_escalada) }}
+          </td>
+          <td class="px-3 py-2.5 text-gray-400">{{ item.unidade }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- Botão de impressão -->
+  <div class="flex justify-end">
+    <button onclick="window.print()"
+            class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 rounded-lg
+                   text-sm text-gray-600 hover:bg-slate-50 transition-colors">
+      <i class="ph ph-printer"></i> Imprimir Lista
+    </button>
+  </div>
+
+</div>

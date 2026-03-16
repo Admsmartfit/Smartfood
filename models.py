@@ -44,6 +44,8 @@ class Product(Base, TimestampMixin):
     instrucoes_preparo_url = Column(String, nullable=True)
 
     bom_items = relationship("BOMItem", back_populates="product")
+    sections = relationship("RecipeSection", back_populates="product",
+                            order_by="RecipeSection.ordem", cascade="all, delete-orphan")
     production_batches = relationship("ProductionBatch", back_populates="product")
     order_items = relationship("OrderItem", back_populates="product")
 
@@ -81,13 +83,31 @@ class Supply(Base, TimestampMixin):
 
     bom_items = relationship("BOMItem", back_populates="supply")
 
+
+class RecipeSection(Base, TimestampMixin):
+    """Seção/etapa de uma receita multi-componente (ex: Massa, Recheio, Molho)."""
+    __tablename__ = "recipe_sections"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    product_id = Column(GUID(), ForeignKey("products.id"), nullable=False)
+    nome = Column(String, nullable=False)
+    ordem = Column(Integer, default=1, comment="Ordem de exibição na ficha")
+    peso_final_esperado_kg = Column(Float, nullable=True,
+                                    comment="Rendimento esperado desta seção após cocção (kg)")
+
+    product = relationship("Product", back_populates="sections")
+    items = relationship("BOMItem", back_populates="section")
+
+
 class BOMItem(Base, TimestampMixin):
     __tablename__ = "bom_items"
-    
+
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     product_id = Column(GUID(), ForeignKey("products.id"))
     ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=True)
     supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=True)
+    section_id = Column(GUID(), ForeignKey("recipe_sections.id"), nullable=True,
+                        comment="Seção da receita à qual este item pertence")
     quantidade = Column(Float, nullable=False)
     unidade = Column(String)
     perda_esperada_pct = Column(Float, default=0.0)
@@ -100,6 +120,7 @@ class BOMItem(Base, TimestampMixin):
     product = relationship("Product", back_populates="bom_items")
     ingredient = relationship("Ingredient", back_populates="bom_items")
     supply = relationship("Supply", back_populates="bom_items")
+    section = relationship("RecipeSection", back_populates="items")
 
 class ProductionBatch(Base, TimestampMixin):
     __tablename__ = "production_batches"

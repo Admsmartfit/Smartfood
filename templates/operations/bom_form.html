@@ -10,7 +10,8 @@ window._bomCfg = {
   rendimentoKg:     {{ produto.rendimento_por_lote if produto else 1.0 }},
   pesoPorcaoGramas: {{ (produto.peso_porcao_gramas | int) if produto and produto.peso_porcao_gramas else 350 }},
   markup:           {{ produto.markup if produto else 2.0 }},
-  items: [{% for item in bom_items %}{"_key":{{ loop.index }},"tipo":"{{ 'ingrediente' if item.ingredient_id else 'embalagem' }}","ingredient_id":"{{ item.ingredient_id or '' }}","supply_id":"{{ item.supply_id or '' }}","quantidade":{{ item.quantidade }},"unidade":"{{ item.unidade or 'kg' }}","perda_esperada_pct":{{ item.perda_esperada_pct or 0 }},"peso_bruto_kg":{{ item.peso_bruto_kg or 0 }},"peso_limpo_kg":{{ item.peso_limpo_kg or 0 }},"peso_final_kg":{{ item.peso_final_kg or 0 }}}{% if not loop.last %},{% endif %}{% endfor %}],
+  sections:        {{ sections_json | safe }},
+  items:           {{ bom_items_config_json | safe }},
   equipmentsList:  {{ equipments_json | safe }},
   bomEquipments:   {{ bom_eq_json | safe }},
   ingredientsMap:  {{ ingredients_map_json | safe }}
@@ -62,7 +63,8 @@ window._bomCfg = {
         hx-include="#bom-form"
         class="space-y-6">
 
-    <input type="hidden" name="items_json" :value="JSON.stringify(items)">
+    <input type="hidden" name="items_json"    :value="JSON.stringify(items)">
+    <input type="hidden" name="sections_json" :value="JSON.stringify(sections)">
     <input type="hidden" name="fc"   :value="fc">
     <input type="hidden" name="fcoc" :value="fcoc">
     {% if produto %}
@@ -223,7 +225,50 @@ window._bomCfg = {
         </div>
       </div>
 
-      <!-- Direita: Insumos e Embalagens -->
+      <!-- Direita: Seções + Insumos e Embalagens -->
+      <div class="space-y-4">
+
+      <!-- Painel de Seções da Receita -->
+      <div class="bg-white rounded-xl border border-amber-200 shadow-sm p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-2">
+            <i class="ph ph-layout text-amber-500"></i>
+            Seções da Receita
+            <span class="text-xs text-gray-400 font-normal">(opcional)</span>
+          </h2>
+          <button type="button" @click="addSection()"
+                  class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs bg-amber-50 text-amber-700
+                         border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors">
+            <i class="ph ph-plus"></i> Adicionar Seção
+          </button>
+        </div>
+        <p class="text-xs text-gray-400">Agrupe ingredientes por etapa (ex: Massa, Recheio, Molho). Cada item poderá ser vinculado a uma seção abaixo.</p>
+        <div class="space-y-2">
+          <template x-for="(sec, idx) in sections" :key="sec._key">
+            <div class="flex items-center gap-2 p-2.5 bg-amber-50 rounded-lg border border-amber-200">
+              <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0"
+                   x-text="idx + 1"></div>
+              <input type="text" x-model="sec.nome" placeholder="Nome (ex: Massa, Recheio…)"
+                     class="flex-1 border border-slate-300 rounded-lg px-2 py-1.5 text-sm
+                            focus:outline-none focus:ring-1 focus:ring-amber-400">
+              <input type="number" x-model.number="sec.peso_final_esperado_kg"
+                     min="0" step="0.001" placeholder="Peso final (kg)"
+                     class="w-36 border border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right
+                            focus:outline-none focus:ring-1 focus:ring-amber-400">
+              <span class="text-xs text-gray-400 shrink-0">kg final</span>
+              <button type="button" @click="removeSection(idx)"
+                      class="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                <i class="ph ph-trash"></i>
+              </button>
+            </div>
+          </template>
+          <p x-show="sections.length === 0" class="text-xs text-gray-400 italic py-1">
+            Nenhuma seção — receita simples sem agrupamento.
+          </p>
+        </div>
+      </div>
+
+      <!-- Insumos e Embalagens -->
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
         <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
           <i class="ph ph-list-checks text-green-500"></i>
@@ -290,6 +335,14 @@ window._bomCfg = {
                 <option value="pt">pt</option>
                 <option value="fd">fd</option>
               </select>
+              <select x-model="item.section_key" x-show="sections.length > 0"
+                      class="w-28 border border-amber-300 bg-amber-50 text-amber-800 rounded-lg px-1 py-2
+                             text-xs focus:outline-none focus:ring-1 focus:ring-amber-400">
+                <option :value="null">Sem seção</option>
+                <template x-for="sec in sections" :key="sec._key">
+                  <option :value="sec._key" x-text="sec.nome || ('Seção #' + sec._key)"></option>
+                </template>
+              </select>
               <button type="button" @click="removeItem(index)"
                       class="shrink-0 p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors">
                 <i class="ph ph-trash text-lg"></i>
@@ -337,7 +390,8 @@ window._bomCfg = {
             <span class="font-mono" x-text="'R$ ' + (custoIngredientes + custoEmbalagens).toFixed(2)"></span>
           </div>
         </div>
-      </div>
+      </div><!-- /Insumos e Embalagens -->
+      </div><!-- /coluna direita (seções + insumos) -->
 
       <!-- Equipamentos do Processo (largura total, abaixo das 2 colunas) -->
       <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">

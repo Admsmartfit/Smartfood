@@ -25,11 +25,35 @@ class BOMCreate(BaseModel):
     items: List[BOMItemCreate]
 
 
+class RecipeSectionCreate(BaseModel):
+    product_id: uuid.UUID
+    nome: str
+    ordem: int = 1
+    peso_final_esperado_kg: Optional[float] = None
+
+
+class RecipeSectionUpdate(BaseModel):
+    nome: Optional[str] = None
+    ordem: Optional[int] = None
+    peso_final_esperado_kg: Optional[float] = None
+
+
+class RecipeSectionResponse(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    nome: str
+    ordem: int
+    peso_final_esperado_kg: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
 class BOMItemResponse(BaseModel):
     id: uuid.UUID
     product_id: uuid.UUID
     ingredient_id: Optional[uuid.UUID] = None
     supply_id: Optional[uuid.UUID] = None
+    section_id: Optional[uuid.UUID] = None
     quantidade: float
     unidade: str
     perda_esperada_pct: float

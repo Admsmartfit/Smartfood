@@ -143,6 +143,74 @@ def calculate_portions(
     }
 
 
+@router.get("/{product_id}/scale", response_class=HTMLResponse)
+def bom_scale(
+    product_id: uuid.UUID,
+    request: Request,
+    porcoes: int = Query(default=1, ge=1),
+    db: Session = Depends(get_db),
+):
+    """Escalonamento de ingredientes para N porções. Retorna fragmento HTML para o Chef."""
+    from models import Product, BOMItem, RecipeSection
+
+    produto = db.query(Product).filter(Product.id == product_id).first()
+    if not produto:
+        return HTMLResponse("<p class='text-red-500'>Produto não encontrado.</p>")
+
+    peso_porcao_kg = (produto.peso_porcao_gramas or 350) / 1000.0
+    rendimento_base = produto.rendimento_por_lote or 1.0
+    peso_desejado_kg = porcoes * peso_porcao_kg
+    fator = peso_desejado_kg / rendimento_base if rendimento_base > 0 else 1.0
+
+    sections = (
+        db.query(RecipeSection)
+        .filter(RecipeSection.product_id == product_id)
+        .order_by(RecipeSection.ordem)
+        .all()
+    )
+    all_items = db.query(BOMItem).filter(BOMItem.product_id == product_id).all()
+    for item in all_items:
+        item.ingredient
+        item.supply
+
+    def _item_dict(i, fator):
+        return {
+            "nome": i.ingredient.nome if i.ingredient else (i.supply.nome if i.supply else "—"),
+            "quantidade_original": i.quantidade,
+            "quantidade_escalada": round(i.quantidade * fator, 3),
+            "unidade": i.unidade,
+            "tipo": "ingrediente" if i.ingredient_id else "embalagem",
+        }
+
+    seen_ids = set()
+    sections_data = []
+    for sec in sections:
+        sec_items = [i for i in all_items if str(i.section_id) == str(sec.id)]
+        seen_ids.update(i.id for i in sec_items)
+        sections_data.append({
+            "nome": sec.nome,
+            "peso_final_esperado_kg": round(sec.peso_final_esperado_kg * fator, 3) if sec.peso_final_esperado_kg else None,
+            "items": [_item_dict(i, fator) for i in sec_items],
+        })
+
+    sem_secao = [_item_dict(i, fator) for i in all_items if i.id not in seen_ids]
+
+    return templates.TemplateResponse(
+        "fragments/bom_scale_result.html",
+        {
+            "request": request,
+            "produto": produto,
+            "porcoes": porcoes,
+            "fator": round(fator, 4),
+            "peso_desejado_kg": round(peso_desejado_kg, 3),
+            "peso_porcao_g": produto.peso_porcao_gramas or 350,
+            "lotes_necessarios": round(fator, 2),
+            "sections": sections_data,
+            "sem_secao": sem_secao,
+        },
+    )
+
+
 @router.post("/save", response_class=HTMLResponse)
 def bom_save(
     _request: Request,
@@ -160,16 +228,22 @@ def bom_save(
     fc: float = Form(1.0),
     fcoc: float = Form(1.0),
     items_json: str = Form("[]"),
+    sections_json: str = Form("[]"),
     bom_equipments_json: str = Form("[]"),
     db: Session = Depends(get_db),
 ):
-    """Cria ou atualiza um Produto e os seus BOMItems e BOMEquipments."""
-    from models import Product, BOMItem, BOMEquipment
+    """Cria ou atualiza um Produto, suas RecipeSections, BOMItems e BOMEquipments."""
+    from models import Product, BOMItem, BOMEquipment, RecipeSection
 
     try:
         items_data = json.loads(items_json)
     except Exception:
         items_data = []
+
+    try:
+        sections_data = json.loads(sections_json)
+    except Exception:
+        sections_data = []
 
     try:
         eq_data = json.loads(bom_equipments_json)
@@ -206,19 +280,42 @@ def bom_save(
         produto.unidade_estoque = unidade_estoque or "unid"
         db.flush()
 
-        # ── BOM Items — substitui tudo ────────────────────────────────
+        # ── Seções — substitui tudo, constrói mapa _key → UUID ───────
         db.query(BOMItem).filter(BOMItem.product_id == produto.id).delete()
+        db.query(RecipeSection).filter(RecipeSection.product_id == produto.id).delete()
+        db.flush()
+
+        section_key_map: dict = {}  # _key (int|str) → new UUID
+        for idx, sec in enumerate(sections_data):
+            sec_nome = (sec.get("nome") or "").strip()
+            if not sec_nome:
+                continue
+            new_sec = RecipeSection(
+                id=uuid.uuid4(),
+                product_id=produto.id,
+                nome=sec_nome,
+                ordem=int(sec.get("ordem") or idx + 1),
+                peso_final_esperado_kg=sec.get("peso_final_esperado_kg") or None,
+            )
+            db.add(new_sec)
+            db.flush()
+            section_key_map[sec.get("_key")] = new_sec.id
+
+        # ── BOM Items — substitui tudo ────────────────────────────────
         for item in items_data:
             ing_id = item.get("ingredient_id") or None
             sup_id = item.get("supply_id") or None
             qty = float(item.get("quantidade", 0) or 0)
             if not (ing_id or sup_id) or qty <= 0:
                 continue
+            sec_key = item.get("section_key")
+            sec_id = section_key_map.get(sec_key) if sec_key is not None else None
             bom = BOMItem(
                 id=uuid.uuid4(),
                 product_id=produto.id,
                 ingredient_id=uuid.UUID(ing_id) if ing_id else None,
                 supply_id=uuid.UUID(sup_id) if sup_id else None,
+                section_id=sec_id,
                 quantidade=qty,
                 unidade=item.get("unidade", "kg"),
                 perda_esperada_pct=float(item.get("perda_esperada_pct", 0) or 0),

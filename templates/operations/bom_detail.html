@@ -1,53 +1,193 @@
 {% extends "base.html" %}
-{% block page_title %}Detalhe da Ficha{% endblock %}
+{% block page_title %}{{ produto.nome if produto else 'Ficha Técnica' }}{% endblock %}
 
 {% block content %}
 <div class="p-6 space-y-6 max-w-5xl mx-auto">
 
   <!-- Breadcrumb -->
   <nav class="flex items-center gap-2 text-sm text-gray-500">
-    <a href="/operations/bom"
-       class="hover:text-blue-600 transition-colors"
-       hx-get="/operations/bom"
-       hx-target="#main-content"
-       hx-select="#main-content"
-       hx-push-url="true">Fichas Técnicas</a>
-    <i class="ph ph-caret-right text-gray-300" aria-hidden="true"></i>
-    <span class="text-gray-900">Detalhe</span>
+    <a href="/operations/bom" class="hover:text-blue-600 transition-colors">Fichas Técnicas</a>
+    <i class="ph ph-caret-right text-gray-300"></i>
+    <span class="text-gray-900">{{ produto.nome if produto else product_id }}</span>
   </nav>
 
-  <!-- Área de custo calculado via HTMX -->
-  <div id="cost-detail-area"
-       hx-post="/api/bom/{{ product_id }}/calculate"
-       hx-trigger="load"
-       hx-swap="innerHTML">
-    <div class="animate-pulse space-y-4">
-      <div class="h-6 bg-slate-200 rounded w-56"></div>
-      <div class="grid grid-cols-2 gap-4">
-        {% for _ in range(6) %}
-        <div class="h-4 bg-slate-200 rounded"></div>
-        {% endfor %}
+  <!-- ═══ CALCULADOR DO CHEF ═══════════════════════════════════════════════ -->
+  <div class="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-2xl p-5 shadow-md"
+       x-data="{ porcoes: 1 }">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="font-bold text-lg flex items-center gap-2">
+          <i class="ph ph-cooking-pot text-xl"></i> Calculador de Produção
+        </h2>
+        <p class="text-sm opacity-80 mt-0.5">
+          Receita base: {{ produto.rendimento_por_lote if produto else '—' }} kg
+          {% if produto and produto.peso_porcao_gramas %}
+          · {{ produto.peso_porcao_gramas | int }}g/porção
+          {% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex items-center gap-2">
+          <input type="number" x-model.number="porcoes" min="1" step="1"
+                 class="w-28 bg-white/20 border border-white/40 text-white placeholder-white/60
+                        rounded-xl px-3 py-2.5 text-lg font-bold text-center
+                        focus:outline-none focus:ring-2 focus:ring-white">
+          <span class="text-sm opacity-90">porções</span>
+        </div>
+        <button
+          hx-get="/api/bom/{{ product_id }}/scale"
+          hx-target="#lista-separacao"
+          hx-swap="innerHTML"
+          hx-indicator="#scale-spinner"
+          :hx-vals="JSON.stringify({ porcoes: porcoes })"
+          class="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-amber-700
+                 font-bold rounded-xl hover:bg-amber-50 transition-colors shadow-sm">
+          <i class="ph ph-calculator"></i> Calcular Ingredientes
+        </button>
+        <span id="scale-spinner" class="htmx-indicator">
+          <i class="ph ph-circle-notch animate-spin text-white text-xl"></i>
+        </span>
       </div>
     </div>
   </div>
 
+  <!-- Área de resultado do escalonamento -->
+  <div id="lista-separacao">
+    <div class="flex flex-col items-center justify-center py-8 text-gray-300 rounded-xl border-2 border-dashed border-slate-200">
+      <i class="ph ph-arrow-fat-up text-4xl mb-2"></i>
+      <p class="text-sm">Informe a quantidade de porções e clique em <strong>Calcular Ingredientes</strong></p>
+    </div>
+  </div>
+
+  <!-- ═══ CUSTO CALCULADO ══════════════════════════════════════════════════ -->
+  <div id="cost-detail-area"
+       hx-post="/api/bom/{{ product_id }}/calculate"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="animate-pulse space-y-3 bg-white rounded-xl border border-slate-200 p-5">
+      <div class="h-4 bg-slate-200 rounded w-40"></div>
+      <div class="grid grid-cols-3 gap-4">
+        {% for _ in range(6) %}<div class="h-10 bg-slate-100 rounded"></div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SEÇÕES DA FICHA ══════════════════════════════════════════════════ -->
+  {% if sections_with_items %}
+  <div class="space-y-4">
+    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+      <i class="ph ph-layout text-amber-500"></i> Seções da Receita
+    </h2>
+    {% for sg in sections_with_items %}
+    <div class="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+      <!-- Header da seção -->
+      <div class="bg-amber-50 border-b border-amber-200 px-5 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center
+                      text-xs font-bold shrink-0">{{ loop.index }}</div>
+          <h3 class="font-semibold text-amber-900">{{ sg.section.nome }}</h3>
+        </div>
+        {% if sg.section.peso_final_esperado_kg %}
+        <span class="text-xs text-amber-700 bg-amber-100 px-2.5 py-1 rounded-full">
+          Rendimento esperado: <strong>{{ "%.3f"|format(sg.section.peso_final_esperado_kg) }} kg</strong>
+        </span>
+        {% endif %}
+      </div>
+      <!-- Itens da seção -->
+      {% if sg.items %}
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 border-b border-slate-100">
+          <tr class="text-xs text-gray-400 uppercase tracking-wider">
+            <th class="text-left px-5 py-2">Ingrediente</th>
+            <th class="text-right px-5 py-2">Quantidade</th>
+            <th class="text-left px-3 py-2">Unid</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          {% for item in sg.items %}
+          <tr class="hover:bg-slate-50 transition-colors">
+            <td class="px-5 py-2.5 text-gray-800 flex items-center gap-2">
+              <i class="ph ph-{{ 'leaf' if item.ingredient_id else 'package' }} text-sm
+                         {{ 'text-green-500' if item.ingredient_id else 'text-purple-500' }}"></i>
+              {{ item.ingredient.nome if item.ingredient else item.supply.nome if item.supply else '—' }}
+            </td>
+            <td class="px-5 py-2.5 text-right font-mono font-semibold text-gray-900">
+              {{ "%.3f"|format(item.quantidade) }}
+            </td>
+            <td class="px-3 py-2.5 text-gray-400">{{ item.unidade }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="px-5 py-4 text-sm text-gray-400 italic">Nenhum item nesta seção.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Itens sem seção -->
+  {% if sem_secao %}
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="bg-slate-50 border-b border-slate-200 px-5 py-3">
+      <h3 class="font-semibold text-gray-700 flex items-center gap-2">
+        <i class="ph ph-list-checks text-green-500"></i>
+        {% if sections_with_items %}Itens sem seção{% else %}Ingredientes e Embalagens{% endif %}
+      </h3>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 border-b border-slate-100">
+        <tr class="text-xs text-gray-400 uppercase tracking-wider">
+          <th class="text-left px-5 py-2">Insumo</th>
+          <th class="text-right px-5 py-2">Quantidade</th>
+          <th class="text-left px-3 py-2">Unid</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for item in sem_secao %}
+        <tr class="hover:bg-slate-50 transition-colors">
+          <td class="px-5 py-2.5 text-gray-800 flex items-center gap-2">
+            <i class="ph ph-{{ 'leaf' if item.ingredient_id else 'package' }} text-sm
+                       {{ 'text-green-500' if item.ingredient_id else 'text-purple-500' }}"></i>
+            {{ item.ingredient.nome if item.ingredient else item.supply.nome if item.supply else '—' }}
+          </td>
+          <td class="px-5 py-2.5 text-right font-mono font-semibold text-gray-900">
+            {{ "%.3f"|format(item.quantidade) }}
+          </td>
+          <td class="px-3 py-2.5 text-gray-400">{{ item.unidade }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  {% if not sections_with_items and not sem_secao %}
+  <div class="text-center py-10 text-gray-300">
+    <i class="ph ph-list-plus text-5xl mb-2 block"></i>
+    <p class="text-sm">Nenhum item cadastrado nesta ficha.</p>
+  </div>
+  {% endif %}
+
   <!-- Ações -->
-  <div class="flex gap-3">
+  <div class="flex gap-3 pt-2 border-t border-slate-100">
     <button class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700
                    text-white text-sm font-medium rounded-lg transition-colors"
             hx-post="/api/bom/{{ product_id }}/calculate"
             hx-target="#cost-detail-area"
             hx-swap="innerHTML">
-      <i class="ph ph-calculator" aria-hidden="true"></i> Recalcular
+      <i class="ph ph-calculator"></i> Recalcular Custo
     </button>
+    <a href="/operations/bom/{{ product_id }}/edit"
+       class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:bg-slate-50
+              text-gray-700 text-sm font-medium rounded-lg transition-colors">
+      <i class="ph ph-pencil"></i> Editar Ficha
+    </a>
     <a href="/operations/bom"
        class="inline-flex items-center gap-2 px-4 py-2 border border-slate-300 hover:bg-slate-50
-              text-gray-700 text-sm font-medium rounded-lg transition-colors"
-       hx-get="/operations/bom"
-       hx-target="#main-content"
-       hx-select="#main-content"
-       hx-push-url="true">
-      <i class="ph ph-arrow-left" aria-hidden="true"></i> Voltar
+              text-gray-700 text-sm font-medium rounded-lg transition-colors">
+      <i class="ph ph-arrow-left"></i> Voltar
     </a>
   </div>
 

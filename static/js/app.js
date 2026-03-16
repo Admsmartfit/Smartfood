@@ -160,6 +160,10 @@ function bomBuilder(cfg) {
     items: Array.isArray(cfg.items) ? cfg.items : [],
     _counter: Array.isArray(cfg.items) ? cfg.items.length : 0,
 
+    // Seções da receita (multi-componente)
+    sections: Array.isArray(cfg.sections) ? cfg.sections : [],
+    _sectionKey: Array.isArray(cfg.sections) ? cfg.sections.length + 1 : 1,
+
     // Equipamentos
     equipmentsList: Array.isArray(cfg.equipmentsList) ? cfg.equipmentsList : [],
     bomEquipments: Array.isArray(cfg.bomEquipments)
@@ -226,6 +230,24 @@ function bomBuilder(cfg) {
       })));
     },
 
+    addSection() {
+      this.sections.push({
+        _key: this._sectionKey++,
+        nome: '',
+        ordem: this.sections.length + 1,
+        peso_final_esperado_kg: null,
+      });
+    },
+
+    removeSection(idx) {
+      const key = this.sections[idx]._key;
+      // Desvincula itens que pertenciam a esta seção
+      this.items.forEach(item => { if (item.section_key === key) item.section_key = null; });
+      this.sections.splice(idx, 1);
+      // Reordena
+      this.sections.forEach((s, i) => { s.ordem = i + 1; });
+    },
+
     addItem(tipo) {
       this._counter++;
       this.items.push({
@@ -233,6 +255,7 @@ function bomBuilder(cfg) {
         ingredient_id: '', supply_id: '',
         quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
         perda_esperada_pct: 0,
+        section_key: null,
       });
     },
 
