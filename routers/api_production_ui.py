@@ -48,12 +48,12 @@ def create_op(
         if not produto:
             raise ValueError("Produto não encontrado na base de dados.")
 
-        # 2. Criar a nova Ordem de Produção
+        # 2. Criar a nova Ordem de Produção (AGORA COMO APROVADA)
         nova_op = ProductionBatch(
             id=uuid.uuid4(),
             product_id=product_id,
             quantidade_planejada=quantidade_planejada,
-            status="pendente" # Inicia como pendente
+            status="APROVADA" # <-- CORREÇÃO: O motor exige APROVADA para poder ir para EM_PRODUCAO
         )
         db.add(nova_op)
         db.commit()
