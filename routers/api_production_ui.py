@@ -30,6 +30,59 @@ def fragment_ops(
     )
 
 
+@router.post("/ops", response_class=HTMLResponse)
+def create_op(
+    request: Request,
+    product_id: uuid.UUID = Form(...),
+    quantidade_planejada: float = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Cria uma nova OP e retorna a lista de OPs atualizada para a tabela."""
+    from models import ProductionBatch, Product
+    from services.production_service import list_production_orders
+    import json
+
+    try:
+        # 1. Validar se o produto existe
+        produto = db.query(Product).filter(Product.id == product_id).first()
+        if not produto:
+            raise ValueError("Produto não encontrado na base de dados.")
+
+        # 2. Criar a nova Ordem de Produção
+        nova_op = ProductionBatch(
+            id=uuid.uuid4(),
+            product_id=product_id,
+            quantidade_planejada=quantidade_planejada,
+            status="pendente" # Inicia como pendente
+        )
+        db.add(nova_op)
+        db.commit()
+
+        # 3. Buscar a lista atualizada para desenhar a tabela novamente
+        ops = list_production_orders(db)
+        
+        # 4. Devolver as linhas HTML atualizadas
+        response = templates.TemplateResponse(
+            "fragments/op_rows.html",
+            {"request": request, "ops": ops},
+        )
+        
+        # 5. Disparar notificação de sucesso (Toast)
+        response.headers["HX-Trigger"] = json.dumps(
+            {"showToast": {"message": f"Ordem de {quantidade_planejada} un. para {produto.nome} criada!", "type": "success"}}
+        )
+        return response
+
+    except Exception as e:
+        db.rollback()
+        # Se falhar, avisa o utilizador no ecrã sem quebrar a página
+        response = HTMLResponse(f"<tr><td colspan='6' class='text-center text-red-500 py-4'>Erro interno: {str(e)}</td></tr>")
+        response.headers["HX-Trigger"] = json.dumps(
+            {"showToast": {"message": f"Erro ao criar Ordem: {str(e)}", "type": "error"}}
+        )
+        return response
+
+
 @router.post("/{batch_id}/start", response_class=HTMLResponse)
 def start_op(
     batch_id: uuid.UUID,
