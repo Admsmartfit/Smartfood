@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
@@ -8,9 +9,14 @@ load_dotenv()  # carrega .env antes de qualquer import que use os.getenv
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates  # noqa: F401 — disponível para routers via import direto
+from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import RedirectResponse
 
 import models
 from database import engine, get_db
+from routers.auth import router as auth_router
 from routers import bom, pricing, dashboard, demand, seasonality, alerts
 from routers.inventory import router as inventory_router, production_router, traceability_router
 from routers.supplies import router as supplies_router
@@ -72,12 +78,39 @@ async def lifespan(_app: FastAPI):
             pass
 
 
+# Caminhos que não precisam de autenticação
+_AUTH_SKIP = ("/login", "/static", "/public", "/favicon.ico", "/qr/", "/docs", "/openapi")
+
+
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        path = request.url.path
+        if any(path.startswith(p) for p in _AUTH_SKIP):
+            return await call_next(request)
+        if not request.session.get("user_id"):
+            return RedirectResponse("/login", status_code=302)
+        return await call_next(request)
+
+
 app = FastAPI(
     title="SmartFood Ops 360 - Intelligence Edition",
     description="ERP industrial com IA preditiva para gestão de ultracongelados B2B",
     version="0.20.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(AuthMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SECRET_KEY", "smartfood-secret-change-in-production"),
+    session_cookie="sf_session",
+    max_age=28800,  # 8 horas
+    same_site="lax",
+    https_only=False,
+)
+
+app.include_router(auth_router)
+
 
 @app.get('/favicon.ico', include_in_schema=False)
 async def favicon():

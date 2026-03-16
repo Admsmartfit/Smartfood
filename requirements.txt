@@ -8,3 +8,5 @@ httpx
 reportlab
 google-generativeai
 lxml
+itsdangerous
+python-dotenv

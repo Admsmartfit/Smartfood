@@ -161,25 +161,26 @@ def production_apontamento(batch_id: str, request: Request):
     )
 
 @router.get("/operations/labels", response_class=HTMLResponse)
-def labels(request: Request, db: Session = Depends(get_db)):
+def labels_page(request: Request, db: Session = Depends(get_db)):
+    """Página de impressão e gestão de Etiquetas"""
     from models import LabelTemplate, Product
-    tpls = (
-        db.query(LabelTemplate)
-        .filter(LabelTemplate.ativo == True)
-        .order_by(LabelTemplate.nome)
-        .all()
-    )
-    products = (
-        db.query(Product)
-        .filter(Product.ativo == True)
-        .order_by(Product.nome)
-        .all()
-    )
-    # Enriquecer com nome do produto
+
+    # 1. Busca todos os modelos de etiqueta ativos na base de dados
+    templates_list = db.query(LabelTemplate).filter(LabelTemplate.ativo == True).order_by(LabelTemplate.nome).all()
+    
+    # 2. Busca os produtos para popular os selects e o mapa de nomes
+    products = db.query(Product).filter(Product.ativo == True).order_by(Product.nome).all()
     prod_map = {str(p.id): p.nome for p in products}
+
+    # 3. Envia os dados para o HTML, ativando assim a área de impressão!
     return templates.TemplateResponse(
         "operations/labels.html",
-        _ctx(request, templates_list=tpls, products=products, prod_map=prod_map),
+        {
+            "request": request,
+            "templates_list": templates_list,
+            "products": products,
+            "prod_map": prod_map,
+        },
     )
 
 @router.get("/cadastro", response_class=HTMLResponse)

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartFood Ops 360 — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web@2.1.1" crossorigin="anonymous"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center font-sans p-4">
+
+  <div class="w-full max-w-sm">
+
+    <!-- Logo / Marca -->
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-blue-600 shadow-lg mb-4">
+        <i class="ph ph-fork-knife text-3xl text-white"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">SmartFood Ops 360</h1>
+      <p class="text-sm text-gray-500 mt-1">Acesso interno — introduza o seu e-mail e PIN</p>
+    </div>
+
+    <!-- Cartão do formulário -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
+
+      {% if error %}
+      <div class="flex items-center gap-2 mb-5 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-800">
+        <i class="ph ph-warning-circle text-lg shrink-0"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="post" action="/login" class="space-y-5">
+
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1.5">
+            E-mail
+          </label>
+          <div class="relative">
+            <i class="ph ph-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"></i>
+            <input id="email" type="email" name="email" required autofocus
+                   placeholder="utilizador@empresa.com"
+                   class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                          placeholder-gray-400" />
+          </div>
+        </div>
+
+        <div>
+          <label for="pin_code" class="block text-sm font-medium text-gray-700 mb-1.5">
+            PIN <span class="text-gray-400 font-normal">(4 dígitos)</span>
+          </label>
+          <div class="relative">
+            <i class="ph ph-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base pointer-events-none"></i>
+            <input id="pin_code" type="password" name="pin_code" required
+                   maxlength="4" pattern="\d{4}" inputmode="numeric"
+                   placeholder="••••"
+                   class="w-full pl-9 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                          placeholder-gray-400 tracking-widest text-center text-lg" />
+          </div>
+        </div>
+
+        <button type="submit"
+                class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold
+                       rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 mt-2">
+          <i class="ph ph-sign-in text-lg"></i>
+          Entrar
+        </button>
+
+      </form>
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-6">
+      Não tem PIN? Peça ao administrador para o configurar em
+      <span class="font-medium">Configurações → Utilizadores</span>.
+    </p>
+
+  </div>
+
+</body>
+</html>

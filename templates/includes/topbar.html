@@ -113,4 +113,22 @@
     <i class="ph ph-wifi-slash text-xl" aria-hidden="true"></i>
   </div>
 
+  <!-- ── Utilizador + Logout ── -->
+  {% set session_nome = request.session.get('user_nome', '') %}
+  {% if session_nome %}
+  <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+    <div class="hidden sm:flex flex-col items-end leading-tight">
+      <span class="text-xs font-semibold text-gray-800">{{ session_nome }}</span>
+      <span class="text-[10px] text-gray-400 capitalize">{{ request.session.get('user_perfil', '') }}</span>
+    </div>
+    <a href="/logout"
+       class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors
+              min-h-[40px] min-w-[40px] flex items-center justify-center"
+       title="Terminar sessão"
+       aria-label="Terminar sessão">
+      <i class="ph ph-sign-out text-xl" aria-hidden="true"></i>
+    </a>
+  </div>
+  {% endif %}
+
 </header>
