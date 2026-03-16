@@ -231,20 +231,17 @@ function bomBuilder(cfg) {
     },
 
     addSection() {
-      this.sections.push({
-        _key: this._sectionKey++,
-        nome: '',
-        ordem: this.sections.length + 1,
-        peso_final_esperado_kg: null,
-      });
+      const key = this._sectionKey++;
+      this.sections = [
+        ...this.sections,
+        { _key: key, nome: '', ordem: this.sections.length + 1, peso_final_esperado_kg: null },
+      ];
     },
 
     removeSection(idx) {
       const key = this.sections[idx]._key;
-      // Desvincula itens que pertenciam a esta seção
       this.items.forEach(item => { if (item.section_key === key) item.section_key = null; });
-      this.sections.splice(idx, 1);
-      // Reordena
+      this.sections = this.sections.filter((_, i) => i !== idx);
       this.sections.forEach((s, i) => { s.ordem = i + 1; });
     },
 
