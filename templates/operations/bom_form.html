@@ -3,7 +3,7 @@
 
 {% block content %}
 <script>
-/* Config do BOM — definido em <script> para evitar problemas de escaping em x-data */
+/* ── Configuração da Ficha Técnica ─────────────────────────────────────── */
 window._bomCfg = {
   fc:               {{ produto.fc if produto else 1.0 }},
   fcoc:             {{ produto.fcoc if produto else 1.0 }},
@@ -16,6 +16,175 @@ window._bomCfg = {
   bomEquipments:   {{ bom_eq_json | safe }},
   ingredientsMap:  {{ ingredients_map_json | safe }}
 };
+
+/* ── BOM Builder — definido aqui para garantir disponibilidade imediata ── */
+/* Mesmo que app.js ainda não tenha executado (navegação HTMX), esta        */
+/* versão local é registrada antes que o Alpine processe o x-data.          */
+function bomBuilder(cfg) {
+  cfg = cfg || window._bomCfg || {};
+  return {
+    activeTab: 'receita',
+    items: Array.isArray(cfg.items) ? cfg.items : [],
+    _counter: Array.isArray(cfg.items) ? cfg.items.length : 0,
+
+    sections: Array.isArray(cfg.sections) ? cfg.sections : [],
+    _sectionKey: Array.isArray(cfg.sections) ? cfg.sections.length + 1 : 1,
+
+    equipmentsList: Array.isArray(cfg.equipmentsList) ? cfg.equipmentsList : [],
+    bomEquipments: Array.isArray(cfg.bomEquipments)
+      ? cfg.bomEquipments.map(function(eq, i) { return Object.assign({ _key: i + 1, params: [] }, eq); })
+      : [],
+    _eqCounter: Array.isArray(cfg.bomEquipments) ? cfg.bomEquipments.length : 0,
+
+    fc:       cfg.fc   !== undefined ? cfg.fc   : 1.0,
+    fcoc:     cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
+    pesoFinal: cfg.rendimentoKg !== undefined ? cfg.rendimentoKg : 1.0,
+    ingredientsMap: cfg.ingredientsMap || {},
+
+    rendimentoKg:     cfg.rendimentoKg     !== undefined ? cfg.rendimentoKg     : 1.0,
+    pesoPorcaoGramas: cfg.pesoPorcaoGramas !== undefined ? cfg.pesoPorcaoGramas : 350,
+    markup:           cfg.markup           !== undefined ? cfg.markup           : 2.0,
+    custoIngredientes: 0,
+    custoEmbalagens:   0,
+    perdaEquipamentosKg: 0,
+    numPorcoes:   0,
+    sobraGramas:  0,
+    custoPorPorcao: 0,
+    precoSugerido:  0,
+    margemPct:      0,
+
+    init() {
+      setTimeout(() => { try { this.calcPorcoes(); } catch(e) { console.error(e); } }, 50);
+    },
+
+    addSection() {
+      const key = this._sectionKey++;
+      this.sections = [
+        ...this.sections,
+        { _key: key, nome: '', ordem: this.sections.length + 1, peso_final_esperado_kg: null },
+      ];
+    },
+
+    removeSection(idx) {
+      const key = this.sections[idx]._key;
+      this.items.forEach(function(item) { if (item.section_key === key) item.section_key = null; });
+      this.sections = this.sections.filter(function(_, i) { return i !== idx; });
+      this.sections.forEach(function(s, i) { s.ordem = i + 1; });
+    },
+
+    addEquipment() {
+      this._eqCounter++;
+      this.bomEquipments.push({ _key: this._eqCounter, equipment_id: '', perda_processo_kg: 0, params: [] });
+    },
+
+    async loadEqParams(eq) {
+      if (!eq.equipment_id) { eq.params = []; return; }
+      try {
+        const res = await fetch('/api/cadastro/equipment/' + eq.equipment_id + '/parameters-json');
+        const data = await res.json();
+        eq.params = data.map(function(p) {
+          return { nome: p.nome + (p.unidade ? ' (' + p.unidade + ')' : ''), valor: p.valor_padrao || '' };
+        });
+      } catch(e) { console.error(e); eq.params = []; }
+    },
+
+    addEqParam(eq) {
+      if (!eq.params) eq.params = [];
+      if (eq.params.length < 5) eq.params.push({ nome: '', valor: '' });
+    },
+
+    bomEquipmentsJson() {
+      return JSON.stringify(this.bomEquipments.map(function(eq) {
+        return {
+          equipment_id: eq.equipment_id,
+          perda_processo_kg: eq.perda_processo_kg || 0,
+          parametros_json: Object.fromEntries((eq.params || []).map(function(p) { return [p.nome, p.valor]; })),
+        };
+      }));
+    },
+
+    addItem(tipo) {
+      this._counter++;
+      this.items.push({
+        _key: this._counter, tipo: tipo,
+        ingredient_id: '', supply_id: '',
+        quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
+        perda_esperada_pct: 0,
+        section_key: null,
+      });
+    },
+
+    removeItem(index) {
+      this.items.splice(index, 1);
+      this.calcFC();
+    },
+
+    pesoTotalIngredientes() {
+      return this.items
+        .filter(function(i) { return i.tipo === 'ingrediente'; })
+        .reduce(function(s, i) { return s + (parseFloat(i.quantidade) || 0); }, 0);
+    },
+
+    calcFC() {
+      try {
+        const mistura = this.pesoTotalIngredientes();
+        const final   = parseFloat(this.pesoFinal) || 0;
+        this.fcoc = (mistura > 0 && final > 0) ? +(mistura / final).toFixed(4) : 0;
+        if (final > 0) this.rendimentoKg = +final.toFixed(3);
+        this.calcPorcoes();
+      } catch(e) { console.error(e); }
+    },
+
+    ingredientName(id) {
+      return this.ingredientsMap[id] || '—';
+    },
+
+    _estimarCustos() {
+      try {
+        let ing = 0, sup = 0;
+        this.items.forEach(function(item) {
+          const qty = parseFloat(item.quantidade) || 0;
+          if (item.tipo === 'ingrediente' && item.ingredient_id) {
+            const opt = document.querySelector('option[value="' + item.ingredient_id + '"]');
+            if (opt) ing += (parseFloat(opt.dataset && opt.dataset.custo) || 0) * qty;
+          } else if (item.tipo === 'embalagem' && item.supply_id) {
+            const opt = document.querySelector('option[value="' + item.supply_id + '"]');
+            if (opt) sup += (parseFloat(opt.dataset && opt.dataset.custo) || 0) * qty;
+          }
+        });
+        this.custoIngredientes = ing;
+        this.custoEmbalagens   = sup;
+      } catch(e) { console.error(e); }
+    },
+
+    calcPorcoes() {
+      try {
+        this._estimarCustos();
+        const perdaEqKg = this.bomEquipments.reduce(
+          function(sum, eq) { return sum + (parseFloat(eq.perda_processo_kg) || 0); }, 0
+        );
+        this.perdaEquipamentosKg = perdaEqKg;
+        const rendimentoLiquidoKg = Math.max(0, this.rendimentoKg - perdaEqKg);
+        const totalG = rendimentoLiquidoKg * 1000;
+        const porcao = this.pesoPorcaoGramas;
+        if (!porcao || porcao <= 0 || totalG <= 0) {
+          this.numPorcoes = 0; this.sobraGramas = 0;
+          this.custoPorPorcao = 0; this.precoSugerido = 0; this.margemPct = 0;
+          return;
+        }
+        this.numPorcoes  = Math.floor(totalG / porcao);
+        this.sobraGramas = totalG % porcao;
+        const fatorPerda = perdaEqKg > 0 && rendimentoLiquidoKg > 0
+          ? this.rendimentoKg / rendimentoLiquidoKg : 1;
+        const custoAjustado = (this.custoIngredientes * fatorPerda) + this.custoEmbalagens;
+        this.custoPorPorcao = this.numPorcoes > 0 ? custoAjustado / this.numPorcoes : 0;
+        this.precoSugerido  = this.custoPorPorcao * this.markup;
+        this.margemPct      = this.precoSugerido > 0
+          ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
+      } catch(e) { console.error(e); }
+    },
+  };
+}
 </script>
 <div class="p-6 max-w-7xl mx-auto space-y-6"
      x-data="bomBuilder(window._bomCfg)"
