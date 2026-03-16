@@ -151,8 +151,16 @@ def receiving_conferencia(nfe_id: str, request: Request, _=AdminOrChef):
     )
 
 @router.get("/operations/production", response_class=HTMLResponse)
-def production_list(request: Request, _=AdminOrChef):
-    return templates.TemplateResponse("operations/production_list.html", _ctx(request))
+def production_list(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
+    from models import Product
+    
+    # Vamos buscar os produtos ativos para popular o menu suspenso do Modal
+    products = db.query(Product).filter(Product.ativo == True).order_by(Product.nome).all()
+    
+    return templates.TemplateResponse(
+        "operations/production_list.html", 
+        _ctx(request, products=products)
+    )
 
 @router.get("/operations/production/{batch_id}/apontamento", response_class=HTMLResponse)
 def production_apontamento(batch_id: str, request: Request, _=AdminOrChef):

@@ -2,17 +2,21 @@
 {% block page_title %}Ordens de Produção{% endblock %}
 
 {% block content %}
-<div class="p-6 space-y-5 max-w-7xl mx-auto">
+<div class="p-6 space-y-5 max-w-7xl mx-auto" x-data="{ showNewOp: false }">
 
-  <!-- Cabeçalho -->
   <div class="flex flex-wrap items-center justify-between gap-4">
     <div>
       <h1 class="text-xl font-bold text-gray-900">Ordens de Produção</h1>
       <p class="text-sm text-gray-500 mt-0.5">Gerencie, inicie e conclua ordens de produção</p>
     </div>
+    
+    <button @click="showNewOp = true" 
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
+      <i class="ph ph-plus-circle text-lg"></i>
+      Nova Ordem
+    </button>
   </div>
 
-  <!-- Filtros de status -->
   <div class="flex flex-wrap gap-2"
        x-data="{ activeStatus: '' }"
        role="group" aria-label="Filtrar por status">
@@ -36,7 +40,6 @@
     {% endfor %}
   </div>
 
-  <!-- Tabela de OPs -->
   <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
     <table class="w-full text-sm" role="table" aria-label="Ordens de produção">
       <thead>
@@ -67,5 +70,66 @@
     </table>
   </div>
 
+  <div x-show="showNewOp" style="display: none;" class="relative z-50" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div x-show="showNewOp" x-transition.opacity class="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"></div>
+
+    <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+      <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+        
+        <div x-show="showNewOp" 
+             x-transition:enter="ease-out duration-300" 
+             x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+             x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave="ease-in duration-200" 
+             x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100" 
+             x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95" 
+             @click.away="showNewOp = false"
+             class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          
+          <form hx-post="/api/production/ops" 
+                hx-target="#ops-table-body" 
+                hx-swap="innerHTML"
+                @submit="showNewOp = false; setTimeout(() => $event.target.reset(), 500)">
+            
+            <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+              <div class="flex items-center gap-3 mb-5 border-b border-slate-100 pb-4">
+                <div class="mx-auto flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
+                  <i class="ph ph-factory text-xl text-blue-600"></i>
+                </div>
+                <h3 class="text-lg font-semibold leading-6 text-gray-900" id="modal-title">Lançar Nova Ordem</h3>
+              </div>
+              
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Produto <span class="text-red-500">*</span></label>
+                  <select name="product_id" required class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="">— Selecione o Produto —</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.nome }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium text-gray-700 mb-1">Quantidade Planejada <span class="text-red-500">*</span></label>
+                  <input type="number" name="quantidade_planejada" required min="0.01" step="0.01" placeholder="Ex: 50" class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                </div>
+              </div>
+            </div>
+            
+            <div class="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 border-t border-slate-200">
+              <button type="submit" class="inline-flex w-full justify-center rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 sm:ml-3 sm:w-auto transition-colors">
+                <i class="ph ph-check-circle mr-2 text-lg"></i> Confirmar Ordem
+              </button>
+              <button type="button" @click="showNewOp = false" class="mt-3 inline-flex w-full justify-center rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto transition-colors">
+                Cancelar
+              </button>
+            </div>
+          </form>
+
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
