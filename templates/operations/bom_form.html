@@ -3,27 +3,166 @@
 
 {% block content %}
 
-<!-- Dados do servidor — text/plain evita erros de IDE com Jinja2 em blocos JS -->
 <script type="text/plain" id="d-fc">{{ produto.fc if produto else 1.0 }}</script>
 <script type="text/plain" id="d-fcoc">{{ produto.fcoc if produto else 1.0 }}</script>
 <script type="text/plain" id="d-rendimento">{{ produto.rendimento_por_lote if produto else 1.0 }}</script>
-<script type="text/plain" id="d-peso-porcao">{{ (produto.peso_porcao_gramas | int) if produto and produto.peso_porcao_gramas else 350 }}</script>
+<script type="text/plain"
+  id="d-peso-porcao">{{ (produto.peso_porcao_gramas | int) if produto and produto.peso_porcao_gramas else 350 }}</script>
 <script type="text/plain" id="d-margem">{{ produto.margem_minima if produto else 30 }}</script>
 <script type="text/plain" id="d-markup">{{ produto.markup if produto else 2.0 }}</script>
 <script type="text/plain" id="d-sections">{{ sections_json | safe if sections_json else '[]' }}</script>
-<script type="text/plain" id="d-items">{{ bom_items_config_json | safe if bom_items_config_json else '[]' }}</script>
+<script type="text/plain" id="d-embalagens">{{ embalagens_json | safe if embalagens_json else '[]' }}</script>
 <script type="text/plain" id="d-equipments">{{ equipments_json | safe if equipments_json else '[]' }}</script>
 <script type="text/plain" id="d-bomeq">{{ bom_eq_json | safe if bom_eq_json else '[]' }}</script>
 <script type="text/plain" id="d-ingmap">{{ ingredients_map_json | safe if ingredients_map_json else '{}' }}</script>
 
 
-<div class="p-6 max-w-7xl mx-auto space-y-6"
-     x-data="bomBuilder()">
+<script>
+  document.addEventListener('alpine:init', () => {
+    Alpine.data('bomBuilder', () => ({
+      activeTab: 'receita',
+      fc: 1.0,
+      fcoc: 1.0,
+      rendimentoKg: 1.0,
+      pesoPorcaoGramas: 350,
+      markup: 2.0,
+      margemMinima: 30,
+
+      sections: [],
+      embalagens: [], // Array isolado para embalagens no porcionamento
+      bomEquipments: [],
+      ingredientsMap: {},
+
+      // Variáveis de cálculo
+      pesoFinal: 0,
+      numPorcoes: 0,
+      custoPorPorcao: 0,
+      precoSugerido: 0,
+      margemPct: 0,
+      sobraGramas: 0,
+
+      init() {
+        // Carregar dados do HTML
+        this.fc = parseFloat(document.getElementById('d-fc').textContent) || 1.0;
+        this.fcoc = parseFloat(document.getElementById('d-fcoc').textContent) || 1.0;
+        this.rendimentoKg = parseFloat(document.getElementById('d-rendimento').textContent) || 1.0;
+        this.pesoPorcaoGramas = parseInt(document.getElementById('d-peso-porcao').textContent) || 350;
+        this.markup = parseFloat(document.getElementById('d-markup').textContent) || 2.0;
+        this.margemMinima = parseFloat(document.getElementById('d-margem').textContent) || 30.0;
+
+        try { this.ingredientsMap = JSON.parse(document.getElementById('d-ingmap').textContent); } catch (e) { }
+        try { this.bomEquipments = JSON.parse(document.getElementById('d-bomeq').textContent) || []; } catch (e) { }
+
+        try {
+          let loadedSections = JSON.parse(document.getElementById('d-sections').textContent);
+          if (Array.isArray(loadedSections) && loadedSections.length > 0) {
+            this.sections = loadedSections;
+          }
+        } catch (e) { }
+
+        try {
+          let loadedEmbs = JSON.parse(document.getElementById('d-embalagens').textContent);
+          if (Array.isArray(loadedEmbs) && loadedEmbs.length > 0) {
+            this.embalagens = loadedEmbs;
+          }
+        } catch (e) { }
+
+        // Garante pelo menos uma seção inicial
+        if (this.sections.length === 0) {
+          this.sections.push({
+            _key: Date.now().toString(),
+            nome: 'Massa / Base',
+            peso_final_esperado_kg: 0,
+            items: []
+          });
+        }
+
+        this.calcPorcoes();
+      },
+
+      // --- MÉTODOS DE SEÇÕES (Apenas Insumos) ---
+      addSection() {
+        this.sections.push({
+          _key: Date.now().toString(),
+          nome: `Nova Seção ${this.sections.length + 1}`,
+          peso_final_esperado_kg: 0,
+          items: []
+        });
+      },
+      removeSection(idx) {
+        if (confirm("Tem a certeza que deseja remover esta seção e os seus ingredientes?")) {
+          this.sections.splice(idx, 1);
+          this.calcPorcoes();
+        }
+      },
+      addIngredient(sectionIdx) {
+        this.sections[sectionIdx].items.push({
+          _key: Date.now().toString(),
+          tipo: 'ingrediente',
+          ingredient_id: '',
+          quantidade: '',
+          unidade: 'kg'
+        });
+      },
+      removeIngredient(sectionIdx, itemIdx) {
+        this.sections[sectionIdx].items.splice(itemIdx, 1);
+        this.calcPorcoes();
+      },
+
+      // --- MÉTODOS DE EMBALAGENS (Porcionamento) ---
+      addEmbalagem() {
+        this.embalagens.push({
+          _key: Date.now().toString(),
+          supply_id: '',
+          quantidade: 1, // Por defeito, 1 embalagem por porção
+          unidade: 'un'
+        });
+      },
+      removeEmbalagem(idx) {
+        this.embalagens.splice(idx, 1);
+      },
+
+      // --- MÉTODOS DE EXPORTAÇÃO JSON ---
+      sectionsJson() { return JSON.stringify(this.sections); },
+      embalagensJson() { return JSON.stringify(this.embalagens); },
+      bomEquipmentsJson() { return JSON.stringify(this.bomEquipments); },
+
+      // --- CÁLCULOS EM TEMPO REAL ---
+      pesoTotalIngredientes() {
+        let total = 0;
+        this.sections.forEach(sec => {
+          sec.items.forEach(item => {
+            if (item.tipo === 'ingrediente') total += (parseFloat(item.quantidade) || 0);
+          });
+        });
+        return total;
+      },
+      calcFC() {
+        let totalIn = this.pesoTotalIngredientes();
+        if (totalIn > 0 && this.pesoFinal > 0) this.fcoc = totalIn / this.pesoFinal;
+        else this.fcoc = 1.0;
+      },
+      calcPorcoes() {
+        let pesoLiquido = this.rendimentoKg; // Simples para visualização
+
+        if (pesoLiquido > 0 && this.pesoPorcaoGramas > 0) {
+          let totalGramas = pesoLiquido * 1000;
+          this.numPorcoes = Math.floor(totalGramas / this.pesoPorcaoGramas);
+          this.sobraGramas = totalGramas % this.pesoPorcaoGramas;
+        } else {
+          this.numPorcoes = 0;
+          this.sobraGramas = 0;
+        }
+      }
+    }));
+  });
+</script>
+
+<div class="p-6 max-w-7xl mx-auto space-y-6" x-data="bomBuilder">
 
   <div class="flex items-center gap-3">
     <a href="/operations/bom"
-       class="p-2 rounded-lg text-gray-500 hover:bg-slate-100 hover:text-gray-900 transition-colors"
-       aria-label="Voltar">
+      class="p-2 rounded-lg text-gray-500 hover:bg-slate-100 hover:text-gray-900 transition-colors" aria-label="Voltar">
       <i class="ph ph-arrow-left text-xl"></i>
     </a>
     <div>
@@ -35,209 +174,322 @@
   </div>
 
   <div class="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
-    {% for tab_id, tab_label, tab_icon in [
-      ("receita",    "Receita (Seções)", "list-checks"),
-      ("rendimento", "Rendimento",   "scales"),
-      ("porcoes",    "Porcionamento","cutting-board"),
-    ] %}
-    <button type="button"
-            @click="activeTab = '{{ tab_id }}'"
-            :class="activeTab === '{{ tab_id }}'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all">
-      <i class="ph ph-{{ tab_icon }}"></i>
-      {{ tab_label }}
-    </button>
-    {% endfor %}
+    <button type="button" @click="activeTab = 'receita'"
+      :class="activeTab === 'receita' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+      class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"><i
+        class="ph ph-list-checks"></i> 1. Insumos da Receita</button>
+    <button type="button" @click="activeTab = 'rendimento'"
+      :class="activeTab === 'rendimento' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+      class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"><i
+        class="ph ph-scales"></i> 2. Rendimento</button>
+    <button type="button" @click="activeTab = 'porcoes'"
+      :class="activeTab === 'porcoes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'"
+      class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all"><i
+        class="ph ph-package"></i> 3. Porcionamento & Embalagens</button>
   </div>
 
-  <form id="bom-form"
-        hx-post="/api/bom/save"
-        hx-target="#form-feedback"
-        hx-swap="innerHTML"
-        class="space-y-6">
+  <form id="bom-form" hx-post="/api/bom/save" hx-target="#form-feedback" hx-swap="innerHTML" class="space-y-6">
 
     <input type="hidden" name="sections_json" :value="sectionsJson()">
-    <input type="hidden" name="items_json" :value="itemsJson()">
+    <input type="hidden" name="embalagens_json" :value="embalagensJson()">
     <input type="hidden" name="bom_equipments_json" :value="bomEquipmentsJson()">
-    <input type="hidden" name="fc"   :value="fc">
+    <input type="hidden" name="fc" :value="fc">
     <input type="hidden" name="fcoc" :value="fcoc">
-    {% if produto %}
-    <input type="hidden" name="product_id" value="{{ produto.id }}">
-    {% else %}
-    <input type="hidden" name="product_id" value="">
-    {% endif %}
+    <input type="hidden" name="product_id" value="{{ produto.id if produto else '' }}">
 
-    <div x-show="activeTab === 'receita'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div x-show="activeTab === 'receita'" x-transition class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
       <div class="lg:col-span-1 space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4 sticky top-6">
           <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
             <i class="ph ph-notebook text-blue-500"></i> Dados do Produto
           </h2>
-          
+
           <div class="space-y-3">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Nome <span class="text-red-500">*</span></label>
-              <input type="text" name="nome" required
-                     value="{{ produto.nome if produto else '' }}"
-                     placeholder="Ex: Coxinha com Catupiry"
-                     class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+              <label class="block text-sm font-medium text-gray-700 mb-1">Nome <span
+                  class="text-red-500">*</span></label>
+              <input type="text" name="nome" required value="{{ produto.nome if produto else '' }}"
+                placeholder="Ex: Coxinha com Catupiry"
+                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
             </div>
-            
+
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
                 <input type="text" name="sku" value="{{ produto.sku or '' if produto else '' }}"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                 <input type="text" name="categoria" value="{{ produto.categoria or '' if produto else '' }}"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Markup (×)</label>
-                <input type="number" name="markup" min="1" step="0.1"
-                       x-model.number="markup" @input="calcPorcoes()"
-                       value="{{ produto.markup if produto else '2.0' }}"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                <input type="number" name="markup" min="1" step="0.1" x-model.number="markup" @input="calcPorcoes()"
+                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Tempo (min)</label>
                 <input type="number" name="tempo_producao_min" min="1" step="1"
-                       value="{{ produto.tempo_producao_min if produto else '30' }}"
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+                  value="{{ produto.tempo_producao_min if produto else '30' }}"
+                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
           </div>
-          
+
           <div class="border-t border-slate-200 mt-4 pt-4">
-             <label class="block text-sm font-medium text-gray-700 mb-1">Modo de Preparo</label>
-             <textarea name="modo_preparo_interno" rows="4"
-                       placeholder="Instruções para o Chef..."
-                       class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 resize-y">{{ produto.modo_preparo_interno or '' if produto else '' }}</textarea>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Modo de Preparo</label>
+            <textarea name="modo_preparo_interno" rows="4" placeholder="Instruções para o Chef..."
+              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 resize-y">{{ produto.modo_preparo_interno or '' if produto else '' }}</textarea>
           </div>
         </div>
       </div>
 
       <div class="lg:col-span-2 space-y-6">
-        
+
         <template x-for="(section, sIndex) in sections" :key="section._key">
           <div class="bg-white rounded-xl border-2 border-slate-200 shadow-sm overflow-hidden">
-            
+
             <div class="bg-amber-50 border-b border-amber-200 p-4 flex items-center justify-between">
               <div class="flex items-center gap-3 flex-1">
-                <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0" x-text="sIndex + 1"></div>
-                <input type="text" x-model="section.nome" 
-                       placeholder="Nome da Seção (ex: Massa, Recheio, Montagem)"
-                       class="font-bold text-lg text-amber-900 bg-transparent border-b border-dashed border-amber-300 focus:border-amber-600 focus:outline-none px-1 py-0.5 w-1/2 transition-colors">
+                <div
+                  class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0"
+                  x-text="sIndex + 1"></div>
+                <input type="text" x-model="section.nome" placeholder="Nome da Seção (ex: Massa, Recheio)"
+                  class="font-bold text-lg text-amber-900 bg-transparent border-b border-dashed border-amber-300 focus:border-amber-600 focus:outline-none px-1 py-0.5 w-1/2 transition-colors">
               </div>
               <button type="button" @click="removeSection(sIndex)"
-                      class="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors" title="Remover Seção">
+                class="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors" title="Remover Seção">
                 <i class="ph ph-trash text-xl"></i>
               </button>
             </div>
 
             <div class="p-5 space-y-4">
-              
               <div class="space-y-3">
                 <template x-for="(item, iIndex) in section.items" :key="item._key">
-                  <div class="flex flex-col sm:flex-row gap-2 p-2 rounded-lg border border-slate-100 bg-slate-50 items-center">
-                    
-                    <div class="shrink-0 sm:w-28 flex items-center">
-                      <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
-                            :class="item.tipo==='ingrediente' ? 'bg-green-100 text-green-700' : 'bg-purple-100 text-purple-700'">
-                        <i class="ph" :class="item.tipo==='ingrediente' ? 'ph-leaf' : 'ph-package'"></i>
-                        <span x-text="item.tipo==='ingrediente' ? 'Insumo' : 'Embalagem'"></span>
+                  <div
+                    class="flex flex-col sm:flex-row gap-2 p-2 rounded-lg border border-slate-100 bg-slate-50 items-center">
+
+                    <div class="shrink-0 sm:w-24 flex items-center">
+                      <span
+                        class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        <i class="ph ph-leaf"></i> Insumo
                       </span>
                     </div>
 
-                    <select x-model="item.ingredient_id" x-show="item.tipo==='ingrediente'" @change="calcPorcoes()"
-                            class="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                    <select x-model="item.ingredient_id" @change="calcFC()"
+                      class="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
                       <option value="">— Selecionar Insumo —</option>
                       {% for ing in ingredients %}
                       <option value="{{ ing.id }}">{{ ing.nome }} ({{ ing.unidade }})</option>
                       {% endfor %}
                     </select>
 
-                    <select x-model="item.supply_id" x-show="item.tipo==='embalagem'" @change="calcPorcoes()"
-                            class="flex-1 min-w-[200px] border border-slate-300 rounded-lg px-2 py-2 text-sm bg-white focus:ring-2 focus:ring-blue-500">
-                      <option value="">— Selecionar Embalagem —</option>
-                      {% for sup in supplies %}
-                      <option value="{{ sup.id }}">{{ sup.nome }} ({{ sup.unidade }})</option>
-                      {% endfor %}
-                    </select>
-
                     <div class="flex gap-1 shrink-0 w-32">
-                      <input type="number" x-model.number="item.quantidade" @input="calcPorcoes()"
-                             min="0" step="0.001" placeholder="Qtd"
-                             class="w-full border border-slate-300 rounded-lg pl-2 pr-1 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500">
+                      <input type="number" x-model.number="item.quantidade" @input="calcFC()" min="0" step="0.001"
+                        placeholder="Qtd"
+                        class="w-full border border-slate-300 rounded-lg pl-2 pr-1 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500">
                       <select x-model="item.unidade"
-                              class="w-16 border border-slate-300 rounded-lg px-1 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
+                        class="w-16 border border-slate-300 rounded-lg px-1 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
                         <option value="kg">kg</option>
                         <option value="g">g</option>
-                        <option value="un">un</option>
                       </select>
                     </div>
 
-                    <button type="button" @click="removeItem(sIndex, iIndex)"
-                            class="shrink-0 p-2 text-gray-400 hover:text-red-500 transition-colors">
+                    <button type="button" @click="removeIngredient(sIndex, iIndex)"
+                      class="shrink-0 p-2 text-gray-400 hover:text-red-500 transition-colors">
                       <i class="ph ph-x text-lg"></i>
                     </button>
                   </div>
                 </template>
 
-                <div x-show="section.items.length === 0" class="text-center py-4 text-sm text-gray-400 bg-white rounded-lg border border-dashed border-slate-200">
-                  Nenhum item nesta seção. Use os botões abaixo para adicionar.
+                <div x-show="section.items.length === 0"
+                  class="text-center py-4 text-sm text-gray-400 bg-white rounded-lg border border-dashed border-slate-200">
+                  Nenhum insumo alimentar nesta seção.
                 </div>
               </div>
 
               <div class="flex gap-2 pt-2 border-t border-slate-100">
-                <button type="button" @click="addItem(sIndex, 'ingrediente')"
-                        class="text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1">
-                  <i class="ph ph-plus-circle text-base"></i> Adicionar Insumo
+                <button type="button" @click="addIngredient(sIndex)"
+                  class="text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1">
+                  <i class="ph ph-plus-circle text-base"></i> Adicionar Insumo Alimentar
                 </button>
-                <button type="button" @click="addItem(sIndex, 'embalagem')"
-                        class="text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1">
-                     <i class="ph ph-plus-circle text-base"></i> Adicionar Embalagem
-                </button>
-              </div>
-              
-              <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg">
-                 <div>
-                     <label class="text-sm text-gray-700 font-semibold">Rendimento Pós-Cocção desta Seção:</label>
-                     <p class="text-xs text-gray-500">Ex: A massa de 10kg após cozinhar rende 9.5kg.</p>
-                 </div>
-                 <div class="flex items-center gap-2">
-                     <input type="number" x-model.number="section.peso_final_esperado_kg"
-                            min="0" step="0.1" placeholder="0.00"
-                            class="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500 font-mono">
-                     <span class="text-sm font-medium text-gray-600">kg</span>
-                 </div>
               </div>
 
+              <div
+                class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg">
+                <div>
+                  <label class="text-sm text-gray-700 font-semibold">Rendimento Pós-Cocção desta Seção:</label>
+                  <p class="text-xs text-gray-500">Peso após cozinhar (kg).</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="number" x-model.number="section.peso_final_esperado_kg" min="0" step="0.1"
+                    placeholder="0.00"
+                    class="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500 font-mono">
+                  <span class="text-sm font-medium text-gray-600">kg</span>
+                </div>
+              </div>
             </div>
           </div>
         </template>
 
         <button type="button" @click="addSection()"
-                class="w-full py-4 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
+          class="w-full py-4 rounded-xl border-2 border-dashed border-blue-300 text-blue-600 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm">
           <i class="ph ph-squares-four text-xl"></i>
-          ADICIONAR NOVA SEÇÃO DE RECEITA
+          ADICIONAR NOVA SEÇÃO (Ex: Massa, Recheio 1)
         </button>
 
       </div>
-    </div> <div class="flex items-center gap-4 pt-6 border-t border-slate-200 sticky bottom-0 bg-slate-50 p-4 rounded-t-xl z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    </div>
+
+
+    <div x-show="activeTab === 'rendimento'" x-transition class="max-w-2xl space-y-5">
+      <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex gap-3">
+        <i class="ph ph-info text-xl shrink-0 mt-0.5"></i>
+        <div>
+          <p class="font-semibold">Fator de Cocção (FCoc) Global</p>
+          <p class="mt-0.5">Insira o Peso Final do lote completo (soma de todas as seções) após todo o processamento
+            para calcular a perda global de processo.</p>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+          <i class="ph ph-scales text-blue-500"></i> Composição Bruta da Mistura
+        </h3>
+        <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+          <i class="ph ph-bowl-food text-3xl text-gray-300"></i>
+          <div>
+            <p class="text-xs text-gray-500 mb-0.5">Soma das quantidades de todos os insumos brutos</p>
+            <p class="text-3xl font-bold font-mono text-gray-800" x-text="pesoTotalIngredientes().toFixed(3) + ' kg'">
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold shrink-0">1
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Peso Final do Produto</h3>
+            <p class="text-xs text-gray-500">Pese a mistura pronta para montar</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <input type="number" name="rendimento_por_lote" x-model.number="rendimentoKg" @input="calcFC(); calcPorcoes()"
+            min="0" step="0.001" placeholder="0.000"
+            class="w-40 h-12 border-2 border-slate-300 rounded-xl px-3 text-right text-lg font-mono focus:ring-2 focus:ring-blue-500">
+          <span class="text-gray-500 font-medium">kg líquidos</span>
+        </div>
+      </div>
+    </div>
+
+
+    <div x-show="activeTab === 'porcoes'" x-transition class="max-w-4xl space-y-5">
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-5">
+          <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
+            <i class="ph ph-cutting-board text-rose-500"></i> Definição da Porção
+          </h2>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Peso da Porção (g)</label>
+              <input type="number" name="peso_porcao_gramas" x-model.number="pesoPorcaoGramas" @input="calcPorcoes()"
+                min="1" step="5" placeholder="350"
+                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Unidade de Estoque</label>
+              <select name="unidade_estoque"
+                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-blue-500">
+                <option value="unid" {% if not produto or produto.unidade_estoque=='unid' %}selected{% endif %}>unid
+                  (porções)</option>
+                <option value="kg" {% if produto and produto.unidade_estoque=='kg' %}selected{% endif %}>kg</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-purple-200 shadow-sm p-5 space-y-4">
+          <h2 class="text-sm font-semibold text-purple-800 uppercase tracking-wider flex items-center gap-2">
+            <i class="ph ph-package text-purple-500"></i> Embalagens por Porção
+          </h2>
+          <p class="text-xs text-gray-500">Defina o que é gasto para acondicionar <strong>1 porção final</strong>.</p>
+
+          <div class="space-y-3">
+            <template x-for="(emb, eIdx) in embalagens" :key="emb._key">
+              <div
+                class="flex flex-col sm:flex-row gap-2 p-2 rounded-lg bg-purple-50 border border-purple-100 items-center">
+                <select x-model="emb.supply_id"
+                  class="flex-1 min-w-[150px] border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white focus:ring-2 focus:ring-purple-500">
+                  <option value="">— Selecionar Embalagem —</option>
+                  {% for sup in supplies %}
+                  <option value="{{ sup.id }}">{{ sup.nome }} ({{ sup.unidade }})</option>
+                  {% endfor %}
+                </select>
+                <div class="flex gap-1 shrink-0 w-24">
+                  <input type="number" x-model.number="emb.quantidade" min="0" step="1" placeholder="Qtd"
+                    class="w-full border border-slate-300 rounded-lg pl-2 pr-1 py-1.5 text-sm text-right focus:ring-2 focus:ring-purple-500">
+                </div>
+                <span class="text-xs text-gray-500 w-6">un</span>
+                <button type="button" @click="removeEmbalagem(eIdx)"
+                  class="shrink-0 p-1.5 text-gray-400 hover:text-red-500 transition-colors">
+                  <i class="ph ph-x text-lg"></i>
+                </button>
+              </div>
+            </template>
+
+            <div x-show="embalagens.length === 0"
+              class="text-center py-3 text-xs text-gray-400 bg-white rounded border border-dashed border-slate-200">
+              Nenhuma embalagem vinculada. Produto a granel?
+            </div>
+          </div>
+
+          <button type="button" @click="addEmbalagem()"
+            class="mt-2 text-xs font-medium text-purple-700 bg-purple-100 hover:bg-purple-200 px-3 py-2 rounded-lg transition-colors flex items-center gap-1 w-full justify-center">
+            <i class="ph ph-plus-circle text-base"></i> Adicionar Embalagem
+          </button>
+        </div>
+      </div>
+
+      <div x-show="pesoPorcaoGramas > 0 && rendimentoKg > 0"
+        class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-4 space-y-4">
+        <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+          <i class="ph ph-calculator text-blue-500"></i> Resultado do Lote Estimado
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-green-600 font-medium uppercase">Porções Geradas</p>
+            <p class="text-3xl font-bold text-green-700 font-mono mt-1" x-text="numPorcoes"></p>
+          </div>
+          <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 text-center">
+            <p class="text-xs text-gray-500 font-medium uppercase">Peso Líquido Lote</p>
+            <p class="text-2xl font-bold text-gray-700 font-mono mt-1" x-text="(rendimentoKg * 1000).toFixed(0) + 'g'">
+            </p>
+          </div>
+          <div class="border rounded-xl p-3 text-center"
+            :class="sobraGramas > 0 ? 'bg-amber-50 border-amber-200' : 'bg-gray-50 border-gray-200'">
+            <p class="text-xs font-medium uppercase" :class="sobraGramas > 0 ? 'text-amber-600' : 'text-gray-500'">Sobra
+              Inutilizada</p>
+            <p class="text-2xl font-bold font-mono mt-1" :class="sobraGramas > 0 ? 'text-amber-700' : 'text-gray-400'"
+              x-text="sobraGramas.toFixed(0) + 'g'"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="flex items-center gap-4 pt-6 border-t border-slate-200 sticky bottom-0 bg-slate-50 p-4 rounded-t-xl z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
       <button type="submit"
-              class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl
-                     bg-blue-600 text-white font-bold hover:bg-blue-700
-                     focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
-                     transition-colors shadow-md">
+        class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-md">
         <i class="ph ph-floppy-disk text-xl"></i>
         Salvar Ficha Técnica Completa
       </button>
