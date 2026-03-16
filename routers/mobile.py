@@ -164,7 +164,7 @@ def active_production_orders(db: Session = Depends(get_db)):
 def get_production_order_detail(batch_id: uuid.UUID, db: Session = Depends(get_db)):
     """
     Detalhe completo de uma OP para a tela de execução mobile.
-    Inclui ingredientes necessários para o checklist do operador.
+    Inclui ingredientes necessários para a Mise en Place e o Passo a Passo.
     """
     from models import ProductionBatch, Product, BOMItem, Ingredient
 
@@ -174,20 +174,21 @@ def get_production_order_detail(batch_id: uuid.UUID, db: Session = Depends(get_d
 
     p = db.query(Product).filter(Product.id == op.product_id).first()
 
-    # Ingredientes do BOM para checklist
+    # Ingredientes do BOM para checklist (Mise en Place)
     bom_items = db.query(BOMItem).filter(BOMItem.product_id == op.product_id).all()
     ingredientes = []
     for item in bom_items:
         ing = db.query(Ingredient).filter(Ingredient.id == item.ingredient_id).first()
-        qty_necessaria = (item.quantidade or 0) * (op.quantidade_planejada or 0)
-        ingredientes.append({
-            "ingrediente_id": str(item.ingredient_id),
-            "nome": ing.nome if ing else "?",
-            "unidade": ing.unidade if ing else "",
-            "quantidade_necessaria": round(qty_necessaria, 3),
-            "estoque_atual": ing.estoque_atual if ing else None,
-            "suficiente": (ing.estoque_atual or 0) >= qty_necessaria if ing else None,
-        })
+        if ing:
+            qty_necessaria = (item.quantidade or 0) * (op.quantidade_planejada or 0)
+            ingredientes.append({
+                "ingrediente_id": str(item.ingredient_id),
+                "nome": ing.nome,
+                "unidade": ing.unidade,
+                "quantidade_necessaria": round(qty_necessaria, 3),
+                "estoque_atual": ing.estoque_atual,
+                "suficiente": (ing.estoque_atual or 0) >= qty_necessaria,
+            })
 
     return {
         "id": str(op.id),
@@ -201,6 +202,8 @@ def get_production_order_detail(batch_id: uuid.UUID, db: Session = Depends(get_d
         "data_fim": op.data_fim.isoformat() if op.data_fim else None,
         "ingredientes": ingredientes,
         "custo_total": op.custo_total,
+        # INSTRUÇÕES ADICIONADAS AQUI:
+        "modo_preparo": p.modo_preparo_interno if p and p.modo_preparo_interno else "Nenhuma instrução de preparo cadastrada na Ficha Técnica."
     }
 
 
