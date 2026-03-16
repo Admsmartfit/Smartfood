@@ -150,196 +150,183 @@ function appState() {
 }
 
 // ─── BOM Builder Alpine Component ─────────────────────────────────────────────
-// Defined globally in app.js so it persists across hx-boost navigations
-// (avoids race condition where Alpine MutationObserver fires before HTMX
-//  re-executes inline scripts from swapped content).
-function bomBuilder(cfg) {
-  cfg = cfg || {};
+// Reads data directly from <script type="text/plain"> DOM elements so it works
+// regardless of HTMX navigation order (no dependency on window._bomCfg timing).
+function bomBuilder() {
+  function _r(id) {
+    var el = document.getElementById(id);
+    return el ? el.textContent.trim() : '';
+  }
+
+  // Build sections with items embedded (merges sections_json + bom_items_config_json)
+  var rawSecs  = JSON.parse(_r('d-sections') || '[]');
+  var rawItems = JSON.parse(_r('d-items')    || '[]');
+  var initSections;
+  if (rawSecs.length === 0) {
+    initSections = [{ _key: 1, nome: 'Base Principal', peso_final_esperado_kg: null, items: rawItems }];
+  } else {
+    initSections = rawSecs.map(function(sec) {
+      var its = rawItems.filter(function(it) { return String(it.section_key) === String(sec._key); });
+      return { _key: sec._key, nome: sec.nome, peso_final_esperado_kg: sec.peso_final_esperado_kg, items: its };
+    });
+  }
+
+  var rawEqs = JSON.parse(_r('d-bomeq') || '[]');
+  var initEqs = rawEqs.map(function(eq, i) { return Object.assign({ _key: i + 1, params: [] }, eq); });
+
   return {
-    activeTab: 'receita',
-    items: Array.isArray(cfg.items) ? cfg.items : [],
-    _counter: Array.isArray(cfg.items) ? cfg.items.length : 0,
+    /* ── Reactive state ─────────────────────────────────────── */
+    activeTab:    'receita',
+    sections:     initSections,
+    _secKey:      initSections.length + 1,
+    bomEquipments: initEqs,
+    _eqKey:        initEqs.length + 1,
+    equipmentsList: JSON.parse(_r('d-equipments') || '[]'),
+    ingredientsMap: JSON.parse(_r('d-ingmap')     || '{}'),
 
-    // Seções da receita (multi-componente)
-    sections: Array.isArray(cfg.sections) ? cfg.sections : [],
-    _sectionKey: Array.isArray(cfg.sections) ? cfg.sections.length + 1 : 1,
+    fc:              parseFloat(_r('d-fc'))         || 1.0,
+    fcoc:            parseFloat(_r('d-fcoc'))       || 1.0,
+    rendimentoKg:    parseFloat(_r('d-rendimento')) || 1.0,
+    pesoPorcaoGramas:parseInt(_r('d-peso-porcao'),10)|| 350,
+    markup:          parseFloat(_r('d-markup'))     || 2.0,
+    pesoFinal:       parseFloat(_r('d-rendimento')) || 1.0,
 
-    // Equipamentos
-    equipmentsList: Array.isArray(cfg.equipmentsList) ? cfg.equipmentsList : [],
-    bomEquipments: Array.isArray(cfg.bomEquipments)
-      ? cfg.bomEquipments.map((eq, i) => ({ _key: i + 1, params: [], ...eq }))
-      : [],
-    _eqCounter: Array.isArray(cfg.bomEquipments) ? cfg.bomEquipments.length : 0,
+    numPorcoes: 0, sobraGramas: 0, custoPorPorcao: 0,
+    precoSugerido: 0, margemPct: 0,
+    custoIngredientes: 0, custoEmbalagens: 0, perdaEquipamentosKg: 0,
 
-    // FC vem dos ingredientes (cadastro); FCoc é da receita (mistura → peso final cozido)
-    fc:       cfg.fc   !== undefined ? cfg.fc   : 1.0,
-    fcoc:     cfg.fcoc !== undefined ? cfg.fcoc : 1.0,
-    pesoFinal: cfg.rendimentoKg !== undefined ? cfg.rendimentoKg : 1.0,
-    // Mapa id→nome para exibir nomes na aba Rendimento sem depender do DOM
-    ingredientsMap: cfg.ingredientsMap || {},
-
-    // Porcionamento
-    rendimentoKg:     cfg.rendimentoKg     !== undefined ? cfg.rendimentoKg     : 1.0,
-    pesoPorcaoGramas: cfg.pesoPorcaoGramas !== undefined ? cfg.pesoPorcaoGramas : 350,
-    markup:           cfg.markup           !== undefined ? cfg.markup           : 2.0,
-    custoIngredientes: 0,
-    custoEmbalagens:   0,
-    perdaEquipamentosKg: 0,
-    numPorcoes:   0,
-    sobraGramas:  0,
-    custoPorPorcao: 0,
-    precoSugerido:  0,
-    margemPct:      0,
-
+    /* ── Init ───────────────────────────────────────────────── */
     init() {
-      // Pequeno delay para garantir que o DOM dos selects/options esteja pronto
-      setTimeout(() => {
-        try { this.calcPorcoes(); } catch (e) { console.error(e); }
-      }, 50);
+      try { this.calcPorcoes(); } catch(e) { console.error(e); }
     },
 
+    /* ── Seções ─────────────────────────────────────────────── */
+    addSection() {
+      var key = this._secKey++;
+      this.sections = this.sections.concat([{
+        _key: key, nome: 'Nova Seção ' + (this.sections.length + 1),
+        peso_final_esperado_kg: null, items: []
+      }]);
+    },
+
+    removeSection(idx) {
+      if (confirm('Remover esta seção e todos os seus itens?')) {
+        this.sections = this.sections.filter(function(_, i) { return i !== idx; });
+      }
+    },
+
+    /* ── Itens ──────────────────────────────────────────────── */
+    addItem(sIdx, tipo) {
+      var newItem = { _key: Date.now(), tipo: tipo,
+                      ingredient_id: '', supply_id: '',
+                      quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un' };
+      this.sections = this.sections.map(function(sec, i) {
+        if (i !== sIdx) return sec;
+        return Object.assign({}, sec, { items: (sec.items || []).concat([newItem]) });
+      });
+    },
+
+    removeItem(sIdx, iIdx) {
+      this.sections = this.sections.map(function(sec, i) {
+        if (i !== sIdx) return sec;
+        return Object.assign({}, sec, { items: sec.items.filter(function(_, j) { return j !== iIdx; }) });
+      });
+    },
+
+    /* ── Equipamentos ───────────────────────────────────────── */
     addEquipment() {
-      this._eqCounter++;
-      this.bomEquipments.push({ _key: this._eqCounter, equipment_id: '', perda_processo_kg: 0, params: [] });
+      var key = this._eqKey++;
+      this.bomEquipments = this.bomEquipments.concat([{
+        _key: key, equipment_id: '', perda_processo_kg: 0, params: []
+      }]);
+    },
+
+    removeEquipment(idx) {
+      this.bomEquipments = this.bomEquipments.filter(function(_, i) { return i !== idx; });
+    },
+
+    addEqParam(eq) {
+      if (!eq.params) eq.params = [];
+      if (eq.params.length < 5) eq.params.push({ nome: '', valor: '' });
     },
 
     async loadEqParams(eq) {
       if (!eq.equipment_id) { eq.params = []; return; }
       try {
-        const res = await fetch(`/api/cadastro/equipment/${eq.equipment_id}/parameters-json`);
-        const data = await res.json();
-        eq.params = data.map(p => ({ nome: p.nome + (p.unidade ? ' (' + p.unidade + ')' : ''), valor: p.valor_padrao || '' }));
-      } catch (e) {
-        console.error('[SmartFood] Erro ao carregar parâmetros do equipamento:', e);
-        eq.params = [];
-      }
+        var res  = await fetch('/api/cadastro/equipment/' + eq.equipment_id + '/parameters-json');
+        var data = await res.json();
+        eq.params = data.map(function(p) {
+          return { nome: p.nome + (p.unidade ? ' (' + p.unidade + ')' : ''), valor: p.valor_padrao || '' };
+        });
+      } catch(e) { console.error(e); eq.params = []; }
     },
 
-    addEqParam(eq) {
-      if (!eq.params) eq.params = [];
-      if (eq.params.length < 5) {
-        eq.params.push({ nome: '', valor: '' });
-      }
+    /* ── Serialização (formato esperado pelo backend) ────────── */
+    sectionsJson() {
+      return JSON.stringify(this.sections.map(function(sec, i) {
+        return { _key: sec._key, nome: sec.nome, ordem: i + 1,
+                 peso_final_esperado_kg: sec.peso_final_esperado_kg || null };
+      }));
+    },
+
+    itemsJson() {
+      var out = [];
+      this.sections.forEach(function(sec) {
+        (sec.items || []).forEach(function(item) {
+          out.push({ _key: item._key, tipo: item.tipo,
+                     ingredient_id: item.ingredient_id || '',
+                     supply_id: item.supply_id || '',
+                     quantidade: parseFloat(item.quantidade) || 0,
+                     unidade: item.unidade || 'kg',
+                     section_key: sec._key,
+                     perda_esperada_pct: item.perda_esperada_pct || 0 });
+        });
+      });
+      return JSON.stringify(out);
     },
 
     bomEquipmentsJson() {
-      return JSON.stringify(this.bomEquipments.map(eq => ({
-        equipment_id: eq.equipment_id,
-        perda_processo_kg: eq.perda_processo_kg || 0,
-        parametros_json: Object.fromEntries((eq.params || []).map(p => [p.nome, p.valor])),
-      })));
+      return JSON.stringify(this.bomEquipments.map(function(eq) {
+        return { equipment_id: eq.equipment_id, perda_processo_kg: eq.perda_processo_kg || 0,
+                 parametros_json: Object.fromEntries((eq.params||[]).map(function(p){return [p.nome,p.valor];})) };
+      }));
     },
 
-    addSection() {
-      const key = this._sectionKey++;
-      this.sections = [
-        ...this.sections,
-        { _key: key, nome: '', ordem: this.sections.length + 1, peso_final_esperado_kg: null },
-      ];
-    },
-
-    removeSection(idx) {
-      const key = this.sections[idx]._key;
-      this.items.forEach(item => { if (item.section_key === key) item.section_key = null; });
-      this.sections = this.sections.filter((_, i) => i !== idx);
-      this.sections.forEach((s, i) => { s.ordem = i + 1; });
-    },
-
-    addItem(tipo) {
-      this._counter++;
-      this.items.push({
-        _key: this._counter, tipo,
-        ingredient_id: '', supply_id: '',
-        quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un',
-        perda_esperada_pct: 0,
-        section_key: null,
-      });
-    },
-
-    removeItem(index) {
-      this.items.splice(index, 1);
-      this.calcFC();
-    },
-
-    // Soma das quantidades dos ingredientes da receita (Peso Total da Mistura)
+    /* ── Cálculos ────────────────────────────────────────────── */
     pesoTotalIngredientes() {
-      return this.items
-        .filter(i => i.tipo === 'ingrediente')
-        .reduce((s, i) => s + (parseFloat(i.quantidade) || 0), 0);
-    },
-
-    // FCoc = Peso Total Mistura / Peso Final cozido (FC vem do cadastro do ingrediente)
-    calcFC() {
-      try {
-        const mistura = this.pesoTotalIngredientes();
-        const final   = parseFloat(this.pesoFinal) || 0;
-        this.fcoc = (mistura > 0 && final > 0) ? +(mistura / final).toFixed(4) : 0;
-        if (final > 0) this.rendimentoKg = +final.toFixed(3);
-        this.calcPorcoes();
-      } catch (e) { console.error(e); }
+      var t = 0;
+      this.sections.forEach(function(sec) {
+        (sec.items||[]).forEach(function(item) {
+          if (item.tipo === 'ingrediente') t += parseFloat(item.quantidade) || 0;
+        });
+      });
+      return t;
     },
 
     ingredientName(id) {
-      return this.ingredientsMap[id] || '—';
-    },
-
-    _estimarCustos() {
-      try {
-        let ing = 0, sup = 0;
-        this.items.forEach(item => {
-          const qty = parseFloat(item.quantidade) || 0;
-          if (item.tipo === 'ingrediente' && item.ingredient_id) {
-            const opt = document.querySelector(`option[value="${item.ingredient_id}"]`);
-            if (opt) {
-              ing += (parseFloat(opt.dataset?.custo) || 0) * qty;
-            }
-          } else if (item.tipo === 'embalagem' && item.supply_id) {
-            const opt = document.querySelector(`option[value="${item.supply_id}"]`);
-            if (opt) {
-              sup += (parseFloat(opt.dataset?.custo) || 0) * qty;
-            }
-          }
-        });
-        this.custoIngredientes = ing;
-        this.custoEmbalagens   = sup;
-      } catch (e) { console.error(e); }
+      return (this.ingredientsMap && id) ? (this.ingredientsMap[id] || id) : '—';
     },
 
     calcPorcoes() {
       try {
-        this._estimarCustos();
-
-        // Perdas em equipamentos reduzem o rendimento líquido disponível para porcionamento
-        const perdaEqKg = this.bomEquipments.reduce(
-          (sum, eq) => sum + (parseFloat(eq.perda_processo_kg) || 0), 0
-        );
-        this.perdaEquipamentosKg = perdaEqKg;
-        const rendimentoLiquidoKg = Math.max(0, this.rendimentoKg - perdaEqKg);
-        const totalG = rendimentoLiquidoKg * 1000;
-
-        const porcao = this.pesoPorcaoGramas;
+        var perdaEq = this.bomEquipments.reduce(function(s,eq){return s+(parseFloat(eq.perda_processo_kg)||0);},0);
+        this.perdaEquipamentosKg = perdaEq;
+        var liq = Math.max(0, this.rendimentoKg - perdaEq);
+        var totalG = liq * 1000;
+        var porcao = this.pesoPorcaoGramas;
         if (!porcao || porcao <= 0 || totalG <= 0) {
-          this.numPorcoes = 0; this.sobraGramas = 0;
-          this.custoPorPorcao = 0; this.precoSugerido = 0; this.margemPct = 0;
+          this.numPorcoes=0;this.sobraGramas=0;this.custoPorPorcao=0;this.precoSugerido=0;this.margemPct=0;
           return;
         }
         this.numPorcoes  = Math.floor(totalG / porcao);
         this.sobraGramas = totalG % porcao;
-
-        // Custo de insumos ajustado pela perda: o mesmo material comprado rende menos porções
-        const fatorPerda = perdaEqKg > 0 && rendimentoLiquidoKg > 0
-          ? this.rendimentoKg / rendimentoLiquidoKg : 1;
-        const custoAjustado = (this.custoIngredientes * fatorPerda) + this.custoEmbalagens;
-
-        this.custoPorPorcao = this.numPorcoes > 0 ? custoAjustado / this.numPorcoes : 0;
+        var custo = this.custoIngredientes + this.custoEmbalagens;
+        this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
         this.precoSugerido  = this.custoPorPorcao * this.markup;
-        this.margemPct      = this.precoSugerido > 0
+        this.margemPct = this.precoSugerido > 0
           ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
-      } catch (e) { console.error(e); }
+      } catch(e) { console.error(e); }
     },
   };
 }
-
-// bomBuilder is defined in this file (app.js), which is never swapped by HTMX boost,
-// so Alpine can always find it — no need to reinit after settle.
 
