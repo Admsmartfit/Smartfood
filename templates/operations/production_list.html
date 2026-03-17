@@ -22,9 +22,9 @@
        role="group" aria-label="Filtrar por status">
     {% set statuses = [
       ('', 'Todas'),
-      ('pendente', 'Pendentes'),
-      ('em_producao', 'Em Produção'),
-      ('concluido', 'Concluídas'),
+      ('APROVADA', 'Aprovadas (Aguardando)'),
+      ('EM_PRODUCAO', 'Em Produção'),
+      ('CONCLUIDA', 'Concluídas'),
     ] %}
     {% for val, label in statuses %}
     <button class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors border"
