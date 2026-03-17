@@ -1,810 +1,301 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f3460" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="SF Ops" />
-  <link rel="manifest" href="/static/manifest.json" />
-  <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-  <title>SmartFood Ops 360</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tablet de Produção</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/phosphor-icons"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <style>
-    :root {
-      --primary: #0f3460;
-      --accent: #e94560;
-      --bg: #1a1a2e;
-      --surface: #16213e;
-      --text: #eaeaea;
-      --text-muted: #8892a4;
-      --success: #4caf50;
-      --warning: #ff9800;
-      --danger: #f44336;
-      --radius: 12px;
-      --safe-top: env(safe-area-inset-top, 0px);
-      --safe-bottom: env(safe-area-inset-bottom, 0px);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100dvh;
-      padding-top: var(--safe-top);
-      padding-bottom: calc(var(--safe-bottom) + 64px);
-    }
-
-    /* ── Header ── */
-    header {
-      background: var(--primary);
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    }
-    header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
-    #status-badge {
-      font-size: 12px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: var(--success);
-      color: #fff;
-    }
-    #status-badge.offline { background: var(--danger); }
-
-    /* ── Views ── */
-    .view { display: none; padding: 16px; }
-    .view.active { display: block; }
-
-    /* ── Cards ── */
-    .card {
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 16px;
-      margin-bottom: 12px;
-    }
-    .card h3 { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
-    .card .value { font-size: 28px; font-weight: 700; }
-    .card .label { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-
-    /* ── Op List ── */
-    .op-item {
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      cursor: pointer;
-      border-left: 4px solid transparent;
-      transition: border-color 0.2s;
-    }
-    .op-item.EM_PRODUCAO { border-left-color: var(--warning); }
-    .op-item.APROVADA { border-left-color: var(--success); }
-    .op-item.PAUSADA { border-left-color: var(--danger); }
-    .op-info { flex: 1; }
-    .op-info .op-product { font-size: 16px; font-weight: 600; }
-    .op-info .op-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
-    .badge {
-      font-size: 11px;
-      padding: 3px 8px;
-      border-radius: 8px;
-      font-weight: 600;
-    }
-    .badge.EM_PRODUCAO { background: rgba(255,152,0,0.2); color: var(--warning); }
-    .badge.APROVADA { background: rgba(76,175,80,0.2); color: var(--success); }
-    .badge.PAUSADA { background: rgba(244,67,54,0.2); color: var(--danger); }
-    .badge.CONCLUIDA { background: rgba(33,150,243,0.2); color: #2196f3; }
-
-    /* ── Buttons ── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 20px;
-      border-radius: var(--radius);
-      border: none;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 8px;
-      transition: opacity 0.15s;
-    }
-    .btn:active { opacity: 0.75; }
-    .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary { background: var(--primary); color: #fff; }
-    .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--text); }
-
-    /* ── Alert List ── */
-    .alert-item {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-      padding: 12px;
-      background: var(--surface);
-      border-radius: var(--radius);
-      margin-bottom: 8px;
-    }
-    .alert-icon { font-size: 20px; flex-shrink: 0; }
-    .alert-text .alert-title { font-weight: 600; font-size: 14px; }
-    .alert-text .alert-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-    /* ── Bottom Nav ── */
-    nav {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: var(--surface);
-      display: flex;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-bottom: var(--safe-bottom);
-      z-index: 100;
-    }
-    .nav-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 10px 0 8px;
-      cursor: pointer;
-      font-size: 11px;
-      color: var(--text-muted);
-      gap: 4px;
-      border: none;
-      background: none;
-      transition: color 0.15s;
-    }
-    .nav-item .nav-icon { font-size: 22px; }
-    .nav-item.active { color: var(--accent); }
-
-    /* ── Barcode Scanner ── */
-    #scanner-area {
-      background: #000;
-      border-radius: var(--radius);
-      aspect-ratio: 4/3;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-      overflow: hidden;
-      position: relative;
-    }
-    #scanner-area video { width: 100%; height: 100%; object-fit: cover; }
-    .scan-overlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .scan-frame {
-      width: 60%;
-      aspect-ratio: 1;
-      border: 3px solid var(--accent);
-      border-radius: 8px;
-    }
-
-    /* ── Form inputs ── */
-    .field { margin-bottom: 14px; }
-    .field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
-    .field input, .field select, .field textarea {
-      width: 100%;
-      padding: 12px 14px;
-      background: var(--bg);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 16px;
-    }
-    .field input:focus, .field select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    /* ── Loading ── */
-    .loading { text-align: center; padding: 32px; color: var(--text-muted); font-size: 14px; }
-    .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Toast ── */
-    #toast-container { position: fixed; top: 72px; left: 16px; right: 16px; z-index: 200; }
-    .toast {
-      background: var(--surface);
-      border-radius: var(--radius);
-      padding: 14px 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      animation: slideIn 0.3s ease;
-      border-left: 4px solid var(--accent);
-    }
-    .toast.success { border-left-color: var(--success); }
-    .toast.error { border-left-color: var(--danger); }
-    @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: none; opacity: 1; } }
-
-    /* ── Section title ── */
-    .section-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      color: var(--text-muted);
-      margin: 16px 0 10px;
-    }
-
-    .offline-banner {
-      background: var(--danger);
-      color: #fff;
-      text-align: center;
-      padding: 8px;
-      font-size: 13px;
-      display: none;
-    }
-    .offline-banner.visible { display: block; }
+    [x-cloak] { display: none !important; }
+    * { touch-action: manipulation; }
   </style>
 </head>
-<body>
+<body class="bg-slate-100 text-gray-900 font-sans select-none"
+      x-data="kitchenApp()"
+      x-init="initApp()">
 
-<div id="offline-banner" class="offline-banner">
-  📵 Modo Offline — eventos serão sincronizados ao reconectar
-</div>
-
-<header>
-  <h1>SF Ops 360</h1>
-  <span id="status-badge">Online</span>
-</header>
-
-<div id="toast-container"></div>
-
-<!-- ── Views ── -->
-
-<div id="view-dashboard" class="view active">
-  <div class="loading" id="dashboard-loading">
-    <div class="spinner"></div>
-    Carregando dashboard...
-  </div>
-  <div id="dashboard-content" style="display:none">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      <div class="card">
-        <h3>OPs Ativas</h3>
-        <div class="value" id="kpi-ops">—</div>
-        <div class="label">em produção</div>
+  <!-- Header -->
+  <header class="bg-gray-900 text-white px-5 py-4 sticky top-0 z-50 shadow-md flex items-center justify-between">
+    <div class="flex items-center gap-4 cursor-pointer" @click="view = 'dashboard'">
+      <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
+        <i class="ph-fill ph-chef-hat text-white text-3xl"></i>
       </div>
-      <div class="card">
-        <h3>Alertas</h3>
-        <div class="value" id="kpi-alerts">—</div>
-        <div class="label">pendentes</div>
-      </div>
-      <div class="card">
-        <h3>Entregas Hoje</h3>
-        <div class="value" id="kpi-deliveries">—</div>
-        <div class="label">pedidos</div>
-      </div>
-      <div class="card">
-        <h3>Compras Urgentes</h3>
-        <div class="value" id="kpi-purchases">—</div>
-        <div class="label">insumos críticos</div>
+      <div>
+        <h1 class="font-bold text-2xl leading-tight">Painel da Cozinha</h1>
+        <p class="text-sm text-gray-400">Tablet do Operador</p>
       </div>
     </div>
-    <p class="section-title">Alertas Recentes</p>
-    <div id="dashboard-alerts"></div>
-  </div>
-</div>
-
-<div id="view-ops" class="view">
-  <div class="loading" id="ops-loading">
-    <div class="spinner"></div>
-    Carregando ordens...
-  </div>
-  <div id="ops-content" style="display:none">
-    <p class="section-title">Ordens Ativas</p>
-    <div id="ops-list"></div>
-  </div>
-  <!-- OP Detail (oculto por padrão) -->
-  <div id="op-detail" style="display:none">
-    <button class="btn btn-outline" onclick="closeOpDetail()" style="margin-bottom:12px">← Voltar</button>
-    <div class="card">
-      <h3>Ordem de Produção</h3>
-      <div id="op-detail-content"></div>
+    <div x-show="view === 'execution' && currentOp" x-cloak class="text-right hidden sm:block">
+      <p class="text-xs text-gray-400 uppercase tracking-wide">Em execução</p>
+      <p class="font-bold text-white truncate max-w-[180px]" x-text="currentOp?.produto"></p>
     </div>
-    <div id="op-actions"></div>
-  </div>
-</div>
+  </header>
 
-<div id="view-scan" class="view">
-  <p class="section-title">Leitura de Código de Barras / QR</p>
-  <div id="scanner-area">
-    <video id="scanner-video" autoplay playsinline muted></video>
-    <div class="scan-overlay">
-      <div class="scan-frame"></div>
+  <!-- ── DASHBOARD: Fila de Produção ──────────────────────────────────────── -->
+  <div x-show="view === 'dashboard'" x-cloak class="p-6 max-w-3xl mx-auto space-y-4">
+
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-bold text-gray-500 uppercase tracking-wider text-lg flex items-center gap-2">
+        <i class="ph ph-cooking-pot text-2xl"></i> Fila de Produção
+      </h2>
+      <button @click="loadOps()"
+              class="flex items-center gap-1 text-sm text-blue-600 font-semibold py-1 px-3 rounded-lg border border-blue-200 hover:bg-blue-50 transition-colors">
+        <i class="ph ph-arrows-clockwise"></i> Atualizar
+      </button>
     </div>
+
+    <div x-show="ops.length === 0" class="bg-white rounded-2xl p-10 text-center border border-slate-200 shadow-sm">
+      <i class="ph ph-factory text-5xl text-gray-300 block mb-3"></i>
+      <p class="text-gray-500 font-medium text-lg">Nenhuma ordem em aberto.</p>
+      <p class="text-gray-400 text-sm mt-1">Aguarde o lançamento de uma nova OP pelo gestor.</p>
+    </div>
+
+    <template x-for="op in ops" :key="op.id">
+      <div class="bg-white p-6 rounded-2xl shadow-sm border-2 transition-all cursor-pointer active:scale-[0.98]"
+           :class="op.status === 'EM_PRODUCAO' ? 'border-blue-400' : 'border-slate-200 hover:border-blue-300'"
+           @click="openOp(op)">
+        <div class="flex justify-between items-start mb-3">
+          <span class="text-sm font-bold uppercase px-3 py-1 rounded-full"
+                :class="op.status === 'EM_PRODUCAO' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'"
+                x-text="op.status === 'EM_PRODUCAO' ? 'Em Produção' : 'Aguardando'">
+          </span>
+          <span class="text-sm text-gray-400 font-mono">OP: <span x-text="op.id.substring(0,8)"></span></span>
+        </div>
+        <h3 class="font-bold text-3xl text-gray-900 leading-tight" x-text="op.produto"></h3>
+        <p class="text-gray-500 mt-2 text-xl">
+          Meta: <strong class="text-gray-900" x-text="op.quantidade_planejada"></strong> un.
+        </p>
+        <div class="mt-4 flex items-center gap-2 text-blue-600 font-semibold text-base">
+          <i class="ph ph-arrow-circle-right text-xl"></i> Toque para abrir
+        </div>
+      </div>
+    </template>
   </div>
-  <div id="scan-result" class="card" style="display:none">
-    <h3>Resultado</h3>
-    <div id="scan-result-content"></div>
-  </div>
-  <button class="btn btn-primary" id="btn-scan" onclick="startScan()">
-    📷 Iniciar Scanner
-  </button>
-  <div class="field" style="margin-top:16px">
-    <label>Ou digite o código manualmente:</label>
-    <input type="text" id="manual-code" placeholder="EAN / Lote / QR code" inputmode="numeric" />
-  </div>
-  <button class="btn btn-secondary" onclick="lookupManualCode()">Consultar</button>
-</div>
 
-<div id="view-sync" class="view">
-  <p class="section-title">Sincronização Offline</p>
-  <div class="card">
-    <h3>Fila Local</h3>
-    <div class="value" id="queue-count">0</div>
-    <div class="label">eventos pendentes</div>
-  </div>
-  <button class="btn btn-primary" onclick="syncNow()">🔄 Sincronizar Agora</button>
-  <p class="section-title" style="margin-top:20px">Último Sync</p>
-  <div class="card">
-    <div id="last-sync-info">Nenhum sync registrado nesta sessão.</div>
-  </div>
-  <p class="section-title" style="margin-top:20px">Bundle Offline</p>
-  <div class="card">
-    <p style="font-size:13px;color:var(--text-muted);margin-bottom:8px">
-      Baixa todos os dados necessários para operar sem internet.
-    </p>
-    <button class="btn btn-secondary" onclick="downloadBundle()">⬇ Baixar Bundle Offline</button>
-  </div>
-</div>
+  <!-- ── EXECUTION: 3 Sub-Ecrãs ───────────────────────────────────────────── -->
+  <div x-show="view === 'execution'" x-cloak class="p-4 max-w-3xl mx-auto">
+    <template x-if="currentOp">
+      <div class="space-y-5">
 
-<!-- ── Bottom Nav ── -->
-<nav>
-  <button class="nav-item active" id="nav-dashboard" onclick="showView('dashboard')">
-    <span class="nav-icon">🏠</span>
-    Dashboard
-  </button>
-  <button class="nav-item" id="nav-ops" onclick="showView('ops')">
-    <span class="nav-icon">⚙️</span>
-    Produção
-  </button>
-  <button class="nav-item" id="nav-scan" onclick="showView('scan')">
-    <span class="nav-icon">📷</span>
-    Scanner
-  </button>
-  <button class="nav-item" id="nav-sync" onclick="showView('sync')">
-    <span class="nav-icon">🔄</span>
-    Sync
-  </button>
-</nav>
+        <button @click="view = 'dashboard'"
+                class="flex items-center gap-1 text-blue-600 font-bold text-xl py-2 px-1">
+          <i class="ph ph-caret-left text-3xl"></i> Voltar à Fila
+        </button>
 
-<script>
-/* ─────────────────────────────────────────────────────────────────────────
-   SmartFood Ops 360 — Mobile PWA App
-   E-19: Operador mobile com suporte offline via IndexedDB + Background Sync
-   ───────────────────────────────────────────────────────────────────────── */
+        <!-- Título da OP -->
+        <div class="bg-white rounded-2xl px-6 py-4 border border-slate-200 shadow-sm">
+          <p class="text-xs text-gray-400 uppercase tracking-wider">Ordem de Produção</p>
+          <h2 class="font-bold text-2xl text-gray-900 mt-0.5" x-text="currentOp.produto"></h2>
+          <p class="text-gray-500 text-lg mt-1">
+            Meta: <strong x-text="currentOp.quantidade_planejada"></strong> unidades
+          </p>
+        </div>
 
-const API = "";  // mesmo origin
-let isOnline = navigator.onLine;
-let db_idb = null;  // IndexedDB para fila offline
+        <!-- Tabs -->
+        <div class="flex rounded-xl bg-slate-200 p-1.5 gap-1.5">
+          <button @click="subView = 'mise'"
+                  :class="subView === 'mise' ? 'bg-white shadow text-amber-600' : 'text-gray-500 hover:text-gray-700'"
+                  class="flex-1 py-4 text-lg font-bold rounded-lg transition-all text-center">
+            <i class="ph ph-list-checks block text-2xl mb-1"></i>
+            <span class="text-sm">1. Mise en Place</span>
+          </button>
+          <button @click="subView = 'recipe'"
+                  :class="subView === 'recipe' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'"
+                  class="flex-1 py-4 text-lg font-bold rounded-lg transition-all text-center">
+            <i class="ph ph-book-open block text-2xl mb-1"></i>
+            <span class="text-sm">2. Receita</span>
+          </button>
+          <button @click="subView = 'finish'"
+                  :class="subView === 'finish' ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'"
+                  class="flex-1 py-4 text-lg font-bold rounded-lg transition-all text-center">
+            <i class="ph ph-flag-checkered block text-2xl mb-1"></i>
+            <span class="text-sm">3. Concluir</span>
+          </button>
+        </div>
 
-// ─── Service Worker Registration ─────────────────────────────────────────────
+        <!-- ── SUB-ECRÃ 1: Mise en Place ─────────────────────────────────── -->
+        <div x-show="subView === 'mise'"
+             class="bg-white border-2 border-amber-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 class="font-bold text-amber-900 text-2xl flex items-center gap-2">
+            <i class="ph ph-list-checks text-amber-500"></i> Separação de Ingredientes
+          </h3>
+          <p class="text-gray-500 text-base">Confirme cada ingrediente antes de iniciar o preparo.</p>
 
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("/static/sw.js")
-    .then((reg) => {
-      console.log("SW registered:", reg.scope);
-      // Listener para mensagem do SW pedindo flush
-      navigator.serviceWorker.addEventListener("message", (e) => {
-        if (e.data?.type === "SYNC_REQUESTED") syncNow();
-      });
-    })
-    .catch((e) => console.error("SW registration failed:", e));
-}
+          <ul class="space-y-3">
+            <template x-for="(ing, index) in currentOp.ingredientes" :key="index">
+              <label class="flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-colors"
+                     :class="checklist[index] ? 'border-green-400 bg-green-50' : 'border-slate-100 bg-slate-50 active:bg-amber-50'">
+                <input type="checkbox" x-model="checklist[index]"
+                       class="w-8 h-8 text-green-500 rounded-lg focus:ring-green-400 border-gray-300 shrink-0">
+                <div class="flex-1 min-w-0">
+                  <span class="font-bold text-xl text-gray-800" x-text="ing.nome"></span>
+                  <div x-show="ing.suficiente === false"
+                       class="text-xs text-red-600 font-semibold mt-0.5 flex items-center gap-1">
+                    <i class="ph ph-warning"></i> Estoque insuficiente
+                  </div>
+                </div>
+                <div class="bg-amber-100 text-amber-900 px-4 py-2 rounded-xl font-mono font-bold text-xl text-center shadow-inner shrink-0">
+                  <span x-text="ing.quantidade_necessaria"></span>
+                  <span class="text-sm font-medium" x-text="' ' + ing.unidade"></span>
+                </div>
+              </label>
+            </template>
+          </ul>
 
-// ─── IndexedDB para fila offline ─────────────────────────────────────────────
-
-function openIDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open("smartfood-offline", 1);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains("events")) {
-        const store = db.createObjectStore("events", { keyPath: "event_id" });
-        store.createIndex("status", "status");
-      }
-    };
-    req.onsuccess = (e) => resolve(e.target.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function queueEvent(eventType, payload) {
-  const db = await openIDB();
-  const event = {
-    event_id: crypto.randomUUID(),
-    event_type: eventType,
-    payload,
-    synced_at: new Date().toISOString(),
-    status: "pending",
-  };
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("events", "readwrite");
-    tx.objectStore("events").add(event);
-    tx.oncomplete = () => resolve(event.event_id);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-async function getPendingEvents() {
-  const db = await openIDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction("events", "readonly");
-    const req = tx.objectStore("events").index("status").getAll("pending");
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
-async function markEventSynced(eventId) {
-  const db = await openIDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction("events", "readwrite");
-    const store = tx.objectStore("events");
-    const req = store.get(eventId);
-    req.onsuccess = () => {
-      const rec = req.result;
-      if (rec) { rec.status = "synced"; store.put(rec); }
-      resolve();
-    };
-  });
-}
-
-async function countPendingEvents() {
-  const db = await openIDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction("events", "readonly");
-    const req = tx.objectStore("events").index("status").count("pending");
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
-// ─── Online/Offline ───────────────────────────────────────────────────────────
-
-function updateOnlineStatus() {
-  isOnline = navigator.onLine;
-  const badge = document.getElementById("status-badge");
-  const banner = document.getElementById("offline-banner");
-  if (isOnline) {
-    badge.textContent = "Online";
-    badge.className = "";
-    banner.classList.remove("visible");
-    syncNow();  // auto-sync ao reconectar
-  } else {
-    badge.textContent = "Offline";
-    badge.className = "offline";
-    banner.classList.add("visible");
-  }
-  updateQueueCount();
-}
-
-window.addEventListener("online", updateOnlineStatus);
-window.addEventListener("offline", updateOnlineStatus);
-
-// ─── Navigation ──────────────────────────────────────────────────────────────
-
-function showView(name) {
-  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
-  document.getElementById(`view-${name}`).classList.add("active");
-  document.getElementById(`nav-${name}`).classList.add("active");
-  if (name === "dashboard") loadDashboard();
-  else if (name === "ops") loadOps();
-  else if (name === "sync") updateQueueCount();
-}
-
-// ─── API helper ──────────────────────────────────────────────────────────────
-
-async function apiFetch(path, opts = {}) {
-  const deviceId = getDeviceId();
-  const headers = { "Content-Type": "application/json", "X-Device-Id": deviceId, ...opts.headers };
-  const res = await fetch(API + path, { ...opts, headers });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-function getDeviceId() {
-  let id = localStorage.getItem("sf-device-id");
-  if (!id) {
-    id = "device-" + crypto.randomUUID().slice(0, 8);
-    localStorage.setItem("sf-device-id", id);
-  }
-  return id;
-}
-
-// ─── Toast ───────────────────────────────────────────────────────────────────
-
-function toast(msg, type = "info") {
-  const container = document.getElementById("toast-container");
-  const el = document.createElement("div");
-  el.className = `toast ${type}`;
-  const icon = type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️";
-  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
-  container.appendChild(el);
-  setTimeout(() => el.remove(), 3500);
-}
-
-// ─── Dashboard ───────────────────────────────────────────────────────────────
-
-async function loadDashboard() {
-  document.getElementById("dashboard-loading").style.display = "block";
-  document.getElementById("dashboard-content").style.display = "none";
-  try {
-    const data = await apiFetch("/mobile/dashboard");
-    document.getElementById("kpi-ops").textContent = data.ops_ativas ?? 0;
-    document.getElementById("kpi-alerts").textContent = data.total_alertas ?? 0;
-    document.getElementById("kpi-deliveries").textContent = data.entregas_hoje ?? 0;
-    document.getElementById("kpi-purchases").textContent = data.compras_urgentes ?? 0;
-
-    const alertsEl = document.getElementById("dashboard-alerts");
-    alertsEl.innerHTML = "";
-    (data.alertas_recentes || []).slice(0, 5).forEach((a) => {
-      alertsEl.innerHTML += `
-        <div class="alert-item">
-          <span class="alert-icon">${a.icone || "⚠️"}</span>
-          <div class="alert-text">
-            <div class="alert-title">${a.titulo}</div>
-            <div class="alert-sub">${a.detalhe || ""}</div>
+          <div class="flex items-center justify-between text-sm text-gray-500 pt-1">
+            <span>
+              <span class="font-bold text-green-600" x-text="checklist.filter(Boolean).length"></span>
+              / <span x-text="currentOp.ingredientes.length"></span> separados
+            </span>
+            <span x-show="checklist.length > 0 && checklist.every(Boolean)"
+                  class="text-green-600 font-semibold flex items-center gap-1">
+              <i class="ph-fill ph-check-circle"></i> Tudo pronto!
+            </span>
           </div>
-        </div>`;
-    });
-    if (!data.alertas_recentes?.length) {
-      alertsEl.innerHTML = `<div class="alert-item"><span class="alert-icon">✅</span><div class="alert-text"><div class="alert-title">Nenhum alerta no momento</div></div></div>`;
-    }
-    document.getElementById("dashboard-loading").style.display = "none";
-    document.getElementById("dashboard-content").style.display = "block";
-  } catch (e) {
-    document.getElementById("dashboard-loading").innerHTML = `<p style="color:var(--danger)">Erro ao carregar. ${isOnline ? "Tente novamente." : "Sem conexão."}</p>`;
-  }
-}
 
-// ─── Ordens de Produção ───────────────────────────────────────────────────────
+          <button @click="subView = 'recipe'"
+                  class="w-full mt-2 bg-amber-500 hover:bg-amber-600 text-white font-bold text-2xl py-6 rounded-2xl shadow-md transition-colors flex items-center justify-center gap-3">
+            TUDO SEPARADO <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
 
-async function loadOps() {
-  document.getElementById("op-detail").style.display = "none";
-  document.getElementById("ops-loading").style.display = "block";
-  document.getElementById("ops-content").style.display = "none";
-  try {
-    const data = await apiFetch("/mobile/production-orders/active");
-    const list = document.getElementById("ops-list");
-    list.innerHTML = "";
-    if (!data.length) {
-      list.innerHTML = `<div class="card" style="color:var(--text-muted);text-align:center">Nenhuma OP ativa no momento</div>`;
-    } else {
-      data.forEach((op) => {
-        list.innerHTML += `
-          <div class="op-item ${op.status}" onclick="openOpDetail('${op.id}')">
-            <div class="op-info">
-              <div class="op-product">${op.produto}</div>
-              <div class="op-meta">${op.quantidade_planejada} un · OP-${op.id.slice(0,8).toUpperCase()}</div>
-            </div>
-            <span class="badge ${op.status}">${op.status.replace("_", " ")}</span>
-          </div>`;
-      });
-    }
-    document.getElementById("ops-loading").style.display = "none";
-    document.getElementById("ops-content").style.display = "block";
-  } catch (e) {
-    document.getElementById("ops-loading").innerHTML = `<p style="color:var(--danger)">Erro ao carregar OPs.</p>`;
-  }
-}
+        <!-- ── SUB-ECRÃ 2: Modo de Preparo ────────────────────────────────── -->
+        <div x-show="subView === 'recipe'"
+             class="bg-white border-2 border-blue-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <h3 class="font-bold text-blue-900 text-2xl flex items-center gap-2">
+            <i class="ph ph-book-open text-blue-500"></i> Modo de Preparo
+          </h3>
+          <div class="text-gray-800 text-xl leading-loose whitespace-pre-wrap font-medium bg-blue-50 p-6 rounded-xl border border-blue-100"
+               x-text="currentOp.modo_preparo"></div>
 
-async function openOpDetail(opId) {
-  document.getElementById("ops-content").style.display = "none";
-  document.getElementById("op-detail").style.display = "block";
-  document.getElementById("op-detail-content").innerHTML = `<div class="spinner" style="margin:16px auto"></div>`;
-  try {
-    const op = await apiFetch(`/mobile/production-orders/${opId}`);
-    document.getElementById("op-detail-content").innerHTML = `
-      <p style="font-size:18px;font-weight:700;margin:4px 0">${op.produto}</p>
-      <p style="color:var(--text-muted);font-size:13px">OP-${op.id.slice(0,8).toUpperCase()}</p>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px">
-        <div><span style="color:var(--text-muted);font-size:12px">Planejado</span><div style="font-size:18px;font-weight:700">${op.quantidade_planejada} un</div></div>
-        <div><span style="color:var(--text-muted);font-size:12px">Status</span><div><span class="badge ${op.status}">${op.status.replace("_"," ")}</span></div></div>
+          <button @click="subView = 'finish'"
+                  class="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-2xl py-6 rounded-2xl shadow-md transition-colors flex items-center justify-center gap-3">
+            PRONTO PARA CONCLUIR <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+
+        <!-- ── SUB-ECRÃ 3: Conclusão ──────────────────────────────────────── -->
+        <div x-show="subView === 'finish'"
+             class="bg-white border-2 border-green-200 rounded-2xl p-6 shadow-sm space-y-5">
+          <h3 class="font-bold text-green-900 text-2xl flex items-center gap-2">
+            <i class="ph ph-flag-checkered text-green-500"></i> Conclusão do Lote
+          </h3>
+          <p class="text-gray-600 text-lg">Insira a quantidade exata que rendeu no final do processo.</p>
+
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-gray-500 uppercase tracking-wide">Quantidade produzida</label>
+            <input type="number" x-model.number="qtdReal" min="0.1" step="0.1"
+                   class="w-full bg-slate-50 border-4 border-slate-300 focus:border-green-500 rounded-2xl px-6 py-8 text-5xl font-bold text-center outline-none transition-colors"
+                   placeholder="0">
+          </div>
+
+          <div x-show="qtdReal > 0"
+               class="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3 text-base border border-slate-200">
+            <span class="text-gray-500">Meta: <strong x-text="currentOp.quantidade_planejada"></strong></span>
+            <span class="font-bold"
+                  :class="qtdReal >= currentOp.quantidade_planejada ? 'text-green-600' : 'text-amber-600'">
+              Rendimento:
+              <span x-text="currentOp.quantidade_planejada > 0
+                ? Math.round(qtdReal / currentOp.quantidade_planejada * 100) + '%'
+                : '—'">
+              </span>
+            </span>
+          </div>
+
+          <div x-show="errorMsg"
+               class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl font-medium flex items-center gap-2">
+            <i class="ph ph-warning-circle text-xl"></i>
+            <span x-text="errorMsg"></span>
+          </div>
+
+          <button @click="finishProducao()"
+                  :disabled="saving || !qtdReal"
+                  :class="(saving || !qtdReal) ? 'bg-green-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'"
+                  class="w-full text-white font-bold text-2xl py-6 rounded-2xl shadow-md transition-colors flex items-center justify-center gap-3">
+            <span x-show="saving">A guardar...</span>
+            <span x-show="!saving" class="flex items-center gap-3">
+              <i class="ph-bold ph-check-circle text-3xl"></i> SALVAR E CONCLUIR
+            </span>
+          </button>
+        </div>
+
       </div>
-      ${op.operador_id ? `<p style="margin-top:10px;font-size:13px;color:var(--text-muted)">Operador: ${op.operador_id}</p>` : ""}
-    `;
-    const actions = document.getElementById("op-actions");
-    actions.innerHTML = "";
-    if (op.status === "APROVADA") {
-      actions.innerHTML += `<button class="btn btn-primary" onclick="quickStartOp('${op.id}')">▶ Iniciar Produção</button>`;
-    }
-    if (op.status === "EM_PRODUCAO") {
-      actions.innerHTML += `
-        <div class="field"><label>Quantidade Real Produzida:</label><input type="number" id="qty-real" placeholder="ex: 450" inputmode="decimal" /></div>
-        <button class="btn btn-primary" onclick="completeOp('${op.id}')">✅ Concluir OP</button>`;
-    }
-  } catch {
-    document.getElementById("op-detail-content").innerHTML = `<p style="color:var(--danger)">Erro ao carregar detalhes.</p>`;
-  }
-}
+    </template>
+  </div>
 
-function closeOpDetail() {
-  document.getElementById("op-detail").style.display = "none";
-  document.getElementById("ops-content").style.display = "block";
-}
+  <script>
+  function kitchenApp() {
+    return {
+      view: 'dashboard',
+      subView: 'mise',
+      ops: [],
+      currentOp: null,
+      checklist: [],
+      qtdReal: null,
+      saving: false,
+      errorMsg: '',
 
-async function quickStartOp(opId) {
-  const operador = localStorage.getItem("sf-operador") || prompt("Seu nome ou matrícula:");
-  if (!operador) return;
-  localStorage.setItem("sf-operador", operador);
-  try {
-    if (isOnline) {
-      await apiFetch(`/mobile/production-orders/${opId}/quick-start`, {
-        method: "POST",
-        body: JSON.stringify({ operador_id: operador }),
-      });
-    } else {
-      await queueEvent("production_start", { batch_id: opId, operador_id: operador });
-      toast("Ação salva offline — será sincronizada ao reconectar", "info");
-    }
-    toast("OP iniciada com sucesso!", "success");
-    openOpDetail(opId);
-  } catch (e) {
-    toast("Erro ao iniciar OP: " + e.message, "error");
-  }
-}
+      initApp() {
+        this.loadOps();
+        setInterval(() => { if (this.view === 'dashboard') this.loadOps(); }, 30000);
+      },
 
-async function completeOp(opId) {
-  const qty = parseFloat(document.getElementById("qty-real")?.value);
-  if (!qty || qty <= 0) { toast("Informe a quantidade produzida", "error"); return; }
-  try {
-    if (isOnline) {
-      await apiFetch(`/mobile/production-orders/${opId}/complete`, {
-        method: "POST",
-        body: JSON.stringify({ quantidade_real: qty }),
-      });
-    } else {
-      await queueEvent("production_complete", { batch_id: opId, quantidade_real: qty });
-      toast("Conclusão salva offline — será sincronizada ao reconectar", "info");
-    }
-    toast("OP concluída!", "success");
-    closeOpDetail();
-    loadOps();
-  } catch (e) {
-    toast("Erro ao concluir OP: " + e.message, "error");
-  }
-}
-
-// ─── Barcode Scanner ─────────────────────────────────────────────────────────
-
-let videoStream = null;
-
-async function startScan() {
-  const video = document.getElementById("scanner-video");
-  try {
-    videoStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-    });
-    video.srcObject = videoStream;
-    document.getElementById("btn-scan").textContent = "⏹ Parar Scanner";
-    document.getElementById("btn-scan").onclick = stopScan;
-
-    // Usa BarcodeDetector nativo se disponível
-    if ("BarcodeDetector" in window) {
-      const detector = new BarcodeDetector({ formats: ["ean_13", "ean_8", "qr_code", "code_128"] });
-      const scanInterval = setInterval(async () => {
-        if (!videoStream) { clearInterval(scanInterval); return; }
+      async loadOps() {
         try {
-          const barcodes = await detector.detect(video);
-          if (barcodes.length > 0) {
-            clearInterval(scanInterval);
-            stopScan();
-            handleScanResult(barcodes[0].rawValue);
+          const res = await fetch('/mobile/production-orders/active');
+          if (res.ok) this.ops = await res.json();
+        } catch (e) {
+          console.error('Erro ao carregar OPs:', e);
+        }
+      },
+
+      async openOp(opData) {
+        try {
+          const res = await fetch('/mobile/production-orders/' + opData.id);
+          if (!res.ok) { alert('Erro ao carregar detalhes da OP.'); return; }
+          this.currentOp = await res.json();
+          this.checklist = this.currentOp.ingredientes.map(() => false);
+          this.qtdReal = this.currentOp.quantidade_planejada;
+          this.subView = 'mise';
+          this.errorMsg = '';
+          this.view = 'execution';
+          window.scrollTo(0, 0);
+        } catch (e) {
+          alert('Erro de ligação. Verifique a rede.');
+        }
+      },
+
+      async finishProducao() {
+        if (!this.qtdReal || this.qtdReal <= 0) {
+          this.errorMsg = 'Informe a quantidade produzida.';
+          return;
+        }
+        this.saving = true;
+        this.errorMsg = '';
+        try {
+          const res = await fetch('/mobile/production-orders/' + this.currentOp.id + '/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantidade_real: this.qtdReal }),
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            this.view = 'dashboard';
+            this.currentOp = null;
+            await this.loadOps();
+          } else {
+            this.errorMsg = data.detail || 'Erro ao concluir a ordem.';
           }
-        } catch {}
-      }, 300);
-    } else {
-      toast("BarcodeDetector não suportado neste browser. Use entrada manual.", "info");
-    }
-  } catch {
-    toast("Permissão de câmera negada ou não disponível", "error");
+        } catch (e) {
+          this.errorMsg = 'Erro de ligação. Tente novamente.';
+        } finally {
+          this.saving = false;
+        }
+      },
+    };
   }
-}
-
-function stopScan() {
-  if (videoStream) {
-    videoStream.getTracks().forEach((t) => t.stop());
-    videoStream = null;
-  }
-  document.getElementById("btn-scan").textContent = "📷 Iniciar Scanner";
-  document.getElementById("btn-scan").onclick = startScan;
-}
-
-async function handleScanResult(code) {
-  document.getElementById("scan-result").style.display = "block";
-  document.getElementById("scan-result-content").innerHTML = `<div class="spinner" style="margin:8px auto"></div>`;
-  try {
-    const data = await apiFetch(`/mobile/barcode/${encodeURIComponent(code)}`);
-    document.getElementById("scan-result-content").innerHTML = `
-      <p style="font-weight:700;font-size:16px">${data.nome || code}</p>
-      <p style="font-size:13px;color:var(--text-muted)">Tipo: ${data.tipo || "—"} · Estoque: ${data.estoque_atual ?? "—"}</p>
-      ${data.lote ? `<p style="font-size:12px;margin-top:6px">Lote: ${data.lote}</p>` : ""}
-    `;
-    toast("Código identificado: " + (data.nome || code), "success");
-  } catch {
-    document.getElementById("scan-result-content").innerHTML = `<p style="color:var(--danger)">Código não encontrado: ${code}</p>`;
-  }
-}
-
-function lookupManualCode() {
-  const code = document.getElementById("manual-code").value.trim();
-  if (!code) { toast("Digite um código", "error"); return; }
-  handleScanResult(code);
-}
-
-// ─── Sync ─────────────────────────────────────────────────────────────────────
-
-async function updateQueueCount() {
-  const count = await countPendingEvents();
-  document.getElementById("queue-count").textContent = count;
-}
-
-async function syncNow() {
-  if (!isOnline) { toast("Sem conexão para sincronizar", "error"); return; }
-  const pending = await getPendingEvents();
-  if (!pending.length) { toast("Nenhum evento pendente", "info"); return; }
-
-  try {
-    const res = await apiFetch("/sync", {
-      method: "POST",
-      body: JSON.stringify({ device_id: getDeviceId(), events: pending }),
-    });
-    for (const ev of pending) await markEventSynced(ev.event_id);
-    const info = `${res.processados} proc · ${res.ignorados_duplicata} dup · ${res.erros} erros`;
-    document.getElementById("last-sync-info").innerHTML = `
-      <p style="font-size:14px">✅ Sincronizado em ${new Date().toLocaleTimeString("pt-BR")}</p>
-      <p style="font-size:12px;color:var(--text-muted);margin-top:4px">${info}</p>
-    `;
-    toast(`Sync concluído: ${res.processados} eventos`, "success");
-    updateQueueCount();
-  } catch (e) {
-    toast("Erro no sync: " + e.message, "error");
-  }
-}
-
-async function downloadBundle() {
-  toast("Baixando bundle offline...", "info");
-  try {
-    const bundle = await apiFetch("/mobile/offline-bundle");
-    localStorage.setItem("sf-bundle", JSON.stringify(bundle));
-    localStorage.setItem("sf-bundle-ts", new Date().toISOString());
-    toast(`Bundle salvo: ${Object.keys(bundle).join(", ")}`, "success");
-  } catch {
-    toast("Erro ao baixar bundle", "error");
-  }
-}
-
-// ─── Init ─────────────────────────────────────────────────────────────────────
-
-updateOnlineStatus();
-loadDashboard();
-</script>
+  </script>
 </body>
 </html>

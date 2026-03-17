@@ -201,6 +201,7 @@ def get_production_order_detail(batch_id: uuid.UUID, db: Session = Depends(get_d
         "data_fim": op.data_fim.isoformat() if op.data_fim else None,
         "ingredientes": ingredientes,
         "custo_total": op.custo_total,
+        "modo_preparo": (p.modo_preparo_interno if p and p.modo_preparo_interno else "Sem instruções cadastradas."),
     }
 
 
