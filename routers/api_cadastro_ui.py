@@ -482,26 +482,25 @@ def list_manufacturers(request: Request, ing_id: str, db: Session = Depends(get_
         for i in range(5)
     )
     rows = "".join(
-        f'<tr id="mfr-{m.id}" class="odd:bg-white even:bg-slate-50 text-sm">'
-        f'<td class="px-4 py-2 font-medium text-gray-900">{m.nome_fabricante}</td>'
-        f'<td class="px-4 py-2 text-right text-gray-700">{m.percentual_rendimento:.1f}%</td>'
-        f'<td class="px-4 py-2 text-center">{stars(m.pontuacao_qualidade)}</td>'
-        f'<td class="px-4 py-2 text-center">'
+        f'<tr id="mfr-{m.id}" class="hover:bg-amber-50 transition-colors">'
+        f'<td class="px-4 py-3 font-medium text-gray-900">{m.nome_fabricante}</td>'
+        f'<td class="px-4 py-3 font-mono font-bold text-blue-700 bg-blue-50">FC {m.percentual_rendimento:.2f}</td>'
+        f'<td class="px-4 py-3 text-center">{stars(m.pontuacao_qualidade)}</td>'
+        f'<td class="px-4 py-3 text-right">'
         f'<button hx-delete="/api/cadastro/manufacturer/{m.id}" hx-target="#mfr-{m.id}" hx-swap="outerHTML swap:300ms" '
-        f'hx-confirm="Excluir fabricante?" '
-        f'class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash"></i></button>'
+        f'hx-confirm="Excluir marca e o seu FC?" '
+        f'class="text-red-500 hover:text-red-700 p-1 bg-red-50 hover:bg-red-100 rounded"><i class="ph ph-trash"></i></button>'
         f'</td></tr>'
         for m in items
     )
-    return HTMLResponse(rows or '<tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 text-sm">Nenhum fabricante cadastrado.</td></tr>')
+    return HTMLResponse(rows or '<tr><td colspan="4" class="px-4 py-4 text-center text-gray-400 text-sm">Nenhuma marca vinculada. Adicione acima.</td></tr>')
 
 
 @router.post("/ingredient/{ing_id}/manufacturer", response_class=HTMLResponse)
 def create_manufacturer(
-    request: Request,
     ing_id: str,
     nome_fabricante: str = Form(...),
-    percentual_rendimento: float = Form(100.0),
+    fc_fabricante: float = Form(1.0),
     pontuacao_qualidade: int = Form(3),
     db: Session = Depends(get_db),
 ):
@@ -511,7 +510,7 @@ def create_manufacturer(
             id=_uuid.uuid4(),
             ingredient_id=ing_id,
             nome_fabricante=nome_fabricante.strip(),
-            percentual_rendimento=percentual_rendimento,
+            percentual_rendimento=fc_fabricante,
             pontuacao_qualidade=max(1, min(5, pontuacao_qualidade)),
         )
         db.add(m)
@@ -519,7 +518,7 @@ def create_manufacturer(
         db.refresh(m)
     except Exception as e:
         db.rollback()
-        return _err(f"Erro ao cadastrar: {e}")
+        return _err(f"Erro ao cadastrar marca: {e}")
 
     stars = "".join(
         f'<i class="ph-fill ph-star text-amber-400"></i>' if i < m.pontuacao_qualidade else
@@ -527,17 +526,17 @@ def create_manufacturer(
         for i in range(5)
     )
     row = (
-        f'<tr id="mfr-{m.id}" class="odd:bg-white even:bg-slate-50 text-sm">'
-        f'<td class="px-4 py-2 font-medium text-gray-900">{m.nome_fabricante}</td>'
-        f'<td class="px-4 py-2 text-right text-gray-700">{m.percentual_rendimento:.1f}%</td>'
-        f'<td class="px-4 py-2 text-center">{stars}</td>'
-        f'<td class="px-4 py-2 text-center">'
+        f'<tr id="mfr-{m.id}" class="hover:bg-amber-50 transition-colors">'
+        f'<td class="px-4 py-3 font-medium text-gray-900">{m.nome_fabricante}</td>'
+        f'<td class="px-4 py-3 font-mono font-bold text-blue-700 bg-blue-50">FC {m.percentual_rendimento:.2f}</td>'
+        f'<td class="px-4 py-3 text-center">{stars}</td>'
+        f'<td class="px-4 py-3 text-right">'
         f'<button hx-delete="/api/cadastro/manufacturer/{m.id}" hx-target="#mfr-{m.id}" hx-swap="outerHTML swap:300ms" '
-        f'hx-confirm="Excluir fabricante?" '
-        f'class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash"></i></button>'
+        f'hx-confirm="Excluir marca e o seu FC?" '
+        f'class="text-red-500 hover:text-red-700 p-1 bg-red-50 hover:bg-red-100 rounded"><i class="ph ph-trash"></i></button>'
         f'</td></tr>'
     )
-    return _ok(row, f'Fabricante "{m.nome_fabricante}" cadastrado!')
+    return _ok(row, f'Marca "{m.nome_fabricante}" guardada com FC {fc_fabricante:.2f}!')
 
 
 @router.delete("/manufacturer/{man_id}", response_class=HTMLResponse)
@@ -760,6 +759,35 @@ def equipments_options(request: Request, db: Session = Depends(get_db)):
     return HTMLResponse(opts)
 
 
+@router.get("/ingredient/{ing_id}/manufacturer-options", response_class=HTMLResponse)
+def ingredient_manufacturer_options(ing_id: str, db: Session = Depends(get_db)):
+    return _manufacturer_options_html(ing_id, db)
+
+
+@router.get("/ingredient-manufacturer-options", response_class=HTMLResponse)
+def ingredient_manufacturer_options_qs(ingredient_id: str = "", db: Session = Depends(get_db)):
+    """Query-param variant used by HTMX hx-get (hx-include passes name=ingredient_id)."""
+    return _manufacturer_options_html(ingredient_id, db)
+
+
+def _manufacturer_options_html(ing_id: str, db) -> HTMLResponse:
+    from models import IngredientManufacturer
+    if not ing_id:
+        return HTMLResponse('<option value="">— Selecione um insumo primeiro —</option>')
+    items = db.query(IngredientManufacturer).filter(
+        IngredientManufacturer.ingredient_id == ing_id
+    ).order_by(IngredientManufacturer.nome_fabricante).all()
+    if not items:
+        return HTMLResponse('<option value="">— Nenhuma marca cadastrada —</option>')
+    options = '<option value="">— Selecione a marca —</option>'
+    options += "".join(
+        f'<option value="{m.nome_fabricante}" data-fc="{m.percentual_rendimento:.2f}">'
+        f'{m.nome_fabricante} (FC {m.percentual_rendimento:.2f})</option>'
+        for m in items
+    )
+    return HTMLResponse(options)
+
+
 # ─── Catálogo do Fornecedor (SupplierCatalog — marca + FC) ────────────────────
 
 @router.get("/suppliers/{supplier_id}/catalog/modal", response_class=HTMLResponse)
@@ -804,17 +832,21 @@ def add_supplier_catalog_item(
         return _err(f"Erro ao adicionar: {e}")
 
     ing = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+    preco_str = f'R$ {novo.preco_compra:.2f}' if novo.preco_compra else '—'
     html = (
-        f'<tr id="cat-item-{novo.id}" class="border-b border-slate-100 hover:bg-slate-50">'
-        f'<td class="px-4 py-2 text-sm text-gray-900 font-medium">{ing.nome if ing else "—"}</td>'
-        f'<td class="px-4 py-2 text-sm text-gray-600">{novo.marca_fabricante}</td>'
-        f'<td class="px-4 py-2 text-sm text-amber-700 font-mono">{novo.fc_marca:.2f}</td>'
-        f'<td class="px-4 py-2 text-sm text-gray-600 font-mono">R$ {novo.preco_compra:.2f}</td>'
-        f'<td class="px-4 py-2 text-right">'
+        f'<tr id="cat-item-{novo.id}" class="hover:bg-slate-50 transition-colors">'
+        f'<td class="px-4 py-2.5 font-medium text-gray-900">{ing.nome if ing else "—"}</td>'
+        f'<td class="px-4 py-2.5 text-gray-700">{novo.marca_fabricante}</td>'
+        f'<td class="px-4 py-2.5 text-center">'
+        f'<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono text-xs font-bold">{novo.fc_marca:.2f}</span>'
+        f'</td>'
+        f'<td class="px-4 py-2.5 text-right text-gray-700 font-mono">{preco_str}</td>'
+        f'<td class="px-4 py-2.5 text-right">'
         f'<button hx-delete="/api/cadastro/suppliers/catalog/{novo.id}" '
-        f'hx-target="#cat-item-{novo.id}" hx-swap="outerHTML" '
+        f'hx-target="#cat-item-{novo.id}" hx-swap="outerHTML swap:300ms" '
         f'hx-confirm="Remover esta marca do catálogo?" '
-        f'class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash"></i></button>'
+        f'class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">'
+        f'<i class="ph ph-trash text-base"></i></button>'
         f'</td></tr>'
     )
     r = HTMLResponse(content=html)

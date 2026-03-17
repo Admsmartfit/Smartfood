@@ -6,13 +6,13 @@
      x-transition:leave="transition ease-in duration-150"
      x-transition:leave-start="opacity-100 scale-100"
      x-transition:leave-end="opacity-0 scale-95"
-     @keydown.escape.window="open = false; $el.remove()"
+     @keydown.escape.window="open = false; setTimeout(() => $el.remove(), 200)"
      class="fixed inset-0 z-50 flex items-center justify-center p-4"
      role="dialog" aria-modal="true">
 
   <!-- Backdrop -->
   <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
-       @click="open = false; $el.closest('[role=dialog]').remove()"></div>
+       @click="open = false; setTimeout(() => $el.closest('[role=dialog]').remove(), 200)"></div>
 
   <!-- Painel -->
   <div class="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
@@ -26,7 +26,7 @@
         </h3>
         <p class="text-sm text-gray-500 mt-0.5">{{ supplier.nome }}</p>
       </div>
-      <button @click="open = false; $el.closest('[role=dialog]').remove()"
+      <button @click="open = false; setTimeout(() => $el.closest('[role=dialog]').remove(), 200)"
               class="p-2 text-gray-400 hover:text-gray-700 hover:bg-slate-100 rounded-lg transition-colors">
         <i class="ph ph-x text-xl"></i>
       </button>
@@ -35,69 +35,109 @@
     <!-- Corpo -->
     <div class="flex-1 overflow-y-auto p-6 space-y-5">
 
-      <!-- Formulário de adição -->
-      <form hx-post="/api/cadastro/suppliers/{{ supplier.id }}/catalog"
+      <!-- Formulário — HTMX nativo + vanilla JS, sem Alpine -->
+      <form id="cat-form-{{ supplier.id }}"
+            hx-post="/api/cadastro/suppliers/{{ supplier.id }}/catalog"
             hx-target="#catalog-list"
             hx-swap="beforeend"
-            @htmx:after-request="if($event.detail.successful) $el.reset()"
-            class="flex flex-wrap items-end gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            hx-on::after-request="
+              if(event.detail.successful){
+                this.reset();
+                var ms = document.getElementById('marca-sel-{{ supplier.id }}');
+                ms.innerHTML = '<option value=\\'\\'>— Selecione um insumo primeiro —</option>';
+                ms.disabled = true;
+                document.getElementById('fc-inp-{{ supplier.id }}').value = '1.00';
+              }
+            "
+            class="space-y-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
 
-        <div class="flex-1 min-w-[180px]">
-          <label class="block text-xs font-semibold text-blue-900 mb-1">Insumo Base</label>
-          <select name="ingredient_id" required
-                  class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="">— Selecione —</option>
-            {% for ing in ingredients %}
-            <option value="{{ ing.id }}">{{ ing.nome }}</option>
-            {% endfor %}
-          </select>
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Insumo Base — hx-get nativo popula as marcas -->
+          <div>
+            <label class="block text-xs font-semibold text-blue-900 mb-1">Insumo Base *</label>
+            <select name="ingredient_id" required
+                    hx-get="/api/cadastro/ingredient-manufacturer-options"
+                    hx-trigger="change"
+                    hx-include="this"
+                    hx-target="#marca-sel-{{ supplier.id }}"
+                    hx-swap="innerHTML"
+                    onchange="
+                      var ms = document.getElementById('marca-sel-{{ supplier.id }}');
+                      ms.disabled = !this.value;
+                      document.getElementById('fc-inp-{{ supplier.id }}').value = '1.00';
+                    "
+                    class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="">— Selecione —</option>
+              {% for ing in ingredients %}
+              <option value="{{ ing.id }}">{{ ing.nome }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Marca — preenchida pelo HTMX acima -->
+          <div>
+            <label class="block text-xs font-semibold text-blue-900 mb-1">Marca Fabricante *</label>
+            <select name="marca_fabricante" required
+                    id="marca-sel-{{ supplier.id }}"
+                    disabled
+                    onchange="
+                      var opt = this.selectedOptions[0];
+                      document.getElementById('fc-inp-{{ supplier.id }}').value = opt && opt.dataset.fc ? opt.dataset.fc : '1.00';
+                    "
+                    class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 bg-white disabled:opacity-50 disabled:cursor-not-allowed">
+              <option value="">— Selecione um insumo primeiro —</option>
+            </select>
+          </div>
         </div>
 
-        <div class="w-36">
-          <label class="block text-xs font-semibold text-blue-900 mb-1">Marca Fabricante</label>
-          <input type="text" name="marca_fabricante" required placeholder="Ex: Seara"
-                 class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500">
-        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <!-- FC pré-preenchido, editável -->
+          <div>
+            <label class="block text-xs font-semibold text-amber-900 mb-1 flex items-center gap-1">
+              <i class="ph ph-magic-wand text-amber-500"></i> FC Marca
+              <span class="normal-case font-normal text-gray-400 ml-1">preenchido automaticamente</span>
+            </label>
+            <input type="number" name="fc_marca"
+                   id="fc-inp-{{ supplier.id }}"
+                   step="0.01" min="0.1" value="1.00"
+                   class="w-full px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm focus:ring-2 focus:ring-amber-500 font-mono text-right">
+          </div>
 
-        <div class="w-24">
-          <label class="block text-xs font-semibold text-amber-900 mb-1"
-                 title="Fator de Correção específico desta marca">FC Marca</label>
-          <input type="number" name="fc_marca" step="0.01" min="0.1" value="1.0"
-                 class="w-full px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm focus:ring-2 focus:ring-amber-500 font-mono text-right">
-        </div>
-
-        <div class="w-32">
-          <label class="block text-xs font-semibold text-green-900 mb-1">Preço (R$)</label>
-          <input type="number" name="preco_compra" step="0.01" min="0" value="0.00"
-                 class="w-full px-3 py-2 rounded-lg border border-green-200 text-sm focus:ring-2 focus:ring-green-500 font-mono text-right">
+          <!-- Preço -->
+          <div>
+            <label class="block text-xs font-semibold text-green-900 mb-1">Preço de Compra (R$)</label>
+            <input type="number" name="preco_compra"
+                   step="0.01" min="0" value="0.00"
+                   class="w-full px-3 py-2 rounded-lg border border-green-200 text-sm focus:ring-2 focus:ring-green-500 font-mono text-right">
+          </div>
         </div>
 
         <button type="submit"
-                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold
-                       flex items-center gap-2 transition-colors shrink-0">
-          <i class="ph ph-plus-circle text-base"></i> Adicionar
+                class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold
+                       flex items-center justify-center gap-2 transition-colors">
+          <i class="ph ph-plus-circle text-base"></i> Adicionar ao Catálogo
         </button>
       </form>
 
       <!-- Tabela de itens do catálogo -->
       <div class="overflow-hidden border border-slate-200 rounded-xl">
-        <table class="w-full text-left">
+        <table class="w-full text-left text-sm">
           <thead class="bg-slate-50 border-b border-slate-200">
             <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
               <th class="px-4 py-2.5">Ingrediente</th>
               <th class="px-4 py-2.5">Marca</th>
-              <th class="px-4 py-2.5 text-center">FC Específico</th>
+              <th class="px-4 py-2.5 text-center">FC</th>
               <th class="px-4 py-2.5 text-right">Preço (R$)</th>
               <th class="px-4 py-2.5"></th>
             </tr>
           </thead>
-          <tbody id="catalog-list">
+          <tbody id="catalog-list" class="divide-y divide-slate-100">
             {% for item in catalog_items %}
-            <tr id="cat-item-{{ item.id }}" class="border-b border-slate-100 hover:bg-slate-50 text-sm">
+            <tr id="cat-item-{{ item.id }}" class="hover:bg-slate-50 transition-colors">
               <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.ingredient.nome }}</td>
-              <td class="px-4 py-2.5 text-gray-600">{{ item.marca_fabricante }}</td>
+              <td class="px-4 py-2.5 text-gray-700">{{ item.marca_fabricante }}</td>
               <td class="px-4 py-2.5 text-center">
-                <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono text-xs">
+                <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono text-xs font-bold">
                   {{ "%.2f"|format(item.fc_marca) }}
                 </span>
               </td>
@@ -109,7 +149,7 @@
                         hx-target="#cat-item-{{ item.id }}"
                         hx-swap="outerHTML swap:300ms"
                         hx-confirm="Remover esta marca do catálogo?"
-                        class="p-1 text-gray-400 hover:text-red-600 transition-colors">
+                        class="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                   <i class="ph ph-trash text-base"></i>
                 </button>
               </td>
@@ -129,3 +169,13 @@
     </div>
   </div>
 </div>
+
+<!-- Inicializar Alpine no conteúdo injectado pelo HTMX -->
+<script>
+  (function () {
+    var container = document.getElementById('dialog-container');
+    if (container && window.Alpine) {
+      Alpine.initTree(container);
+    }
+  })();
+</script>
