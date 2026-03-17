@@ -237,29 +237,23 @@ def bom_save(
     nome: str = Form(""),
     sku: str = Form(""),
     categoria: str = Form(""),
-    markup: str = Form("2.0"),                
-    tempo_producao_min: str = Form("30"),     
+    markup: str = Form("2.0"),
+    tempo_producao_min: str = Form("30"),
     margem_minima: str = Form("30.0"),
     modo_preparo_interno: str = Form(""),
-    fc: str = Form("1.0"),                    
-    fcoc: str = Form("1.0"),                  
-    peso_porcao_gramas: str = Form("0"),      
+    fc: str = Form("1.0"),
+    fcoc: str = Form("1.0"),
+    peso_porcao_gramas: str = Form("0"),
     unidade_estoque: str = Form("unid"),
-    rendimento_por_lote: str = Form("0"),     
-    sections_json: str = Form("[]"),          # Recebe as seções/ingredientes
-    embalagens_json: str = Form("[]"),        # Recebe embalagens isoladas
+    rendimento_por_lote: str = Form("0"),
+    sections_json: str = Form("[]"),
+    embalagens_json: str = Form("[]"),
     bom_equipments_json: str = Form("[]"),
     db: Session = Depends(get_db),
-    _=AdminOrChef
+    _=AdminOrChef,
 ):
     from models import Product, BOMItem, BOMEquipment, RecipeSection
 
-    # DEBUG
-    print(f"[DEBUG] Entrou no bom_save. Nome: {nome}, product_id: {product_id}")
-    print(f"[DEBUG] sections_json len: {len(sections_json)}")
-    print(f"[DEBUG] embalagens_json len: {len(embalagens_json)}")
-
-    # Validação Básica
     if not nome.strip():
         return HTMLResponse(
             '<div class="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200">'
@@ -267,140 +261,118 @@ def bom_save(
         )
 
     try:
-        # 1. Conversão Segura de todos os números (Evita Erro 422)
-        _markup = _to_float(markup, 2.0)
-        _tempo = _to_float(tempo_producao_min, 30.0)
-        _margem = _to_float(margem_minima, 30.0)
-        _fc = _to_float(fc, 1.0)
-        _fcoc = _to_float(fcoc, 1.0)
+        _markup      = _to_float(markup, 2.0)
+        _tempo       = _to_float(tempo_producao_min, 30.0)
+        _margem      = _to_float(margem_minima, 30.0)
+        _fc          = _to_float(fc, 1.0)
+        _fcoc        = _to_float(fcoc, 1.0)
         _peso_porcao = _to_float(peso_porcao_gramas, 0.0)
-        _rendimento = _to_float(rendimento_por_lote, 0.0)
+        _rendimento  = _to_float(rendimento_por_lote, 0.0)
 
-        sections = json.loads(sections_json)
+        sections   = json.loads(sections_json)
         embalagens = json.loads(embalagens_json)
         equipments = json.loads(bom_equipments_json)
-        print(f"[DEBUG] JSONs carregados. Seções: {len(sections)}, Embalagens: {len(embalagens)}")
-        
-        is_new = False
-        
-        # 2. IDENTIFICAR OU CRIAR PRODUTO
-        if product_id:
-            produto = db.query(Product).filter(Product.id == product_id).first()
+
+        # Identificar ou criar produto
+        pid = uuid.UUID(product_id) if product_id.strip() else None
+        if pid:
+            produto = db.query(Product).filter(Product.id == pid).first()
             if not produto:
                 return HTMLResponse('<div class="text-red-600">Produto não encontrado.</div>')
         else:
             produto = Product(id=uuid.uuid4(), ativo=True)
             db.add(produto)
-            is_new = True
 
-        produto.nome = nome.strip()
-        produto.sku = sku.strip() or None
-        produto.categoria = categoria.strip() or None
-        produto.markup = _markup
-        produto.tempo_producao_min = int(_tempo)
-        produto.margem_minima = _margem
+        produto.nome                 = nome.strip()
+        produto.sku                  = sku.strip() or None
+        produto.categoria            = categoria.strip() or None
+        produto.markup               = _markup
+        produto.tempo_producao_min   = int(_tempo)
+        produto.margem_minima        = _margem
         produto.modo_preparo_interno = modo_preparo_interno.strip()
-        produto.fc = _fc
-        produto.fcoc = _fcoc
-        produto.peso_porcao_gramas = _peso_porcao if _peso_porcao > 0 else None
-        produto.unidade_estoque = unidade_estoque
-        produto.rendimento_por_lote = _rendimento
-        
+        produto.fc                   = _fc
+        produto.fcoc                 = _fcoc
+        produto.peso_porcao_gramas   = _peso_porcao if _peso_porcao > 0 else None
+        produto.unidade_estoque      = unidade_estoque
+        produto.rendimento_por_lote  = _rendimento
         db.flush()
 
-        # 3. LIMPAR A FICHA TÉCNICA ANTIGA (Item de BOM depende de Seção, então apaga Item primeiro)
+        # Limpar ficha antiga (BOMItem antes de RecipeSection por FK)
         db.query(BOMItem).filter(BOMItem.product_id == produto.id).delete()
         db.query(BOMEquipment).filter(BOMEquipment.product_id == produto.id).delete()
         db.query(RecipeSection).filter(RecipeSection.product_id == produto.id).delete()
         db.flush()
-        
-        # 4. SALVAR SEÇÕES E INSUMOS ALIMENTARES
+
+        # Salvar seções e insumos
         for s_idx, sec_data in enumerate(sections):
             peso_sec = _to_float(sec_data.get("peso_final_esperado_kg"), 0.0)
             section = RecipeSection(
                 id=uuid.uuid4(),
                 product_id=produto.id,
-                nome=sec_data.get("nome", f"Seção {s_idx+1}"),
+                nome=sec_data.get("nome", f"Seção {s_idx + 1}"),
                 ordem=s_idx + 1,
-                peso_final_esperado_kg=peso_sec if peso_sec > 0 else None
+                peso_final_esperado_kg=peso_sec if peso_sec > 0 else None,
             )
             db.add(section)
             db.flush()
-            
             for item in sec_data.get("items", []):
                 if item.get("ingredient_id"):
                     qty = _to_float(item.get("quantidade"), 0.0)
                     if qty > 0:
-                        bom_item = BOMItem(
+                        db.add(BOMItem(
                             id=uuid.uuid4(),
                             product_id=produto.id,
                             section_id=section.id,
                             ingredient_id=item["ingredient_id"],
                             quantidade=qty,
-                            unidade=item.get("unidade", "kg")
-                        )
-                        db.add(bom_item)
-                    
-        # 5. SALVAR EMBALAGENS (Independentes de Seção)
+                            unidade=item.get("unidade", "kg"),
+                        ))
+
+        # Salvar embalagens
         for emb in embalagens:
             if emb.get("supply_id"):
                 qty = _to_float(emb.get("quantidade"), 1.0)
                 if qty > 0:
-                    bom_item = BOMItem(
+                    db.add(BOMItem(
                         id=uuid.uuid4(),
                         product_id=produto.id,
                         section_id=None,
                         supply_id=emb["supply_id"],
                         quantidade=qty,
-                        unidade=emb.get("unidade", "un")
-                    )
-                    db.add(bom_item)
-                
-        # 6. SALVAR EQUIPAMENTOS
+                        unidade=emb.get("unidade", "un"),
+                    ))
+
+        # Salvar equipamentos
         for eq in equipments:
             if eq.get("equipment_id"):
-                params_dict = {}
-                for p in eq.get("params", []):
-                    params_dict[p["nome"]] = p["valor"]
-                
-                perda = _to_float(eq.get("perda_processo_kg"), 0.0)
-                bom_eq = BOMEquipment(
+                params_dict = {p["nome"]: p["valor"] for p in eq.get("params", [])}
+                db.add(BOMEquipment(
                     id=uuid.uuid4(),
                     product_id=produto.id,
                     equipment_id=eq["equipment_id"],
-                    perda_processo_kg=perda,
-                    parametros_json=params_dict
-                )
-                db.add(bom_eq)
-                
-        print(f"[DEBUG] Tentando Commitar... Produto: {produto.id}")
+                    perda_processo_kg=_to_float(eq.get("perda_processo_kg"), 0.0),
+                    parametros_json=params_dict,
+                ))
+
         db.commit()
-        print(f"[DEBUG] Commit realizado com sucesso.")
-        
-        # 7. FEEDBACK VISUAL E REDIRECIONAMENTO
-        acao = "atualizada" if product_id.strip() else "criada"
+
+        acao = "atualizada" if pid else "criada"
         html = f"""
         <div class="p-3 bg-green-50 text-green-800 rounded-lg border border-green-200 flex items-center gap-2 font-medium">
-            <i class="ph-fill ph-check-circle text-xl"></i>
-            Ficha Técnica {acao} com sucesso! Redirecionando...
+            <i class="ph-fill ph-check-circle text-xl"></i> Ficha Técnica {acao} com sucesso! Redirecionando...
         </div>
-        <script>
-            setTimeout(() => window.location.href = '/operations/bom', 1500);
-        </script>
+        <script>setTimeout(() => window.location.href = '/operations/bom', 1500);</script>
         """
         r = HTMLResponse(content=html)
-        r.headers["HX-Trigger"] = json.dumps({"showToast": {"message": f"Receita salva no sistema!", "type": "success"}})
+        r.headers["HX-Trigger"] = json.dumps({"showToast": {"message": "Receita salva!", "type": "success"}})
         return r
-        
+
     except Exception as e:
         db.rollback()
-        import traceback
-        traceback.print_exc()
         logger.error(f"Erro ao salvar Ficha Técnica: {e}", exc_info=True)
         return HTMLResponse(f"""
         <div class="p-3 bg-red-50 text-red-800 rounded-lg border border-red-200 flex items-center gap-2">
-            <i class="ph-fill ph-warning-circle text-xl"></i>
-            Erro interno ao salvar: {str(e)}
+            <i class="ph-fill ph-warning-circle text-xl"></i> Erro interno ao salvar: {str(e)}
         </div>
         """)
 
