@@ -223,7 +223,7 @@ def approve_rfq_ui(
 
 @router.get("/items-to-quote", response_class=HTMLResponse)
 def items_to_quote(db: Session = Depends(get_db)):
-    """Lista insumos com estoque abaixo do mínimo com urgência visual."""
+    """Lista insumos com estoque abaixo do mínimo com urgência visual e botão de ação."""
     from models import Supply
 
     items = (
@@ -258,11 +258,19 @@ def items_to_quote(db: Session = Depends(get_db)):
             urgency_cls = "bg-white border-slate-200 text-gray-700"
             badge = '<span class="text-xs text-gray-400">Planejar</span>'
 
+        action_btn = (
+            f'<button hx-get="/api/purchasing/rfqs/{s.id}/comparison"'
+            f' hx-target="#dialog-container" hx-swap="innerHTML"'
+            f' class="ml-3 px-2 py-1.5 bg-white border border-slate-300 rounded shadow-sm'
+            f' text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1 text-gray-700">'
+            f'<i class="ph ph-scales"></i> Comparar</button>'
+        )
+
         rows.append(
             f'<div class="flex items-center justify-between p-3 rounded-lg border {urgency_cls}">'
-            f'<div><p class="font-medium text-sm">{s.nome}</p>'
+            f'<div class="flex-1"><p class="font-medium text-sm">{s.nome}</p>'
             f'<p class="text-xs opacity-75">Déficit: {deficit} {s.unidade or ""}</p></div>'
-            f'{badge}</div>'
+            f'<div class="flex items-center">{badge}{action_btn}</div></div>'
         )
 
     return HTMLResponse("\n".join(rows))
