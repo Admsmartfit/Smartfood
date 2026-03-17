@@ -35,6 +35,7 @@ def bom_new(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
 @router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
 def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db), _=AdminOrChef):
     import json
+    import uuid
     from models import Product, BOMItem, Ingredient, Supply, Equipment, BOMEquipment, EquipmentParameter, RecipeSection
     produto = db.query(Product).filter(Product.id == product_id).first()
     if not produto:
@@ -72,41 +73,50 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db), _
     bom_eq_json = json.dumps(bom_eq_list)
     ingredients_map_json = json.dumps({str(i.id): i.nome for i in ingredients})
 
-    # Seções e mapa de chaves
+    # Itens agrupados por seção para o Builder Alpine
     sections = db.query(RecipeSection).filter(
         RecipeSection.product_id == product_id
     ).order_by(RecipeSection.ordem).all()
-    sec_key_map = {str(s.id): i + 1 for i, s in enumerate(sections)}
-    sections_json = json.dumps([
-        {"_key": i + 1, "nome": s.nome, "ordem": s.ordem,
-         "peso_final_esperado_kg": s.peso_final_esperado_kg}
-        for i, s in enumerate(sections)
-    ])
 
-    # Items com section_key pré-calculado
-    bom_items_config = []
-    for idx, item in enumerate(bom_items):
-        bom_items_config.append({
-            "_key": idx + 1,
-            "tipo": "ingrediente" if item.ingredient_id else "embalagem",
-            "ingredient_id": str(item.ingredient_id) if item.ingredient_id else "",
-            "supply_id": str(item.supply_id) if item.supply_id else "",
-            "quantidade": float(item.quantidade),
-            "unidade": item.unidade or "kg",
-            "perda_esperada_pct": float(item.perda_esperada_pct or 0),
-            "peso_bruto_kg": float(item.peso_bruto_kg or 0),
-            "peso_limpo_kg": float(item.peso_limpo_kg or 0),
-            "peso_final_kg": float(item.peso_final_kg or 0),
-            "section_key": sec_key_map.get(str(item.section_id)) if item.section_id else None,
+    sections_list = []
+    for s in sections:
+        sec_items = [i for i in bom_items if i.section_id == s.id]
+        items_payload = []
+        for it in sec_items:
+            items_payload.append({
+                "_key": str(uuid.uuid4()),
+                "tipo": "ingrediente" if it.ingredient_id else "embalagem",
+                "ingredient_id": str(it.ingredient_id) if it.ingredient_id else "",
+                "supply_id": str(it.supply_id) if it.supply_id else "",
+                "quantidade": float(it.quantidade),
+                "unidade": it.unidade or "kg"
+            })
+        sections_list.append({
+            "_key": str(s.id),
+            "nome": s.nome,
+            "ordem": s.ordem,
+            "peso_final_esperado_kg": s.peso_final_esperado_kg,
+            "items": items_payload
         })
-    bom_items_config_json = json.dumps(bom_items_config)
+    sections_json = json.dumps(sections_list)
+
+    # Embalagens isoladas (sem seção)
+    embalagens_list = []
+    for it in [i for i in bom_items if not i.section_id]:
+        embalagens_list.append({
+            "_key": str(uuid.uuid4()),
+            "supply_id": str(it.supply_id) if it.supply_id else "",
+            "quantidade": float(it.quantidade),
+            "unidade": it.unidade or "un"
+        })
+    embalagens_json = json.dumps(embalagens_list)
 
     return templates.TemplateResponse(
         "operations/bom_form.html",
         _ctx(request, produto=produto, bom_items=bom_items, ingredients=ingredients, supplies=supplies,
              equipments=equipments, equipments_json=equipments_json, bom_eq_json=bom_eq_json,
              ingredients_map_json=ingredients_map_json,
-             sections_json=sections_json, bom_items_config_json=bom_items_config_json),
+             sections_json=sections_json, embalagens_json=embalagens_json),
     )
 
 @router.get("/operations/bom/{product_id}", response_class=HTMLResponse)

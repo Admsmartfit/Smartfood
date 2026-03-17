@@ -48,21 +48,27 @@
         this.rendimentoKg = parseFloat(document.getElementById('d-rendimento').textContent) || 1.0;
         this.pesoPorcaoGramas = parseInt(document.getElementById('d-peso-porcao').textContent) || 350;
         this.markup = parseFloat(document.getElementById('d-markup').textContent) || 2.0;
-        this.margemMinima = parseFloat(document.getElementById('d-margem').textContent) || 30.0;
 
         try { this.ingredientsMap = JSON.parse(document.getElementById('d-ingmap').textContent); } catch (e) { }
         try { this.bomEquipments = JSON.parse(document.getElementById('d-bomeq').textContent) || []; } catch (e) { }
 
         try {
-          let loadedSections = JSON.parse(document.getElementById('d-sections').textContent);
-          if (Array.isArray(loadedSections) && loadedSections.length > 0) {
-            this.sections = loadedSections;
+          const rawSecs = document.getElementById('d-sections').textContent;
+          let loadedSections = JSON.parse(rawSecs || '[]');
+          if (Array.isArray(loadedSections)) {
+            // Garante que toda seção carregada tem seu array de items
+            this.sections = loadedSections.map(s => {
+              if (!s.items) s.items = [];
+              if (!s._key) s._key = Date.now().toString() + Math.random();
+              return s;
+            });
           }
-        } catch (e) { }
+        } catch (e) { console.error("Erro ao carregar seções:", e); }
 
         try {
-          let loadedEmbs = JSON.parse(document.getElementById('d-embalagens').textContent);
-          if (Array.isArray(loadedEmbs) && loadedEmbs.length > 0) {
+          const rawEmbs = document.getElementById('d-embalagens').textContent;
+          let loadedEmbs = JSON.parse(rawEmbs || '[]');
+          if (Array.isArray(loadedEmbs)) {
             this.embalagens = loadedEmbs;
           }
         } catch (e) { }
@@ -190,12 +196,22 @@
 
   <form id="bom-form"
         @submit.prevent="
-          $el.querySelector('[name=sections_json]').value     = sectionsJson();
-          $el.querySelector('[name=embalagens_json]').value   = embalagensJson();
-          $el.querySelector('[name=bom_equipments_json]').value = bomEquipmentsJson();
-          $el.querySelector('[name=fc]').value   = fc;
-          $el.querySelector('[name=fcoc]').value = fcoc;
-          htmx.ajax('POST', '/api/bom/save', {source: $el, target: '#form-feedback', swap: 'innerHTML'});
+          try {
+            console.log('Post save triggered');
+            $el.querySelector('[name=sections_json]').value = JSON.stringify(sections);
+            $el.querySelector('[name=embalagens_json]').value = JSON.stringify(embalagens);
+            $el.querySelector('[name=bom_equipments_json]').value = JSON.stringify(bomEquipments);
+            $el.querySelector('[name=fc]').value = fc;
+            $el.querySelector('[name=fcoc]').value = fcoc;
+            htmx.ajax('POST', '/api/bom/save', { 
+               source: $el, 
+               target: '#form-feedback', 
+               swap: 'innerHTML' 
+            });
+          } catch(err) {
+            console.error('Submit error:', err);
+            alert('Erro: ' + err.message);
+          }
         "
         class="space-y-6">
 
