@@ -760,6 +760,85 @@ def equipments_options(request: Request, db: Session = Depends(get_db)):
     return HTMLResponse(opts)
 
 
+# ─── Catálogo do Fornecedor (SupplierCatalog — marca + FC) ────────────────────
+
+@router.get("/suppliers/{supplier_id}/catalog/modal", response_class=HTMLResponse)
+def get_supplier_catalog_modal(supplier_id: str, request: Request, db: Session = Depends(get_db)):
+    from models import Supplier, Ingredient, SupplierCatalog
+    supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
+    ingredients = db.query(Ingredient).filter(Ingredient.ativo == True).order_by(Ingredient.nome).all()
+    catalog_items = db.query(SupplierCatalog).filter(
+        SupplierCatalog.supplier_id == supplier_id,
+        SupplierCatalog.ativo == True,
+    ).all()
+    return templates.TemplateResponse(
+        "cadastro/fragments/supplier_catalog_modal.html",
+        {"request": request, "supplier": supplier, "ingredients": ingredients, "catalog_items": catalog_items},
+    )
+
+
+@router.post("/suppliers/{supplier_id}/catalog", response_class=HTMLResponse)
+def add_supplier_catalog_item(
+    supplier_id: str,
+    ingredient_id: str = Form(...),
+    marca_fabricante: str = Form(...),
+    fc_marca: float = Form(1.0),
+    preco_compra: float = Form(0.0),
+    db: Session = Depends(get_db),
+):
+    from models import SupplierCatalog, Ingredient
+    try:
+        novo = SupplierCatalog(
+            id=_uuid.uuid4(),
+            supplier_id=supplier_id,
+            ingredient_id=ingredient_id,
+            marca_fabricante=marca_fabricante.strip(),
+            fc_marca=fc_marca,
+            preco_compra=preco_compra or None,
+        )
+        db.add(novo)
+        db.commit()
+        db.refresh(novo)
+    except Exception as e:
+        db.rollback()
+        return _err(f"Erro ao adicionar: {e}")
+
+    ing = db.query(Ingredient).filter(Ingredient.id == ingredient_id).first()
+    html = (
+        f'<tr id="cat-item-{novo.id}" class="border-b border-slate-100 hover:bg-slate-50">'
+        f'<td class="px-4 py-2 text-sm text-gray-900 font-medium">{ing.nome if ing else "—"}</td>'
+        f'<td class="px-4 py-2 text-sm text-gray-600">{novo.marca_fabricante}</td>'
+        f'<td class="px-4 py-2 text-sm text-amber-700 font-mono">{novo.fc_marca:.2f}</td>'
+        f'<td class="px-4 py-2 text-sm text-gray-600 font-mono">R$ {novo.preco_compra:.2f}</td>'
+        f'<td class="px-4 py-2 text-right">'
+        f'<button hx-delete="/api/cadastro/suppliers/catalog/{novo.id}" '
+        f'hx-target="#cat-item-{novo.id}" hx-swap="outerHTML" '
+        f'hx-confirm="Remover esta marca do catálogo?" '
+        f'class="text-red-500 hover:text-red-700 p-1"><i class="ph ph-trash"></i></button>'
+        f'</td></tr>'
+    )
+    r = HTMLResponse(content=html)
+    r.headers["HX-Trigger"] = _toast("Marca vinculada ao fornecedor!", "success")
+    return r
+
+
+@router.delete("/suppliers/catalog/{item_id}", response_class=HTMLResponse)
+def delete_catalog_item(item_id: str, db: Session = Depends(get_db)):
+    from models import SupplierCatalog
+    item = db.query(SupplierCatalog).filter(SupplierCatalog.id == item_id).first()
+    if not item:
+        return _err("Item não encontrado.")
+    try:
+        item.ativo = False
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return _err(f"Erro ao remover: {e}")
+    r = HTMLResponse("")
+    r.headers["HX-Trigger"] = _toast("Item removido do catálogo.", "warning")
+    return r
+
+
 @router.get("/equipment/{eq_id}/parameters-json")
 def equipment_parameters_json(eq_id: str, db: Session = Depends(get_db)):
     """Retorna os parâmetros template de um equipamento como JSON (para o BOM form)."""

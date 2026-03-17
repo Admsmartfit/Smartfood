@@ -143,11 +143,9 @@
             <!-- Formulário de fabricante — x-show para evitar problema de x-if + HTMX -->
             <div x-show="selectedIngId" style="display:none"
                  class="space-y-3 border-t border-slate-100 pt-3">
-              <form x-ref="mfrForm"
-                    x-effect="if(selectedIngId){ $refs.mfrForm.setAttribute('hx-post', `/api/cadastro/ingredient/${selectedIngId}/manufacturer`); htmx.process($refs.mfrForm); }"
-                    hx-target="#mfr-list-body"
-                    hx-swap="afterbegin"
-                    @htmx:after-request="if($event.detail.successful){ $el.reset(); starRating=3; }"
+              <form @submit.prevent="if(!selectedIngId) return;
+                    htmx.ajax('POST', `/api/cadastro/ingredient/${selectedIngId}/manufacturer`, {source: $el, target: '#mfr-list-body', swap: 'afterbegin'});
+                    $el.reset(); starRating=3;"
                     class="space-y-3">
                 <div class="space-y-1">
                   <label class="text-xs font-medium text-gray-500 uppercase tracking-wide">Nome do Fabricante *</label>
@@ -808,5 +806,8 @@
     </div>
   </div>
 </div>
+
+<!-- Container para modais carregados via HTMX -->
+<div id="dialog-container"></div>
 
 {% endblock %}

@@ -652,6 +652,24 @@ class BOMEquipment(Base, TimestampMixin):
     product = relationship("Product", backref="bom_equipments")
 
 
+class SupplierCatalog(Base, TimestampMixin):
+    """Catálogo de produtos que um fornecedor específico vende (Marca e FC específicos)."""
+    __tablename__ = "supplier_catalog"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    supplier_id = Column(GUID(), ForeignKey("suppliers.id"), nullable=False)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=False)
+
+    marca_fabricante = Column(String, nullable=False, comment="Ex: Seara, Frisa, Sadia")
+    codigo_fornecedor = Column(String, nullable=True, comment="SKU do fornecedor")
+    preco_compra = Column(Float, nullable=True, comment="Preço acordado ou última compra")
+    fc_marca = Column(Float, default=1.0, comment="Fator de Correção específico desta marca")
+    ativo = Column(Boolean, default=True)
+
+    supplier = relationship("Supplier", backref="catalog_items")
+    ingredient = relationship("Ingredient", backref="supplier_brands")
+
+
 class FinancialExpense(Base, TimestampMixin):
     __tablename__ = "financial_expenses"
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)

@@ -1,0 +1,131 @@
+<div x-data="{ open: true }"
+     x-show="open"
+     x-transition:enter="transition ease-out duration-200"
+     x-transition:enter-start="opacity-0 scale-95"
+     x-transition:enter-end="opacity-100 scale-100"
+     x-transition:leave="transition ease-in duration-150"
+     x-transition:leave-start="opacity-100 scale-100"
+     x-transition:leave-end="opacity-0 scale-95"
+     @keydown.escape.window="open = false; $el.remove()"
+     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+     role="dialog" aria-modal="true">
+
+  <!-- Backdrop -->
+  <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+       @click="open = false; $el.closest('[role=dialog]').remove()"></div>
+
+  <!-- Painel -->
+  <div class="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+
+    <!-- Cabeçalho -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50 shrink-0">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+          <i class="ph ph-books text-blue-600"></i>
+          Catálogo de Marcas
+        </h3>
+        <p class="text-sm text-gray-500 mt-0.5">{{ supplier.nome }}</p>
+      </div>
+      <button @click="open = false; $el.closest('[role=dialog]').remove()"
+              class="p-2 text-gray-400 hover:text-gray-700 hover:bg-slate-100 rounded-lg transition-colors">
+        <i class="ph ph-x text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Corpo -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-5">
+
+      <!-- Formulário de adição -->
+      <form hx-post="/api/cadastro/suppliers/{{ supplier.id }}/catalog"
+            hx-target="#catalog-list"
+            hx-swap="beforeend"
+            @htmx:after-request="if($event.detail.successful) $el.reset()"
+            class="flex flex-wrap items-end gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+
+        <div class="flex-1 min-w-[180px]">
+          <label class="block text-xs font-semibold text-blue-900 mb-1">Insumo Base</label>
+          <select name="ingredient_id" required
+                  class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500 bg-white">
+            <option value="">— Selecione —</option>
+            {% for ing in ingredients %}
+            <option value="{{ ing.id }}">{{ ing.nome }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="w-36">
+          <label class="block text-xs font-semibold text-blue-900 mb-1">Marca Fabricante</label>
+          <input type="text" name="marca_fabricante" required placeholder="Ex: Seara"
+                 class="w-full px-3 py-2 rounded-lg border border-blue-200 text-sm focus:ring-2 focus:ring-blue-500">
+        </div>
+
+        <div class="w-24">
+          <label class="block text-xs font-semibold text-amber-900 mb-1"
+                 title="Fator de Correção específico desta marca">FC Marca</label>
+          <input type="number" name="fc_marca" step="0.01" min="0.1" value="1.0"
+                 class="w-full px-3 py-2 rounded-lg border border-amber-200 bg-amber-50 text-sm focus:ring-2 focus:ring-amber-500 font-mono text-right">
+        </div>
+
+        <div class="w-32">
+          <label class="block text-xs font-semibold text-green-900 mb-1">Preço (R$)</label>
+          <input type="number" name="preco_compra" step="0.01" min="0" value="0.00"
+                 class="w-full px-3 py-2 rounded-lg border border-green-200 text-sm focus:ring-2 focus:ring-green-500 font-mono text-right">
+        </div>
+
+        <button type="submit"
+                class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold
+                       flex items-center gap-2 transition-colors shrink-0">
+          <i class="ph ph-plus-circle text-base"></i> Adicionar
+        </button>
+      </form>
+
+      <!-- Tabela de itens do catálogo -->
+      <div class="overflow-hidden border border-slate-200 rounded-xl">
+        <table class="w-full text-left">
+          <thead class="bg-slate-50 border-b border-slate-200">
+            <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th class="px-4 py-2.5">Ingrediente</th>
+              <th class="px-4 py-2.5">Marca</th>
+              <th class="px-4 py-2.5 text-center">FC Específico</th>
+              <th class="px-4 py-2.5 text-right">Preço (R$)</th>
+              <th class="px-4 py-2.5"></th>
+            </tr>
+          </thead>
+          <tbody id="catalog-list">
+            {% for item in catalog_items %}
+            <tr id="cat-item-{{ item.id }}" class="border-b border-slate-100 hover:bg-slate-50 text-sm">
+              <td class="px-4 py-2.5 font-medium text-gray-900">{{ item.ingredient.nome }}</td>
+              <td class="px-4 py-2.5 text-gray-600">{{ item.marca_fabricante }}</td>
+              <td class="px-4 py-2.5 text-center">
+                <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-mono text-xs">
+                  {{ "%.2f"|format(item.fc_marca) }}
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-right text-gray-700 font-mono">
+                {% if item.preco_compra %}R$ {{ "%.2f"|format(item.preco_compra) }}{% else %}—{% endif %}
+              </td>
+              <td class="px-4 py-2.5 text-right">
+                <button hx-delete="/api/cadastro/suppliers/catalog/{{ item.id }}"
+                        hx-target="#cat-item-{{ item.id }}"
+                        hx-swap="outerHTML swap:300ms"
+                        hx-confirm="Remover esta marca do catálogo?"
+                        class="p-1 text-gray-400 hover:text-red-600 transition-colors">
+                  <i class="ph ph-trash text-base"></i>
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr id="catalog-empty">
+              <td colspan="5" class="px-4 py-8 text-center text-sm text-gray-400">
+                <i class="ph ph-books text-2xl block mb-1 opacity-40"></i>
+                Nenhuma marca cadastrada para este fornecedor.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
