@@ -188,13 +188,22 @@
         class="ph ph-package"></i> 3. Porcionamento & Embalagens</button>
   </div>
 
-  <form id="bom-form" hx-post="/api/bom/save" hx-target="#form-feedback" hx-swap="innerHTML" class="space-y-6">
+  <form id="bom-form"
+        @submit.prevent="
+          $el.querySelector('[name=sections_json]').value     = sectionsJson();
+          $el.querySelector('[name=embalagens_json]').value   = embalagensJson();
+          $el.querySelector('[name=bom_equipments_json]').value = bomEquipmentsJson();
+          $el.querySelector('[name=fc]').value   = fc;
+          $el.querySelector('[name=fcoc]').value = fcoc;
+          htmx.ajax('POST', '/api/bom/save', {source: $el, target: '#form-feedback', swap: 'innerHTML'});
+        "
+        class="space-y-6">
 
-    <input type="hidden" name="sections_json" :value="sectionsJson()">
-    <input type="hidden" name="embalagens_json" :value="embalagensJson()">
-    <input type="hidden" name="bom_equipments_json" :value="bomEquipmentsJson()">
-    <input type="hidden" name="fc" :value="fc">
-    <input type="hidden" name="fcoc" :value="fcoc">
+    <input type="hidden" name="sections_json" value="">
+    <input type="hidden" name="embalagens_json" value="">
+    <input type="hidden" name="bom_equipments_json" value="">
+    <input type="hidden" name="fc" value="1.0">
+    <input type="hidden" name="fcoc" value="1.0">
     <input type="hidden" name="product_id" value="{{ produto.id if produto else '' }}">
 
     <div x-show="activeTab === 'receita'" x-transition class="grid grid-cols-1 lg:grid-cols-3 gap-6">
