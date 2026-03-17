@@ -159,183 +159,152 @@ function appState() {
 }
 
 // ─── BOM Builder Alpine Component ─────────────────────────────────────────────
-// Reads data directly from <script type="text/plain"> DOM elements so it works
-// regardless of HTMX navigation order (no dependency on window._bomCfg timing).
-function bomBuilder() {
-  function _r(id) {
-    var el = document.getElementById(id);
-    return el ? el.textContent.trim() : '';
-  }
+document.addEventListener('alpine:init', () => {
+    Alpine.data('bomBuilder', () => ({
+      activeTab: 'receita',
+      fc: 1.0,
+      fcoc: 1.0,
+      rendimentoKg: 1.0,
+      pesoPorcaoGramas: 350,
+      markup: 2.0,
+      margemMinima: 30,
 
-  // Build sections with items embedded (merges sections_json + bom_items_config_json)
-  var rawSecs  = JSON.parse(_r('d-sections') || '[]');
-  var rawItems = JSON.parse(_r('d-items')    || '[]');
-  var initSections;
-  if (rawSecs.length === 0) {
-    initSections = [{ _key: 1, nome: 'Base Principal', peso_final_esperado_kg: null, items: rawItems }];
-  } else {
-    initSections = rawSecs.map(function(sec) {
-      var its = rawItems.filter(function(it) { return String(it.section_key) === String(sec._key); });
-      return { _key: sec._key, nome: sec.nome, peso_final_esperado_kg: sec.peso_final_esperado_kg, items: its };
-    });
-  }
+      sections: [],
+      embalagens: [],
+      bomEquipments: [],
+      ingredientsMap: {},
 
-  var rawEqs = JSON.parse(_r('d-bomeq') || '[]');
-  var initEqs = rawEqs.map(function(eq, i) { return Object.assign({ _key: i + 1, params: [] }, eq); });
+      numPorcoes: 0,
+      sobraGramas: 0,
+      custoPorPorcao: 0,
+      precoSugerido: 0,
+      margemPct: 0,
 
-  return {
-    /* ── Reactive state ─────────────────────────────────────── */
-    activeTab:    'receita',
-    sections:     initSections,
-    _secKey:      initSections.length + 1,
-    bomEquipments: initEqs,
-    _eqKey:        initEqs.length + 1,
-    equipmentsList: JSON.parse(_r('d-equipments') || '[]'),
-    ingredientsMap: JSON.parse(_r('d-ingmap')     || '{}'),
+      init() {
+        const _r = (id) => document.getElementById(id)?.textContent || '';
+        
+        this.fc = parseFloat(_r('d-fc')) || 1.0;
+        this.fcoc = parseFloat(_r('d-fcoc')) || 1.0;
+        this.rendimentoKg = parseFloat(_r('d-rendimento')) || 1.0;
+        this.pesoPorcaoGramas = parseInt(_r('d-peso-porcao')) || 350;
+        this.markup = parseFloat(_r('d-markup')) || 2.0;
 
-    fc:              parseFloat(_r('d-fc'))         || 1.0,
-    fcoc:            parseFloat(_r('d-fcoc'))       || 1.0,
-    rendimentoKg:    parseFloat(_r('d-rendimento')) || 1.0,
-    pesoPorcaoGramas:parseInt(_r('d-peso-porcao'),10)|| 350,
-    markup:          parseFloat(_r('d-markup'))     || 2.0,
-    pesoFinal:       parseFloat(_r('d-rendimento')) || 1.0,
+        try { this.ingredientsMap = JSON.parse(_r('d-ingmap') || '{}'); } catch (e) { }
+        try { this.bomEquipments = JSON.parse(_r('d-bomeq') || '[]'); } catch (e) { }
 
-    numPorcoes: 0, sobraGramas: 0, custoPorPorcao: 0,
-    precoSugerido: 0, margemPct: 0,
-    custoIngredientes: 0, custoEmbalagens: 0, perdaEquipamentosKg: 0,
+        try {
+          let loadedSections = JSON.parse(_r('d-sections') || '[]');
+          if (Array.isArray(loadedSections) && loadedSections.length > 0) {
+            this.sections = loadedSections.map(s => {
+              if (!s.items) s.items = [];
+              if (!s._key) s._key = Date.now().toString() + Math.random();
+              return s;
+            });
+          }
+        } catch (e) { }
 
-    /* ── Init ───────────────────────────────────────────────── */
-    init() {
-      try { this.calcPorcoes(); } catch(e) { console.error(e); }
-    },
+        try {
+          let loadedEmbs = JSON.parse(_r('d-embalagens') || '[]');
+          if (Array.isArray(loadedEmbs) && loadedEmbs.length > 0) {
+            this.embalagens = loadedEmbs;
+          }
+        } catch (e) { }
 
-    /* ── Seções ─────────────────────────────────────────────── */
-    addSection() {
-      var key = this._secKey++;
-      this.sections = this.sections.concat([{
-        _key: key, nome: 'Nova Seção ' + (this.sections.length + 1),
-        peso_final_esperado_kg: null, items: []
-      }]);
-    },
-
-    removeSection(idx) {
-      if (confirm('Remover esta seção e todos os seus itens?')) {
-        this.sections = this.sections.filter(function(_, i) { return i !== idx; });
-      }
-    },
-
-    /* ── Itens ──────────────────────────────────────────────── */
-    addItem(sIdx, tipo) {
-      var newItem = { _key: Date.now(), tipo: tipo,
-                      ingredient_id: '', supply_id: '',
-                      quantidade: '', unidade: tipo === 'ingrediente' ? 'kg' : 'un' };
-      this.sections = this.sections.map(function(sec, i) {
-        if (i !== sIdx) return sec;
-        return Object.assign({}, sec, { items: (sec.items || []).concat([newItem]) });
-      });
-    },
-
-    removeItem(sIdx, iIdx) {
-      this.sections = this.sections.map(function(sec, i) {
-        if (i !== sIdx) return sec;
-        return Object.assign({}, sec, { items: sec.items.filter(function(_, j) { return j !== iIdx; }) });
-      });
-    },
-
-    /* ── Equipamentos ───────────────────────────────────────── */
-    addEquipment() {
-      var key = this._eqKey++;
-      this.bomEquipments = this.bomEquipments.concat([{
-        _key: key, equipment_id: '', perda_processo_kg: 0, params: []
-      }]);
-    },
-
-    removeEquipment(idx) {
-      this.bomEquipments = this.bomEquipments.filter(function(_, i) { return i !== idx; });
-    },
-
-    addEqParam(eq) {
-      if (!eq.params) eq.params = [];
-      if (eq.params.length < 5) eq.params.push({ nome: '', valor: '' });
-    },
-
-    async loadEqParams(eq) {
-      if (!eq.equipment_id) { eq.params = []; return; }
-      try {
-        var res  = await fetch('/api/cadastro/equipment/' + eq.equipment_id + '/parameters-json');
-        var data = await res.json();
-        eq.params = data.map(function(p) {
-          return { nome: p.nome + (p.unidade ? ' (' + p.unidade + ')' : ''), valor: p.valor_padrao || '' };
-        });
-      } catch(e) { console.error(e); eq.params = []; }
-    },
-
-    /* ── Serialização (formato esperado pelo backend) ────────── */
-    sectionsJson() {
-      return JSON.stringify(this.sections.map(function(sec, i) {
-        return { _key: sec._key, nome: sec.nome, ordem: i + 1,
-                 peso_final_esperado_kg: sec.peso_final_esperado_kg || null };
-      }));
-    },
-
-    itemsJson() {
-      var out = [];
-      this.sections.forEach(function(sec) {
-        (sec.items || []).forEach(function(item) {
-          out.push({ _key: item._key, tipo: item.tipo,
-                     ingredient_id: item.ingredient_id || '',
-                     supply_id: item.supply_id || '',
-                     quantidade: parseFloat(item.quantidade) || 0,
-                     unidade: item.unidade || 'kg',
-                     section_key: sec._key,
-                     perda_esperada_pct: item.perda_esperada_pct || 0 });
-        });
-      });
-      return JSON.stringify(out);
-    },
-
-    bomEquipmentsJson() {
-      return JSON.stringify(this.bomEquipments.map(function(eq) {
-        return { equipment_id: eq.equipment_id, perda_processo_kg: eq.perda_processo_kg || 0,
-                 parametros_json: Object.fromEntries((eq.params||[]).map(function(p){return [p.nome,p.valor];})) };
-      }));
-    },
-
-    /* ── Cálculos ────────────────────────────────────────────── */
-    pesoTotalIngredientes() {
-      var t = 0;
-      this.sections.forEach(function(sec) {
-        (sec.items||[]).forEach(function(item) {
-          if (item.tipo === 'ingrediente') t += parseFloat(item.quantidade) || 0;
-        });
-      });
-      return t;
-    },
-
-    ingredientName(id) {
-      return (this.ingredientsMap && id) ? (this.ingredientsMap[id] || id) : '—';
-    },
-
-    calcPorcoes() {
-      try {
-        var perdaEq = this.bomEquipments.reduce(function(s,eq){return s+(parseFloat(eq.perda_processo_kg)||0);},0);
-        this.perdaEquipamentosKg = perdaEq;
-        var liq = Math.max(0, this.rendimentoKg - perdaEq);
-        var totalG = liq * 1000;
-        var porcao = this.pesoPorcaoGramas;
-        if (!porcao || porcao <= 0 || totalG <= 0) {
-          this.numPorcoes=0;this.sobraGramas=0;this.custoPorPorcao=0;this.precoSugerido=0;this.margemPct=0;
-          return;
+        if (this.sections.length === 0) {
+          this.sections.push({
+            _key: Date.now().toString(),
+            nome: 'Massa / Base',
+            peso_final_esperado_kg: 0,
+            items: []
+          });
         }
-        this.numPorcoes  = Math.floor(totalG / porcao);
-        this.sobraGramas = totalG % porcao;
-        var custo = this.custoIngredientes + this.custoEmbalagens;
-        this.custoPorPorcao = this.numPorcoes > 0 ? custo / this.numPorcoes : 0;
-        this.precoSugerido  = this.custoPorPorcao * this.markup;
-        this.margemPct = this.precoSugerido > 0
-          ? (this.precoSugerido - this.custoPorPorcao) / this.precoSugerido * 100 : 0;
-      } catch(e) { console.error(e); }
-    },
-  };
-}
+        this.calcPorcoes();
+      },
+
+      addSection() {
+        this.sections.push({
+          _key: Date.now().toString(),
+          nome: `Nova Seção ${this.sections.length + 1}`,
+          peso_final_esperado_kg: 0,
+          items: []
+        });
+      },
+      removeSection(idx) {
+        if (confirm("Remover esta seção?")) {
+          this.sections.splice(idx, 1);
+          this.calcPorcoes();
+        }
+      },
+      addIngredient(sIdx) {
+        this.sections[sIdx].items.push({
+          _key: Date.now().toString(),
+          tipo: 'ingrediente',
+          ingredient_id: '',
+          quantidade: '',
+          unidade: 'kg'
+        });
+      },
+      removeIngredient(sIdx, iIdx) {
+        this.sections[sIdx].items.splice(iIdx, 1);
+        this.calcPorcoes();
+      },
+      addEmbalagem() {
+        this.embalagens.push({
+          _key: Date.now().toString(),
+          supply_id: '',
+          quantidade: 1,
+          unidade: 'un'
+        });
+      },
+      removeEmbalagem(idx) {
+        this.embalagens.splice(idx, 1);
+      },
+
+      sectionsJson() { return JSON.stringify(this.sections); },
+      embalagensJson() { return JSON.stringify(this.embalagens); },
+      bomEquipmentsJson() { return JSON.stringify(this.bomEquipments); },
+
+      pesoTotalIngredientes() {
+        let t = 0;
+        this.sections.forEach(s => {
+          s.items.forEach(it => {
+            if (it.tipo === 'ingrediente') t += (parseFloat(it.quantidade) || 0);
+          });
+        });
+        return t;
+      },
+      calcFC() {
+        // Logica simplificada para manter compatibilidade
+      },
+      calcPorcoes() {
+        if (this.rendimentoKg > 0 && this.pesoPorcaoGramas > 0) {
+          let totalG = this.rendimentoKg * 1000;
+          this.numPorcoes = Math.floor(totalG / this.pesoPorcaoGramas);
+          this.sobraGramas = totalG % this.pesoPorcaoGramas;
+        } else {
+          this.numPorcoes = 0;
+          this.sobraGramas = 0;
+        }
+      },
+      submitForm() {
+        try {
+          this.$el.querySelector('[name=sections_json]').value = this.sectionsJson();
+          this.$el.querySelector('[name=embalagens_json]').value = this.embalagensJson();
+          this.$el.querySelector('[name=bom_equipments_json]').value = this.bomEquipmentsJson();
+          this.$el.querySelector('[name=fc]').value = this.fc;
+          this.$el.querySelector('[name=fcoc]').value = this.fcoc;
+          
+          htmx.ajax('POST', '/api/bom/save', { 
+            source: this.$el, 
+            target: '#form-feedback', 
+            swap: 'innerHTML' 
+          });
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao salvar: ' + err.message);
+        }
+      }
+    }));
+});
+
 
