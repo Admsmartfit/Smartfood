@@ -288,20 +288,22 @@ document.addEventListener('alpine:init', () => {
       },
       submitForm() {
         try {
-          this.$el.querySelector('[name=sections_json]').value = this.sectionsJson();
-          this.$el.querySelector('[name=embalagens_json]').value = this.embalagensJson();
-          this.$el.querySelector('[name=bom_equipments_json]').value = this.bomEquipmentsJson();
-          this.$el.querySelector('[name=fc]').value = this.fc;
-          this.$el.querySelector('[name=fcoc]').value = this.fcoc;
-          
-          htmx.ajax('POST', '/api/bom/save', { 
-            source: this.$el, 
-            target: '#form-feedback', 
-            swap: 'innerHTML' 
+          const form = document.getElementById('bom-form');
+          form.querySelector('[name=sections_json]').value      = this.sectionsJson();
+          form.querySelector('[name=embalagens_json]').value    = this.embalagensJson();
+          form.querySelector('[name=bom_equipments_json]').value = this.bomEquipmentsJson();
+          form.querySelector('[name=fc]').value   = this.fc;
+          form.querySelector('[name=fcoc]').value = this.fcoc;
+
+          htmx.ajax('POST', '/api/bom/save', {
+            source: form,
+            target: '#form-feedback',
+            swap: 'innerHTML'
           });
         } catch (err) {
-          console.error(err);
-          alert('Erro ao salvar: ' + err.message);
+          console.error('[BOM submitForm]', err);
+          document.getElementById('form-feedback').innerHTML =
+            '<span class="text-red-600"><i class="ph ph-warning-circle"></i> Erro interno: ' + err.message + '</span>';
         }
       }
     }));
