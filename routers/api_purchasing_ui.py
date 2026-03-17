@@ -223,97 +223,9 @@ def approve_rfq_ui(
 
 # ─── COTAÇÃO MANUAL (AVULSA) ──────────────────────────────────────────────────
 
-@router.get("/manual-quote/modal", response_class=HTMLResponse)
-def manual_quote_modal(request: Request, db: Session = Depends(get_db)):
-    """Abre o modal multi-item para cotação avulsa de ingredientes."""
-    from models import Ingredient, Supplier, IngredientManufacturer
-
-    ingredients = db.query(Ingredient).order_by(Ingredient.nome).all()
-    suppliers   = db.query(Supplier).order_by(Supplier.nome).all()
-
-    # Mapa {ingredient_id: [{id, nome}]} para o Alpine preencher fabricantes
-    mfg_map: dict = {}
-    for mfg in db.query(IngredientManufacturer).all():
-        key = str(mfg.ingredient_id)
-        mfg_map.setdefault(key, []).append({"id": str(mfg.id), "nome": mfg.nome_fabricante})
-
-    return templates.TemplateResponse(
-        "fragments/manual_quote_modal.html",
-        {
-            "request": request,
-            "ingredients": ingredients,
-            "suppliers": suppliers,
-            "manufacturers_map": json.dumps(mfg_map),
-            "supplier_catalog": "{}",
-        },
-    )
-
-
-@router.post("/manual-quote", response_class=HTMLResponse)
-def create_manual_quote(
-    items_json: str = Form("[]"),
-    supplier_ids_json: str = Form("[]"),
-    db: Session = Depends(get_db),
-):
-    """Cria RFQs de ingredientes (supply_id=None) para cada item × fornecedor selecionado."""
-    from models import RFQ
-    from services.purchase_automation import send_rfq
-
-    try:
-        items        = json.loads(items_json)
-        supplier_ids = json.loads(supplier_ids_json)
-    except Exception:
-        items = []; supplier_ids = []
-
-    if not items or not supplier_ids:
-        r = HTMLResponse("")
-        r.headers["HX-Trigger"] = json.dumps({
-            "showToast": {"message": "Adicione insumos e selecione fornecedores.", "type": "error"}
-        })
-        return r
-
-    count = 0
-    for item in items:
-        ingredient_id = item.get("ingredient_id")
-        qty           = float(item.get("quantidade") or 0)
-        unidade       = item.get("unidade", "kg")
-        mfg_id        = item.get("manufacturer_id") or None
-        if not ingredient_id or qty <= 0:
-            continue
-        for sup_id in supplier_ids:
-            try:
-                nota = json.dumps({"ingredient_id": ingredient_id,
-                                   "manufacturer_id": mfg_id,
-                                   "unidade": unidade})
-                rfq = RFQ(
-                    id=uuid.uuid4(),
-                    supply_id=None,
-                    supplier_id=uuid.UUID(sup_id),
-                    qty_solicitada=qty,
-                    mensagem_enviada=nota,
-                    status="PENDENTE",
-                )
-                db.add(rfq)
-                db.flush()
-                try:
-                    send_rfq(db, rfq.id)
-                except Exception as e:
-                    print(f"[manual-quote] send_rfq warning: {e}")
-                count += 1
-            except Exception as e:
-                print(f"[manual-quote] Erro ao criar RFQ: {e}")
-
-    db.commit()
-
-    r = HTMLResponse("")
-    r.headers["HX-Trigger"] = json.dumps({
-        "showToast": {"message": f"{count} cotação(ões) avulsa(s) solicitada(s)!", "type": "success"},
-        "refreshRfqList": True,
-    })
-    return r
 @router.get("/items-to-quote", response_class=HTMLResponse)
 def items_to_quote(db: Session = Depends(get_db)):
-    """Lista insumos com estoque abaixo do mínimo com urgência visual e botão de ação."""
+    """Lista insumos (Supply) abaixo do mínimo com botão 'Cotar' que abre o modal pré-preenchido."""
     from models import Supply
 
     items = (
@@ -334,36 +246,109 @@ def items_to_quote(db: Session = Depends(get_db)):
 
     rows = []
     for s in items:
-        pct = round((s.estoque_atual or 0) / max(s.estoque_minimo, 0.01) * 100)
+        pct    = round((s.estoque_atual or 0) / max(s.estoque_minimo, 0.01) * 100)
         deficit = round((s.estoque_minimo or 0) - (s.estoque_atual or 0), 2)
-        lead = s.lead_time_dias or 0
+        lead   = s.lead_time_dias or 0
 
         if pct <= 0:
             urgency_cls = "bg-red-100 border-red-300 text-red-800"
-            badge = '<span class="text-xs font-bold text-red-700 bg-red-200 px-1.5 py-0.5 rounded">Urgente hoje</span>'
+            badge = '<span class="text-xs font-bold text-red-700 bg-red-200 px-1.5 py-0.5 rounded">Urgente</span>'
         elif lead > 0 and pct <= 30:
             urgency_cls = "bg-amber-50 border-amber-300 text-amber-800"
-            badge = '<span class="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">3 dias</span>'
+            badge = '<span class="text-xs font-medium text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Atenção</span>'
         else:
             urgency_cls = "bg-white border-slate-200 text-gray-700"
             badge = '<span class="text-xs text-gray-400">Planejar</span>'
 
         action_btn = (
-            f'<button hx-get="/api/purchasing/rfqs/{s.id}/comparison"'
+            f'<button hx-get="/api/purchasing/manual-quote/modal?supply_id={s.id}&deficit={deficit}"'
             f' hx-target="#dialog-container" hx-swap="innerHTML"'
-            f' class="ml-3 px-2 py-1.5 bg-white border border-slate-300 rounded shadow-sm'
-            f' text-xs font-medium hover:bg-slate-50 transition-colors flex items-center gap-1 text-gray-700">'
-            f'<i class="ph ph-scales"></i> Comparar</button>'
+            f' class="ml-3 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg'
+            f' text-xs font-bold transition-colors flex items-center gap-1">'
+            f'<i class="ph-bold ph-paper-plane-tilt"></i> Cotar</button>'
         )
 
         rows.append(
             f'<div class="flex items-center justify-between p-3 rounded-lg border {urgency_cls}">'
             f'<div class="flex-1"><p class="font-medium text-sm">{s.nome}</p>'
-            f'<p class="text-xs opacity-75">Déficit: {deficit} {s.unidade or ""}</p></div>'
-            f'<div class="flex items-center">{badge}{action_btn}</div></div>'
+            f'<p class="text-xs font-bold opacity-80 mt-0.5">Faltam: {deficit} {s.unidade or ""}</p></div>'
+            f'<div class="flex items-center gap-2">{badge}{action_btn}</div></div>'
         )
 
     return HTMLResponse("\n".join(rows))
+
+
+@router.get("/manual-quote/modal", response_class=HTMLResponse)
+def manual_quote_modal(
+    request: Request,
+    supply_id: str = "",
+    deficit: float = 0.0,
+    db: Session = Depends(get_db),
+):
+    """Abre o modal pré-preenchido com o insumo e quantidade em falta."""
+    from models import Supply, Supplier
+
+    supplies  = db.query(Supply).order_by(Supply.nome).all()
+    suppliers = db.query(Supplier).order_by(Supplier.nome).all()
+
+    return templates.TemplateResponse(
+        "fragments/manual_quote_modal.html",
+        {
+            "request": request,
+            "supplies": supplies,
+            "suppliers": suppliers,
+            "preselected_id": supply_id,
+            "preselected_qty": deficit,
+        },
+    )
+
+
+@router.post("/manual-quote", response_class=HTMLResponse)
+def create_manual_quote(
+    supply_id: str = Form(...),
+    qty_solicitada: float = Form(...),
+    supplier_ids: list[str] = Form(default=[]),
+    db: Session = Depends(get_db),
+):
+    """Cria RFQs para o supply × cada fornecedor selecionado e tenta disparar."""
+    from models import RFQ
+    from services.purchase_automation import send_rfq
+
+    if not supplier_ids:
+        r = HTMLResponse("")
+        r.headers["HX-Trigger"] = json.dumps({
+            "showToast": {"message": "Selecione pelo menos um fornecedor.", "type": "error"}
+        })
+        return r
+
+    count = 0
+    for sup_id in supplier_ids:
+        try:
+            rfq = RFQ(
+                id=uuid.uuid4(),
+                supply_id=uuid.UUID(supply_id),
+                supplier_id=uuid.UUID(sup_id),
+                qty_solicitada=qty_solicitada,
+                status="PENDENTE",
+            )
+            db.add(rfq)
+            db.flush()
+            try:
+                send_rfq(db, rfq.id)
+            except Exception as e:
+                print(f"[manual-quote] send_rfq warning: {e}")
+            count += 1
+        except Exception as e:
+            print(f"[manual-quote] Erro ao criar RFQ: {e}")
+
+    db.commit()
+
+    r = HTMLResponse("")
+    r.headers["HX-Trigger"] = json.dumps({
+        "showToast": {"message": f"{count} cotação(ões) solicitada(s)!", "type": "success"},
+        "refreshRfqList": True,
+    })
+    return r
 
 
 @router.get("/rfq-status-summary", response_class=HTMLResponse)
