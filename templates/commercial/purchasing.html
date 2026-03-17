@@ -11,16 +11,23 @@
       <p class="text-sm text-gray-500 mt-0.5">Gerencie RFQs, compare fornecedores e aprove ordens de compra</p>
     </div>
 
-    <button class="inline-flex items-center gap-2 px-4 py-2.5
-                   bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold
-                   rounded-lg transition-colors"
-            hx-post="/api/purchasing/rfqs/bulk-send"
-            hx-target="#bulk-result"
-            hx-swap="innerHTML"
-            hx-confirm="Enviar cotações para todos os fornecedores com estoque baixo?">
-      <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
-      Enviar RFQs
-    </button>
+    <div class="flex gap-3">
+      <button class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-gray-700 text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              hx-get="/api/purchasing/manual-quote/modal"
+              hx-target="#dialog-container">
+        <i class="ph ph-hand-pointing" aria-hidden="true"></i>
+        Cotação Manual
+      </button>
+
+      <button class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              hx-post="/api/purchasing/rfqs/bulk-send"
+              hx-target="#bulk-result"
+              hx-swap="innerHTML"
+              hx-confirm="Enviar cotações automáticas para todos os insumos com estoque abaixo do mínimo?">
+        <i class="ph ph-paper-plane-tilt" aria-hidden="true"></i>
+        Cotar Faltas Auto
+      </button>
+    </div>
   </div>
 
   <div id="bulk-result"></div>
@@ -32,19 +39,16 @@
     <section>
       <div class="flex items-center gap-2 mb-3">
         <i class="ph ph-warning-diamond text-amber-500 text-lg" aria-hidden="true"></i>
-        <h2 class="font-semibold text-gray-900">Itens para Cotar</h2>
+        <h2 class="font-semibold text-gray-900">Itens Abaixo do Mínimo</h2>
       </div>
       <div id="items-to-quote"
            hx-get="/api/purchasing/items-to-quote"
            hx-trigger="load"
            hx-swap="innerHTML">
         <div class="space-y-2 animate-pulse">
-          {% for _ in range(4) %}
-          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200">
-            <div class="h-4 bg-slate-200 rounded w-36"></div>
-            <div class="h-5 bg-slate-200 rounded-full w-16"></div>
-          </div>
-          {% endfor %}
+          <div class="h-10 bg-slate-200 rounded-lg"></div>
+          <div class="h-10 bg-slate-200 rounded-lg"></div>
+          <div class="h-10 bg-slate-200 rounded-lg"></div>
         </div>
       </div>
     </section>
@@ -60,15 +64,11 @@
       </div>
       <div id="rfq-status-list"
            hx-get="/api/purchasing/rfq-status-summary"
-           hx-trigger="load"
+           hx-trigger="load, refreshRfqList from:body, every 30s"
            hx-swap="innerHTML">
         <div class="space-y-2 animate-pulse">
-          {% for _ in range(3) %}
-          <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200">
-            <div class="h-4 bg-slate-200 rounded w-32"></div>
-            <div class="h-5 bg-slate-200 rounded-full w-20"></div>
-          </div>
-          {% endfor %}
+          <div class="h-10 bg-slate-200 rounded-lg"></div>
+          <div class="h-10 bg-slate-200 rounded-lg"></div>
         </div>
       </div>
     </section>
@@ -95,15 +95,7 @@
            hx-get="/api/purchasing/rfq-inbox"
            hx-trigger="load, every 30s"
            hx-swap="innerHTML">
-        <div class="p-4 animate-pulse space-y-3">
-          {% for _ in range(3) %}
-          <div class="flex gap-4">
-            <div class="h-4 bg-slate-200 rounded w-32"></div>
-            <div class="h-4 bg-slate-200 rounded w-24 hidden md:block"></div>
-            <div class="h-4 bg-slate-200 rounded w-16 ml-auto"></div>
-          </div>
-          {% endfor %}
-        </div>
+        <div class="p-4 text-center text-gray-400 text-sm">Carregando respostas...</div>
       </div>
     </div>
   </section>

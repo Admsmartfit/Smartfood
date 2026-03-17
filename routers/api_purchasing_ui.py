@@ -221,6 +221,96 @@ def approve_rfq_ui(
     return response
 
 
+# ─── COTAÇÃO MANUAL (AVULSA) ──────────────────────────────────────────────────
+
+@router.get("/manual-quote/modal", response_class=HTMLResponse)
+def manual_quote_modal(request: Request, db: Session = Depends(get_db)):
+    """Abre o modal multi-item para cotação avulsa de ingredientes."""
+    from models import Ingredient, Supplier, IngredientManufacturer
+
+    ingredients = db.query(Ingredient).order_by(Ingredient.nome).all()
+    suppliers   = db.query(Supplier).order_by(Supplier.nome).all()
+
+    # Mapa {ingredient_id: [{id, nome}]} para o Alpine preencher fabricantes
+    mfg_map: dict = {}
+    for mfg in db.query(IngredientManufacturer).all():
+        key = str(mfg.ingredient_id)
+        mfg_map.setdefault(key, []).append({"id": str(mfg.id), "nome": mfg.nome_fabricante})
+
+    return templates.TemplateResponse(
+        "fragments/manual_quote_modal.html",
+        {
+            "request": request,
+            "ingredients": ingredients,
+            "suppliers": suppliers,
+            "manufacturers_map": json.dumps(mfg_map),
+            "supplier_catalog": "{}",
+        },
+    )
+
+
+@router.post("/manual-quote", response_class=HTMLResponse)
+def create_manual_quote(
+    items_json: str = Form("[]"),
+    supplier_ids_json: str = Form("[]"),
+    db: Session = Depends(get_db),
+):
+    """Cria RFQs de ingredientes (supply_id=None) para cada item × fornecedor selecionado."""
+    from models import RFQ
+    from services.purchase_automation import send_rfq
+
+    try:
+        items        = json.loads(items_json)
+        supplier_ids = json.loads(supplier_ids_json)
+    except Exception:
+        items = []; supplier_ids = []
+
+    if not items or not supplier_ids:
+        r = HTMLResponse("")
+        r.headers["HX-Trigger"] = json.dumps({
+            "showToast": {"message": "Adicione insumos e selecione fornecedores.", "type": "error"}
+        })
+        return r
+
+    count = 0
+    for item in items:
+        ingredient_id = item.get("ingredient_id")
+        qty           = float(item.get("quantidade") or 0)
+        unidade       = item.get("unidade", "kg")
+        mfg_id        = item.get("manufacturer_id") or None
+        if not ingredient_id or qty <= 0:
+            continue
+        for sup_id in supplier_ids:
+            try:
+                nota = json.dumps({"ingredient_id": ingredient_id,
+                                   "manufacturer_id": mfg_id,
+                                   "unidade": unidade})
+                rfq = RFQ(
+                    id=uuid.uuid4(),
+                    supply_id=None,
+                    supplier_id=uuid.UUID(sup_id),
+                    qty_solicitada=qty,
+                    mensagem_enviada=nota,
+                    status="PENDENTE",
+                )
+                db.add(rfq)
+                db.flush()
+                try:
+                    send_rfq(db, rfq.id)
+                except Exception as e:
+                    print(f"[manual-quote] send_rfq warning: {e}")
+                count += 1
+            except Exception as e:
+                print(f"[manual-quote] Erro ao criar RFQ: {e}")
+
+    db.commit()
+
+    r = HTMLResponse("")
+    r.headers["HX-Trigger"] = json.dumps({
+        "showToast": {"message": f"{count} cotação(ões) avulsa(s) solicitada(s)!", "type": "success"},
+        "refreshRfqList": True,
+    })
+    return r
 @router.get("/items-to-quote", response_class=HTMLResponse)
 def items_to_quote(db: Session = Depends(get_db)):
     """Lista insumos com estoque abaixo do mínimo com urgência visual e botão de ação."""
@@ -375,3 +465,4 @@ def bulk_send_rfqs(request: Request, db: Session = Depends(get_db)):
     )
     response.headers["HX-Trigger"] = trigger
     return response
+
