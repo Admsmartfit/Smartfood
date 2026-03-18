@@ -246,7 +246,8 @@ class RFQ(Base, TimestampMixin):
     __tablename__ = "rfqs"
 
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
-    supply_id = Column(GUID(), ForeignKey("supplies.id"))
+    supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=True)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=True)
     supplier_id = Column(GUID(), ForeignKey("suppliers.id"))
     qty_solicitada = Column(Float, nullable=True)
     data_limite = Column(DateTime, nullable=True)
@@ -262,6 +263,7 @@ class RFQ(Base, TimestampMixin):
 
     supplier = relationship("Supplier", backref="rfqs")
     supply = relationship("Supply", backref="rfqs")
+    ingredient = relationship("Ingredient", backref="rfqs")
 
 
 class PurchaseOrder(Base, TimestampMixin):
@@ -271,7 +273,8 @@ class PurchaseOrder(Base, TimestampMixin):
     id = Column(GUID(), primary_key=True, default=uuid.uuid4)
     rfq_id = Column(GUID(), ForeignKey("rfqs.id"), nullable=False)
     supplier_id = Column(GUID(), ForeignKey("suppliers.id"), nullable=False)
-    supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=False)
+    supply_id = Column(GUID(), ForeignKey("supplies.id"), nullable=True)
+    ingredient_id = Column(GUID(), ForeignKey("ingredients.id"), nullable=True)
     qty_aprovada = Column(Float, nullable=False)
     preco_unitario_aprovado = Column(Float, nullable=False)
     total = Column(Float, nullable=False)
@@ -282,6 +285,7 @@ class PurchaseOrder(Base, TimestampMixin):
     rfq = relationship("RFQ", backref="purchase_order")
     supplier = relationship("Supplier", backref="purchase_orders")
     supply = relationship("Supply", backref="purchase_orders")
+    ingredient = relationship("Ingredient", backref="purchase_orders")
 
 class Customer(Base, TimestampMixin):
     __tablename__ = "customers"

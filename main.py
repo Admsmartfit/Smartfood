@@ -6,13 +6,14 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 load_dotenv()  # carrega .env antes de qualquer import que use os.getenv
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates  # noqa: F401 — disponível para routers via import direto
+from fastapi.templating import Jinja2Templates  # noqa: F401
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import models
 from database import engine, get_db
@@ -108,6 +109,22 @@ app.add_middleware(
     same_site="lax",
     https_only=False,
 )
+
+@app.exception_handler(401)
+async def unauthorized_exception_handler(request: StarletteRequest, exc: HTTPException):
+    """Redireciona para /login se o erro for 401 em rotas de página."""
+    if "text/html" in request.headers.get("accept", ""):
+        request.session.clear()
+        return RedirectResponse(url="/login")
+    return JSONResponse(status_code=401, content={"detail": exc.detail})
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: StarletteRequest, exc: StarletteHTTPException):
+    if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
+        request.session.clear()
+        return RedirectResponse(url="/login")
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 app.include_router(auth_router)
 
