@@ -29,7 +29,7 @@ def bom_new(request: Request, db: Session = Depends(get_db), _=AdminOrChef):
         _ctx(request, produto=None, bom_items=[], ingredients=ingredients, supplies=supplies,
              equipments=equipments, equipments_json=equipments_json, bom_eq_json="[]",
              ingredients_map_json=ingredients_map_json,
-             sections_json="[]", bom_items_config_json="[]"),
+             sections_json="[]", embalagens_json="[]"),
     )
 
 @router.get("/operations/bom/{product_id}/edit", response_class=HTMLResponse)
@@ -96,6 +96,7 @@ def bom_edit(product_id: str, request: Request, db: Session = Depends(get_db), _
             "nome": s.nome,
             "ordem": s.ordem,
             "peso_final_esperado_kg": s.peso_final_esperado_kg,
+            "modo_preparo": s.modo_preparo or "",
             "items": items_payload
         })
     sections_json = json.dumps(sections_list)

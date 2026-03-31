@@ -312,6 +312,7 @@ def bom_save(
                 nome=sec_data.get("nome", f"Seção {s_idx + 1}"),
                 ordem=s_idx + 1,
                 peso_final_esperado_kg=peso_sec if peso_sec > 0 else None,
+                modo_preparo=sec_data.get("modo_preparo", "").strip() or None,
             )
             db.add(section)
             db.flush()

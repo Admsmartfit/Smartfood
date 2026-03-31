@@ -94,6 +94,7 @@ class RecipeSection(Base, TimestampMixin):
     ordem = Column(Integer, default=1, comment="Ordem de exibição na ficha")
     peso_final_esperado_kg = Column(Float, nullable=True,
                                     comment="Rendimento esperado desta seção após cocção (kg)")
+    modo_preparo = Column(Text, nullable=True, comment="Instruções de preparo desta seção")
 
     product = relationship("Product", back_populates="sections")
     items = relationship("BOMItem", back_populates="section")

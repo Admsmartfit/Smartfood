@@ -59,6 +59,10 @@ logging.basicConfig(level=logging.INFO)
 # Cria as tabelas se não existirem (em produção, usar Alembic)
 models.Base.metadata.create_all(bind=engine)
 
+# Garante que o utilizador admin existe sempre que a DB é (re)criada
+from seed_admin import seed_admin as _seed_admin
+_seed_admin()
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):

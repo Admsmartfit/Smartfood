@@ -37,12 +37,12 @@ document.addEventListener('alpine:init', () => {
 
         init() {
             const _r = id => document.getElementById(id)?.textContent || '';
-            this.fc             = parseFloat(_r('d-fc'))         || 1.0;
-            this.fcoc           = parseFloat(_r('d-fcoc'))       || 1.0;
-            this.rendimentoKg   = parseFloat(_r('d-rendimento')) || 1.0;
-            this.pesoPorcaoGramas = parseInt(_r('d-peso-porcao'))|| 350;
-            this.markup         = parseFloat(_r('d-markup'))     || 2.0;
-            this.margemMinima   = parseFloat(_r('d-margem'))     || 30.0;
+            this.fc               = parseFloat(_r('d-fc'))         || 1.0;
+            this.fcoc             = parseFloat(_r('d-fcoc'))       || 1.0;
+            this.rendimentoKg     = parseFloat(_r('d-rendimento')) || 1.0;
+            this.pesoPorcaoGramas = parseInt(_r('d-peso-porcao'))  || 350;
+            this.markup           = parseFloat(_r('d-markup'))     || 2.0;
+            this.margemMinima     = parseFloat(_r('d-margem'))     || 30.0;
 
             try { this.ingredientsMap = JSON.parse(_r('d-ingmap')); }      catch(e) {}
             try { this.bomEquipments  = JSON.parse(_r('d-bomeq')) || []; } catch(e) {}
@@ -53,6 +53,7 @@ document.addEventListener('alpine:init', () => {
                     this.sections = s.map(sec => {
                         if (!sec._key) sec._key = Date.now().toString() + Math.random();
                         if (!sec.items) sec.items = [];
+                        if (!sec.modo_preparo) sec.modo_preparo = '';
                         return sec;
                     });
                 }
@@ -68,7 +69,13 @@ document.addEventListener('alpine:init', () => {
         },
 
         addSection() {
-            this.sections.push({ _key: Date.now().toString(), nome: `Nova Seção ${this.sections.length + 1}`, peso_final_esperado_kg: 0, items: [] });
+            this.sections.push({
+                _key: Date.now().toString(),
+                nome: `Nova Seção ${this.sections.length + 1}`,
+                peso_final_esperado_kg: 0,
+                modo_preparo: '',
+                items: []
+            });
         },
         removeSection(idx) {
             if (confirm('Remover esta seção?')) { this.sections.splice(idx, 1); this.calcPorcoes(); }
@@ -94,9 +101,25 @@ document.addEventListener('alpine:init', () => {
             this.sections.forEach(s => s.items.forEach(i => { if (i.tipo === 'ingrediente') t += (parseFloat(i.quantidade) || 0); }));
             return t;
         },
+
+        pesoBrutoSecao(sIdx) {
+            let t = 0;
+            (this.sections[sIdx]?.items || []).forEach(i => { if (i.tipo === 'ingrediente') t += (parseFloat(i.quantidade) || 0); });
+            return t;
+        },
+
+        sumPesoFinalSections() {
+            return this.sections.reduce((acc, s) => acc + (parseFloat(s.peso_final_esperado_kg) || 0), 0);
+        },
+
+        syncRendimentoFromSections() {
+            const soma = this.sumPesoFinalSections();
+            if (soma > 0) { this.rendimentoKg = soma; this.calcPorcoes(); }
+        },
+
         calcFC() {
             let totalIn = this.pesoTotalIngredientes();
-            this.fcoc = (totalIn > 0 && this.pesoFinal > 0) ? totalIn / this.pesoFinal : 1.0;
+            this.fcoc = (totalIn > 0 && this.rendimentoKg > 0) ? totalIn / this.rendimentoKg : 1.0;
         },
         calcPorcoes() {
             if (this.rendimentoKg > 0 && this.pesoPorcaoGramas > 0) {
@@ -106,6 +129,28 @@ document.addEventListener('alpine:init', () => {
             } else {
                 this.numPorcoes = 0;
                 this.sobraGramas = 0;
+            }
+        },
+
+        submitForm() {
+            try {
+                const form = document.getElementById('bom-form');
+                form.querySelector('[name=sections_json]').value       = this.sectionsJson();
+                form.querySelector('[name=embalagens_json]').value     = this.embalagensJson();
+                form.querySelector('[name=bom_equipments_json]').value = this.bomEquipmentsJson();
+                form.querySelector('[name=fc]').value   = this.fc;
+                form.querySelector('[name=fcoc]').value = this.fcoc;
+                form.querySelector('[name=markup]').value = this.markup;
+
+                htmx.ajax('POST', '/api/bom/save', {
+                    source: form,
+                    target: '#form-feedback',
+                    swap: 'innerHTML'
+                });
+            } catch (err) {
+                console.error('[BOM submitForm]', err);
+                document.getElementById('form-feedback').innerHTML =
+                    '<span class="text-red-600"><i class="ph ph-warning-circle"></i> Erro: ' + err.message + '</span>';
             }
         }
     }));
@@ -143,16 +188,19 @@ document.addEventListener('alpine:init', () => {
     </button>
   </div>
 
-  <form id="bom-form" hx-post="/api/bom/save" hx-target="#form-feedback" hx-swap="innerHTML" class="space-y-6">
+  <form id="bom-form" class="space-y-6">
 
-    <input type="hidden" name="sections_json"      :value="sectionsJson()">
-    <input type="hidden" name="embalagens_json"    :value="embalagensJson()">
+    <input type="hidden" name="sections_json"       :value="sectionsJson()">
+    <input type="hidden" name="embalagens_json"     :value="embalagensJson()">
     <input type="hidden" name="bom_equipments_json" :value="bomEquipmentsJson()">
-    <input type="hidden" name="fc"                 :value="fc">
-    <input type="hidden" name="fcoc"               :value="fcoc">
-    <input type="hidden" name="product_id"         value="{{ produto.id if produto else '' }}">
+    <input type="hidden" name="fc"                  :value="fc">
+    <input type="hidden" name="fcoc"                :value="fcoc">
+    <input type="hidden" name="markup"              :value="markup">
+    <input type="hidden" name="product_id"          value="{{ produto.id if produto else '' }}">
 
-    <!-- TAB 1: INSUMOS DA RECEITA -->
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 1: INSUMOS DA RECEITA
+    ═══════════════════════════════════════════════════════ -->
     <div x-show="activeTab === 'receita'" x-transition class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
       <!-- Coluna esquerda: dados do produto -->
@@ -180,24 +228,12 @@ document.addEventListener('alpine:init', () => {
                   class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Markup (×)</label>
-                <input type="number" name="markup" min="1" step="0.1" x-model.number="markup" @input="calcPorcoes()"
-                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tempo (min)</label>
-                <input type="number" name="tempo_producao_min" min="1" step="1"
-                  value="{{ produto.tempo_producao_min if produto else '30' }}"
-                  class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tempo de Produção (min)</label>
+              <input type="number" name="tempo_producao_min" min="1" step="1"
+                value="{{ produto.tempo_producao_min if produto else '30' }}"
+                class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500">
             </div>
-          </div>
-          <div class="border-t border-slate-200 mt-4 pt-4">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Modo de Preparo</label>
-            <textarea name="modo_preparo_interno" rows="4" placeholder="Instruções para o Chef..."
-              class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 resize-y">{{ produto.modo_preparo_interno or '' if produto else '' }}</textarea>
           </div>
         </div>
       </div>
@@ -206,6 +242,8 @@ document.addEventListener('alpine:init', () => {
       <div class="lg:col-span-2 space-y-6">
         <template x-for="(section, sIndex) in sections" :key="section._key">
           <div class="bg-white rounded-xl border-2 border-slate-200 shadow-sm overflow-hidden">
+
+            <!-- Cabeçalho da seção -->
             <div class="bg-amber-50 border-b border-amber-200 p-4 flex items-center justify-between">
               <div class="flex items-center gap-3 flex-1">
                 <div class="w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0"
@@ -220,6 +258,8 @@ document.addEventListener('alpine:init', () => {
             </div>
 
             <div class="p-5 space-y-4">
+
+              <!-- Lista de ingredientes -->
               <div class="space-y-3">
                 <template x-for="(item, iIndex) in section.items" :key="item._key">
                   <div class="flex flex-col sm:flex-row gap-2 p-2 rounded-lg border border-slate-100 bg-slate-50 items-center">
@@ -238,6 +278,9 @@ document.addEventListener('alpine:init', () => {
                         class="w-16 border border-slate-300 rounded-lg px-1 py-2 text-xs bg-white focus:ring-2 focus:ring-blue-500">
                         <option value="kg">kg</option>
                         <option value="g">g</option>
+                        <option value="un">un</option>
+                        <option value="L">L</option>
+                        <option value="ml">ml</option>
                       </select>
                     </div>
                     <button type="button" @click="removeIngredient(sIndex, iIndex)"
@@ -260,18 +303,16 @@ document.addEventListener('alpine:init', () => {
                 </button>
               </div>
 
-              <div class="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-3 bg-slate-50 p-3 rounded-lg">
-                <div>
-                  <label class="text-sm text-gray-700 font-semibold">Rendimento Pós-Cocção desta Seção:</label>
-                  <p class="text-xs text-gray-500">Peso após cozinhar (kg).</p>
-                </div>
-                <div class="flex items-center gap-2">
-                  <input type="number" x-model.number="section.peso_final_esperado_kg" min="0" step="0.1"
-                    placeholder="0.00"
-                    class="w-28 border border-slate-300 rounded-lg px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500 font-mono">
-                  <span class="text-sm font-medium text-gray-600">kg</span>
-                </div>
+              <!-- Modo de Preparo da seção -->
+              <div class="mt-3 pt-3 border-t border-slate-100">
+                <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                  <i class="ph ph-chef-hat text-amber-500"></i> Modo de Preparo desta Seção
+                </label>
+                <textarea x-model="section.modo_preparo" rows="3"
+                  placeholder="Descreva como preparar esta etapa (ex: 'Cozinhar o frango por 40 min, desfiar e temperar')..."
+                  class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400 resize-y bg-amber-50 placeholder-gray-400"></textarea>
               </div>
+
             </div>
           </div>
         </template>
@@ -283,41 +324,107 @@ document.addEventListener('alpine:init', () => {
       </div>
     </div>
 
-    <!-- TAB 2: RENDIMENTO -->
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 2: RENDIMENTO
+    ═══════════════════════════════════════════════════════ -->
     <div x-show="activeTab === 'rendimento'" x-transition class="max-w-2xl space-y-5">
+
       <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800 flex gap-3">
         <i class="ph ph-info text-xl shrink-0 mt-0.5"></i>
         <div>
-          <p class="font-semibold">Fator de Cocção (FCoc) Global</p>
-          <p class="mt-0.5">Insira o Peso Final do lote completo após todo o processamento.</p>
+          <p class="font-semibold">Como funciona o Rendimento?</p>
+          <p class="mt-0.5">Preencha o peso pós-cocção de cada seção. O total será o Peso Líquido do lote, que define o custo por porção.</p>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
+      <!-- Peso bruto total (leitura) -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-center gap-4">
+        <i class="ph ph-bowl-food text-3xl text-gray-300 shrink-0"></i>
+        <div class="flex-1">
+          <p class="text-xs text-gray-500 uppercase font-medium">Peso Bruto Total (soma dos insumos)</p>
+          <p class="text-3xl font-bold font-mono text-gray-800 mt-0.5" x-text="pesoTotalIngredientes().toFixed(3) + ' kg'"></p>
+        </div>
+      </div>
+
+      <!-- Por seção: Rendimento Pós-Cocção -->
+      <div class="space-y-3">
         <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wider flex items-center gap-2">
-          <i class="ph ph-scales text-blue-500"></i> Composição Bruta da Mistura
+          <i class="ph ph-fire-simple text-orange-400"></i> Rendimento Pós-Cocção por Seção
         </h3>
-        <div class="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-          <i class="ph ph-bowl-food text-3xl text-gray-300"></i>
+
+        <template x-for="(section, sIdx) in sections" :key="section._key">
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0"
+                    x-text="sIdx + 1"></span>
+                  <span class="font-semibold text-gray-900 text-sm" x-text="section.nome"></span>
+                </div>
+                <p class="text-xs text-gray-400 ml-7">
+                  Peso bruto: <span class="font-mono font-semibold text-gray-600" x-text="pesoBrutoSecao(sIdx).toFixed(3) + ' kg'"></span>
+                </p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <div class="text-right">
+                  <label class="block text-[10px] text-gray-500 uppercase mb-1">Peso após cocção</label>
+                  <div class="flex items-center gap-1.5">
+                    <input type="number" x-model.number="section.peso_final_esperado_kg"
+                      @input="syncRendimentoFromSections()"
+                      min="0" step="0.01" placeholder="0.00"
+                      class="w-24 border-2 border-slate-300 rounded-lg px-2 py-1.5 text-sm text-right font-mono focus:ring-2 focus:ring-blue-500 focus:border-blue-400">
+                    <span class="text-sm font-medium text-gray-500">kg</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Perda de cocção indicativa -->
+            <div class="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3"
+              x-show="pesoBrutoSecao(sIdx) > 0 && (section.peso_final_esperado_kg || 0) > 0">
+              <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full transition-all"
+                  :style="'width:' + Math.min(100, ((section.peso_final_esperado_kg || 0) / pesoBrutoSecao(sIdx)) * 100).toFixed(1) + '%'"></div>
+              </div>
+              <span class="text-xs font-mono font-semibold shrink-0"
+                :class="((section.peso_final_esperado_kg || 0) / pesoBrutoSecao(sIdx)) >= 0.8 ? 'text-green-600' : 'text-amber-600'"
+                x-text="(((section.peso_final_esperado_kg || 0) / pesoBrutoSecao(sIdx)) * 100).toFixed(1) + '% aproveitado'"></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Total e override manual -->
+      <div class="bg-white rounded-xl border-2 border-blue-200 shadow-sm p-5 space-y-3">
+        <h3 class="font-semibold text-gray-900 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="ph ph-scales text-blue-500"></i> Peso Líquido Total do Lote</span>
+          <span class="text-xs font-normal text-gray-400">Soma das seções:
+            <span class="font-mono font-semibold text-gray-700" x-text="sumPesoFinalSections().toFixed(3) + ' kg'"></span>
+          </span>
+        </h3>
+        <div class="flex items-center gap-3">
+          <input type="number" name="rendimento_por_lote" x-model.number="rendimentoKg"
+            @input="calcFC(); calcPorcoes()"
+            min="0" step="0.001" placeholder="0.000"
+            class="w-44 h-12 border-2 border-blue-300 rounded-xl px-3 text-right text-xl font-mono font-bold focus:ring-2 focus:ring-blue-500">
           <div>
-            <p class="text-xs text-gray-500 mb-0.5">Soma das quantidades de todos os insumos brutos</p>
-            <p class="text-3xl font-bold font-mono text-gray-800" x-text="pesoTotalIngredientes().toFixed(3) + ' kg'"></p>
+            <span class="text-gray-600 font-medium block">kg líquidos</span>
+            <span class="text-xs text-gray-400">Edite manualmente se necessário</span>
           </div>
         </div>
-      </div>
-
-      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-3">
-        <h3 class="font-semibold text-gray-900">Peso Final do Produto Líquido</h3>
-        <div class="flex items-center gap-4">
-          <input type="number" name="rendimento_por_lote" x-model.number="rendimentoKg" @input="calcFC(); calcPorcoes()"
-            min="0" step="0.001" placeholder="0.000"
-            class="w-40 h-12 border-2 border-slate-300 rounded-xl px-3 text-right text-lg font-mono focus:ring-2 focus:ring-blue-500">
-          <span class="text-gray-500 font-medium">kg líquidos</span>
+        <div class="text-xs text-blue-600 flex items-center gap-1.5 mt-1">
+          <i class="ph ph-arrow-counter-clockwise"></i>
+          <button type="button" @click="syncRendimentoFromSections()" class="underline hover:no-underline">
+            Recalcular a partir das seções
+          </button>
         </div>
       </div>
+
     </div>
 
-    <!-- TAB 3: PORCIONAMENTO & EMBALAGENS -->
+    <!-- ═══════════════════════════════════════════════════════
+         TAB 3: PORCIONAMENTO & EMBALAGENS
+    ═══════════════════════════════════════════════════════ -->
     <div x-show="activeTab === 'porcoes'" x-transition class="max-w-4xl space-y-5">
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
@@ -411,7 +518,7 @@ document.addEventListener('alpine:init', () => {
 
     <!-- BARRA DE GRAVAÇÃO -->
     <div class="flex items-center gap-4 pt-6 border-t border-slate-200 sticky bottom-0 bg-slate-50 p-4 rounded-t-xl z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-      <button type="submit"
+      <button type="button" @click="submitForm()"
         class="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-md">
         <i class="ph ph-floppy-disk text-xl"></i> Salvar Ficha Técnica Completa
       </button>
